@@ -501,7 +501,7 @@ function buildBurst({ map, theme, count = 58, seed = 77 }) {
 
 function buildSprigs({ map, theme }) {
   const g = new Group();
-  for (const [z, scale, opacity, y] of [[-3.4, 1.9, 0.42, -3.65], [1.2, 1.25, 0.56, -3.25]]) {
+  for (const [z, scale, opacity, y] of [[-3.4, 1.9, 0.50, -3.60], [-0.6, 1.5, 0.62, -3.42], [1.4, 1.15, 0.72, -3.20]]) {
     const mesh = new Mesh(
       new PlaneGeometry(11 * scale, 4.0 * scale),
       new ShaderMaterial({
@@ -582,8 +582,8 @@ export function buildField({ bokeh, petal, sprig, theme, tier = "high" }) {
   // in front of the figure and give the whole image its depth of field.
   const near = buildBlooms({
     map: petal || bokeh, theme, seed: 303,
-    count: Math.round(13 * n), z: [2.6, 6.4], size: [1.6, 5.6],
-    alpha: [0.07, 0.23], spread: [8.5, 6], tintBias: 0.85, sway: 1.5,
+    count: Math.round(15 * n), z: [2.6, 6.4], size: [1.5, 5.2],
+    alpha: [0.11, 0.34], spread: [8.5, 6], tintBias: 0.90, sway: 1.5,
   });
   near.mesh.renderOrder = 40;
   g.add(near.mesh);

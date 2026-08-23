@@ -146,7 +146,7 @@ export function vineTexture({
 export function fernTexture({
   size = 1024,
   pairs = 10,
-  field = "#FDF2CC",
+  field = "#FFF8DE",
   ink = "#2E2007",
   seed = 19,
 } = {}) {

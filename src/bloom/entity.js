@@ -428,7 +428,7 @@ function buildSerpents({ lace, theme }) {
     const curve = new CatmullRomCurve3(
       pts.map(([x, y, z]) => new Vector3(x, y, z)), false, "catmullrom", 0.42
     );
-    const geo = ribbonGeometry(curve, { segments: 260, width: i === 0 ? 0.36 : 0.28 });
+    const geo = ribbonGeometry(curve, { segments: 260, width: i === 0 ? 0.30 : 0.24 });
     const map = lace.clone();
     map.repeat.set(i === 0 ? 20 : 15, 1);
     map.needsUpdate = true;
@@ -436,7 +436,7 @@ function buildSerpents({ lace, theme }) {
     const mesh = new Mesh(geo, new MeshBasicMaterial({
       map,
       transparent: true,
-      opacity: theme === "dark" ? 0.09 : 0.30,
+      opacity: theme === "dark" ? 0.16 : 0.44,
       blending: AdditiveBlending,
       depthWrite: false,
       side: DoubleSide,

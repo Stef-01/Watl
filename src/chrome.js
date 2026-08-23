@@ -74,6 +74,38 @@ export function initChrome(stage) {
     el.textContent = String(new Date().getFullYear());
   });
 
+  /* --- reading progress -------------------------------------------------
+   * A custom property on the root, read by one pseudo-element in the CSS.
+   * Written from a scroll listener rather than a scroll-driven animation
+   * because it has to be correct in every browser, and one number per frame
+   * is cheaper than the alternative is worth arguing about. */
+  let ticking = false;
+  const read = () => {
+    ticking = false;
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    root.style.setProperty("--read", max > 0 ? String(Math.min(1, window.scrollY / max)) : "0");
+  };
+  window.addEventListener("scroll", () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(read);
+  }, { passive: true });
+  read();
+
+  /* --- the footer wordmark, split for the hover ------------------------ */
+  document.querySelectorAll(".foot__mark").forEach((mark) => {
+    const text = mark.textContent.trim();
+    mark.setAttribute("aria-label", text);
+    mark.textContent = "";
+    for (const ch of text) {
+      const span = document.createElement("span");
+      span.className = "ltr";
+      span.textContent = ch;
+      span.setAttribute("aria-hidden", "true");
+      mark.appendChild(span);
+    }
+  });
+
   /* --- contact ------------------------------------------------------- */
   const form = document.querySelector("[data-contact-form]");
   if (form) {

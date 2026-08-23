@@ -336,6 +336,17 @@ em { font-style: italic; }
   display: flex; align-items: center; justify-content: space-between;
   gap: 2rem; padding-block: 1.05rem;
 }
+/* The one indicator on the site: a gold hairline across the masthead that
+   fills as you read. It costs a pseudo-element and a scaleX, and it replaces
+   any need for a scroll-spy, a section nav or a percentage. */
+.mast::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 1px; background: var(--gold-lift);
+  transform: scaleX(var(--read, 0)); transform-origin: left;
+  opacity: 0.55; pointer-events: none;
+}
+:root[data-past-stage="true"] .mast::after { background: var(--gold); opacity: 0.9; }
+
 :root[data-past-stage="true"] .mast {
   background: color-mix(in oklab, var(--bone) 93%, transparent);
   backdrop-filter: blur(14px) saturate(1.1);
@@ -525,7 +536,17 @@ em { font-style: italic; }
   font-family: var(--display); font-weight: 200; font-size: var(--t-mark);
   line-height: 0.82; letter-spacing: 0.03em; color: var(--ink);
   margin: clamp(3.5rem, 9vw, 6rem) 0 0; user-select: none;
+  display: flex; gap: 0.02em;
 }
+/* Each letter lifts under the cursor and its neighbours lean after it. The
+   only playful thing below the stage, and it is at the very end of the page —
+   a reward for having read the whole thing. */
+.foot__mark .ltr {
+  display: inline-block;
+  transition: transform .5s var(--ease), color .5s var(--ease);
+}
+.foot__mark:hover .ltr { color: var(--gold); }
+.foot__mark .ltr:hover { transform: translateY(-0.055em); }
 .foot__ack {
   max-width: 62ch; font-size: var(--t-small); line-height: 1.8;
   color: var(--ink-2); margin: 2.6rem 0 0;
@@ -550,7 +571,33 @@ em { font-style: italic; }
 }
 .no-js :is(.brow, .lock__caps, .lock__script, .orn, .stage__rail) { opacity: 1; }
 
-/* ---------- 14. A11y ---------- */
+/* ---------- 14. Preferences ---------- */
+/* Somebody asking for more contrast is asking for the hairlines to stop being
+   a suggestion, and for the muted text to stop being muted. */
+@media (prefers-contrast: more) {
+  :root {
+    --ink-2: #45443E;
+    --ink-3: #6B6A62;
+    --rule:  #B9B8B1;
+  }
+  :root[data-theme="dark"] {
+    --ink-2: #D2D1CA;
+    --ink-3: #A6A59D;
+    --rule:  rgba(242, 241, 236, 0.34);
+  }
+  .brow, .cue, .stage__rail { color: var(--cream); }
+}
+
+/* In forced-colours mode the canvas is decoration the OS cannot restyle, so
+   the still stands in and the type falls back to system colours. */
+@media (forced-colors: active) {
+  .stage__canvas { display: none; }
+  .stage__plate { color: CanvasText; }
+  .brow, .cue, .stage__rail, .lock__caps, .lock__script { text-shadow: none; }
+  .mast::after { background: Highlight; }
+}
+
+/* ---------- 15. A11y ---------- */
 .skip {
   position: absolute; left: -9999px; top: 0; z-index: 99;
   background: var(--ink); color: var(--bone);

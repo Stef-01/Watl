@@ -18,7 +18,7 @@
  *    codebase branches on device.
  */
 import {
-  Scene, PerspectiveCamera, WebGLRenderer, Vector2, Vector3, Clock,
+  Scene, PerspectiveCamera, WebGLRenderer, Vector2, Vector3, Color, Clock,
   NeutralToneMapping, SRGBColorSpace,
 } from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
@@ -124,6 +124,16 @@ const CLIMB_RADIUS = 9.4;
 /** Resting yaw of each body, kept here because the scroll turn is relative. */
 const POD_REST_Y = -0.13;
 const FIG_REST_Y = 0.09;
+
+/** The two skies, and everything about the ground that differs between them. */
+const SKY = {
+  light: { high: "#FFF4B8", mid: "#F3D269", low: "#C4941F", glow: "#FFFBE4", vig: 0.24, pool: 0.34 },
+  dark:  { high: "#453750", mid: "#291F3C", low: "#12101F", glow: "#5E4A1C", vig: 0.40, pool: 0.16 },
+};
+
+// Scratch colours for the dusk crossfade, so it allocates nothing per frame.
+const scratch = new Color();
+const scratch2 = new Color();
 
 export function createBloom(canvas, { theme = "light" } = {}) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -421,16 +431,47 @@ export function createBloom(canvas, { theme = "light" } = {}) {
   }
 
   /* --- theme ---------------------------------------------------------- */
-  function setTheme(mode) {
+  /* Crossfading the palettes rather than swapping them is the difference
+   * between a settings change and dusk falling. Colour uniforms are lerped;
+   * the discrete things — bloom thresholds, opacities — flip at the midpoint,
+   * where nothing is looking at them. */
+  let dusk = null;
+
+  function setTheme(mode, { animated = true } = {}) {
     const next = mode === "dark" ? "dark" : "light";
     if (next === state.theme) return;
+    const from = state.theme;
     state.theme = next;
-    retintGild(next);
-    retintMotifs(next);
 
-    const g = next === "dark"
-      ? { high: "#453750", mid: "#291F3C", low: "#12101F", glow: "#5E4A1C", vig: 0.40, pool: 0.16 }
-      : { high: "#FFF4B8", mid: "#F3D269", low: "#C4941F", glow: "#FFFBE4", vig: 0.24, pool: 0.34 };
+    if (!animated || reduced) {
+      applyTheme(next);
+      return;
+    }
+    dusk?.stop();
+    const A = SKY[from] || SKY.light;
+    const B = SKY[next] || SKY.light;
+    let flipped = false;
+    dusk = animate(0, 1, {
+      duration: 1.15,
+      ease: [0.4, 0, 0.2, 1],
+      onUpdate: (t) => {
+        const u = field.ground.uniforms;
+        u.uHigh.value.lerpColors(scratch.set(A.high), scratch2.set(B.high), t);
+        u.uMid.value.lerpColors(scratch.set(A.mid), scratch2.set(B.mid), t);
+        u.uLow.value.lerpColors(scratch.set(A.low), scratch2.set(B.low), t);
+        u.uGlow.value.lerpColors(scratch.set(A.glow), scratch2.set(B.glow), t);
+        u.uVignette.value = A.vig + (B.vig - A.vig) * t;
+        u.uPoolAmount.value = A.pool + (B.pool - A.pool) * t;
+        // Anything that cannot be interpolated flips at the midpoint, where
+        // the crossfade is busiest and nobody is reading it.
+        if (!flipped && t > 0.5) { flipped = true; applyDiscrete(next); }
+      },
+      onComplete: () => applyTheme(next),
+    });
+  }
+
+  function applyTheme(next) {
+    const g = SKY[next];
     const u = field.ground.uniforms;
     u.uHigh.value.set(g.high);
     u.uMid.value.set(g.mid);
@@ -438,10 +479,18 @@ export function createBloom(canvas, { theme = "light" } = {}) {
     u.uGlow.value.set(g.glow);
     u.uVignette.value = g.vig;
     u.uPoolAmount.value = g.pool;
+    applyDiscrete(next);
+  }
 
+  function applyDiscrete(next) {
+    retintGild(next);
+    retintMotifs(next);
+
+    // These must match buildBlooms' own table, or the first toggle silently
+    // restyles the field.
     const b = next === "dark"
       ? { white: "#FFF1C4", gold: "#C99A34", amber: "#3B2E1A" }
-      : { white: "#FFFDF4", gold: "#F0CB6C", amber: "#B07E22" };
+      : { white: "#FFF8DE", gold: "#F3CF64", amber: "#8E5F0C" };
     for (const layer of [field.far, field.mid, field.near]) {
       layer.uniforms.uWhite.value.set(b.white);
       layer.uniforms.uGold.value.set(b.gold);
@@ -451,7 +500,7 @@ export function createBloom(canvas, { theme = "light" } = {}) {
     field.burst.uniforms.uColor.value.set(next === "dark" ? "#FFE9AE" : "#FFFCEE");
 
     for (const m of entity.serpents.meshes) {
-      m.material.opacity = next === "dark" ? 0.09 : 0.30;
+      m.material.opacity = next === "dark" ? 0.16 : 0.44;
     }
     if (bloomPass) {
       bloomPass.strength = next === "dark" ? 0.34 : 0.22;
@@ -463,7 +512,7 @@ export function createBloom(canvas, { theme = "light" } = {}) {
   // Apply the ground palette once, so the light theme gets the softened bone
   // values above rather than the module defaults.
   state.theme = theme === "dark" ? "light" : "dark";
-  setTheme(theme);
+  setTheme(theme, { animated: false });
 
   /* --- public --------------------------------------------------------- */
   const api = {
