@@ -1,0 +1,7 @@
+# WATL — visual design, Wattle Technologies
+# Everything here is public and there is nothing to crawl but the work.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://watl.com.au/sitemap.xml

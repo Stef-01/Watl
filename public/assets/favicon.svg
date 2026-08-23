@@ -1,6 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#2E2545"/>
-  <text x="32" y="45" text-anchor="middle"
-        font-family="Garamond, Georgia, 'Times New Roman', serif"
-        font-size="42" fill="#E9B44C">W</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="WATL">
+  <!-- The seed, not the initial: the mandorla the pod is cut from, with the
+       fern's first three leaf pairs inside it. Reads at 16px as a gold seed. -->
+  <rect width="64" height="64" rx="12" fill="#1A1A18"/>
+  <path d="M32 9 C43 20 47 27 47 32 C47 37 43 44 32 55 C21 44 17 37 17 32 C17 27 21 20 32 9Z"
+        fill="#E9B44C"/>
+  <g fill="#1A1A18">
+    <rect x="31" y="19" width="2" height="27"/>
+    <path d="M31 42 Q37 41 39 34 Q33 35 31 42Z"/><path d="M33 42 Q27 41 25 34 Q31 35 33 42Z"/>
+    <path d="M31 34 Q37 33 39 27 Q33 28 31 34Z"/><path d="M33 34 Q27 33 25 27 Q31 28 33 34Z"/>
+    <path d="M31 27 Q36 26 38 21 Q32 22 31 27Z"/><path d="M33 27 Q28 26 26 21 Q32 22 33 27Z"/>
+  </g>
 </svg>
