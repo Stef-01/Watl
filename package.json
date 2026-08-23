@@ -1,0 +1,19 @@
+{
+  "name": "watl",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Wattle Technologies — WATL. Serif wordmark, a living violet ground in WebGL, choreographed with GSAP.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4180"
+  },
+  "dependencies": {
+    "gsap": "^3.13.0",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "vite": "^7.1.0"
+  }
+}
