@@ -38,15 +38,18 @@ export function initChrome(stage) {
   setTheme(root.getAttribute("data-theme") || "light");
 
   /* --- the masthead's two states -------------------------------------- */
-  const sentinel = document.querySelector("[data-stage-end]");
-  if (sentinel && "IntersectionObserver" in window) {
-    new IntersectionObserver(
-      ([e]) => root.setAttribute("data-past-stage", String(!e.isIntersecting)),
-      { rootMargin: "-56px 0px 0px 0px", threshold: 0 }
-    ).observe(sentinel);
-  } else {
-    // Interior pages have no stage, so the masthead is solid from the start.
+  // Pages with a stage hand this to the hero's scroll observer, which already
+  // knows where the artwork is in its travel — an IntersectionObserver on the
+  // stage cannot express "early in the exit", which is the moment that matters.
+  // Interior pages have no stage, so the masthead is solid from the start.
+  if (!document.querySelector("[data-stage]")) {
     root.setAttribute("data-past-stage", "true");
+  } else if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    // No scroll observer runs under reduced motion, so fall back to a plain
+    // one-shot: solid as soon as anything has been scrolled at all.
+    const set = () => root.setAttribute("data-past-stage", String(window.scrollY > 80));
+    set();
+    window.addEventListener("scroll", set, { passive: true });
   }
 
   /* --- navigation ----------------------------------------------------- */

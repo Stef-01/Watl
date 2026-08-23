@@ -176,8 +176,15 @@ em { font-style: italic; }
   position: relative;
   height: 168vh;
   background: var(--bone);
-  cursor: crosshair;
+  /* The cursor is the whole drag affordance. No handle, no hint, no overlay:
+     grab, and grabbing. Everything else about the interaction is discovered
+     by doing it. */
+  cursor: grab;
+  /* Vertical stays with the browser so the page still scrolls; horizontal
+     comes to us, so a drag turns the entity instead of doing nothing. */
+  touch-action: pan-y;
 }
+.stage[data-dragging="true"] { cursor: grabbing; }
 
 /* The artwork is operable, so it is a real button rather than a section with
    listeners bolted on. It sits under the plate — which is pointer-transparent
@@ -193,6 +200,7 @@ em { font-style: italic; }
 
 .stage__hold {
   position: sticky; top: 0;
+  will-change: opacity;
   height: 100vh; height: 100svh;
   overflow: hidden;
   display: grid;
@@ -222,7 +230,7 @@ em { font-style: italic; }
   grid-template-rows: auto 1fr auto auto auto;
   justify-items: center;
   align-content: stretch;
-  padding: clamp(4.5rem, 11vh, 8rem) var(--gutter) clamp(4.2rem, 9vh, 5.5rem);
+  padding: clamp(3.5rem, 9vh, 6rem) var(--gutter) clamp(3rem, 6.5vh, 4rem);
   text-align: center;
   pointer-events: none;
   color: var(--cream);
@@ -309,10 +317,19 @@ em { font-style: italic; }
 /* Over the stage it is cream and weightless; past it, ink on a hairline. */
 .mast {
   position: fixed; inset: 0 0 auto 0; z-index: 60;
-  transition: background .5s var(--ease), border-color .5s var(--ease), color .5s var(--ease);
+  transition: background .5s var(--ease), border-color .5s var(--ease),
+              color .5s var(--ease), text-shadow .5s var(--ease);
   border-bottom: 1px solid transparent;
   color: var(--cream);
+  /* Over the artwork the chrome is cream on gold, which is not enough on its
+     own. The shadow goes away with the transparency. */
+  text-shadow: 0 1px 3px rgba(58, 38, 4, 0.45), 0 2px 18px rgba(58, 38, 4, 0.5);
 }
+:root[data-past-stage="true"] .mast { text-shadow: none; }
+.mast .nav a, .mast .brand__sub { opacity: 0.82; }
+:root[data-past-stage="true"] .mast :is(.nav a, .brand__sub) { opacity: 0.62; }
+:root[data-past-stage="true"] .mast .nav a:hover,
+:root[data-past-stage="true"] .mast .nav a[aria-current="page"] { opacity: 1; }
 .mast__in {
   width: min(100% - (var(--gutter) * 2), var(--shell));
   margin-inline: auto;
@@ -320,7 +337,7 @@ em { font-style: italic; }
   gap: 2rem; padding-block: 1.05rem;
 }
 :root[data-past-stage="true"] .mast {
-  background: color-mix(in oklab, var(--bone) 88%, transparent);
+  background: color-mix(in oklab, var(--bone) 93%, transparent);
   backdrop-filter: blur(14px) saturate(1.1);
   border-bottom-color: var(--rule);
   color: var(--ink);

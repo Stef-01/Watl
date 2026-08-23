@@ -74,7 +74,7 @@ function leafPath(ctx, len, width, curl) {
  * ------------------------------------------------------------------ */
 export function vineTexture({
   size = 512,
-  pairs = 9,
+  pairs = 12,
   ink = "#FFF6DC",
   stroke = 3.4,
   seed = 7,
@@ -105,9 +105,9 @@ export function vineTexture({
     const y = bottom - (bottom - top) * t;
     // Leaves shrink as the vine climbs — a real plant's habit, and it also
     // reads as perspective on a flat chest.
-    const len = h * (0.165 - t * 0.056) * (0.94 + rand() * 0.12);
+    const len = h * (0.132 - t * 0.044) * (0.94 + rand() * 0.12);
     const wide = len * 0.33;
-    const lean = 1.00 + t * 0.13;
+    const lean = 1.02 + t * 0.12;
 
     for (const dir of [-1, 1]) {
       ctx.save();
@@ -145,7 +145,7 @@ export function vineTexture({
  * ------------------------------------------------------------------ */
 export function fernTexture({
   size = 1024,
-  pairs = 9,
+  pairs = 10,
   field = "#FDF2CC",
   ink = "#2E2007",
   seed = 19,
@@ -313,7 +313,7 @@ export function moonTexture({ size = 512, seed = 11, warm = "#FFFFFF", edge = "#
  * modulation goes in too. Both details are what stop an instanced field of
  * these from reading as dots.
  * ------------------------------------------------------------------ */
-export function bokehTexture({ size = 256, lobes = 6 } = {}) {
+export function bokehTexture({ size = 256, lobes = 5, wobble = 0.028 } = {}) {
   const { canvas, ctx } = surface(size, size);
   const c = size / 2;
   const img = ctx.createImageData(size, size);
@@ -327,12 +327,18 @@ export function bokehTexture({ size = 256, lobes = 6 } = {}) {
       const a = Math.atan2(dy, dx);
 
       // Petal modulation: a gentle wobble of the outer radius.
-      const rim = 1 + Math.cos(a * lobes) * 0.016;
+      // A wattle head is a ball of anthers, so the outline gets a five-lobe
+      // wobble. The far field takes a whisper of it (any more and it renders
+      // as pentagons); the near field, drawn at three times the size, takes
+      // enough to read as an actual flower.
+      const rim = 1 + Math.cos(a * lobes) * wobble;
       const t = Math.min(1, r / rim);
 
-      // Soft body, plus the bright ring just inside the edge.
-      let v = Math.pow(Math.max(0, 1 - t), 1.55) * 0.72;
-      v += Math.exp(-Math.pow((t - 0.84) / 0.22, 2)) * 0.30;
+      // A filled soft body with a slightly brighter rim. Both extremes were
+      // wrong: no rim at all and every instance is a featureless smudge; rim
+      // without body and the field turns into a wall of soap bubbles.
+      let v = Math.pow(Math.max(0, 1 - t), 1.45) * 0.92;
+      v += Math.exp(-Math.pow((t - 0.84) / 0.19, 2)) * 0.22;
       v = Math.min(1, v) * (t < 1 ? 1 : 0);
 
       const i = (y * size + x) * 4;
@@ -349,7 +355,7 @@ export function bokehTexture({ size = 256, lobes = 6 } = {}) {
 /* ------------------------------------------------------------------ *
  * 7. Sprigs — the thin flowering stems along the bottom edge
  * ------------------------------------------------------------------ */
-export function sprigTexture({ w = 1024, h = 384, stems = 34, seed = 23, ink = "#E3C577" } = {}) {
+export function sprigTexture({ w = 1024, h = 384, stems = 44, seed = 23, ink = "#D5AE55" } = {}) {
   const { canvas, ctx } = surface(w, h);
   const rand = rng(seed);
 
@@ -361,7 +367,7 @@ export function sprigTexture({ w = 1024, h = 384, stems = 34, seed = 23, ink = "
 
     ctx.strokeStyle = ink;
     ctx.globalAlpha = alpha;
-    ctx.lineWidth = 1 + rand() * 1.4;
+    ctx.lineWidth = 1.2 + rand() * 1.4;
     ctx.beginPath();
     ctx.moveTo(x0, h);
     ctx.quadraticCurveTo(x0 + bend * 0.5, h - tall * 0.55, x0 + bend, h - tall);
@@ -371,12 +377,12 @@ export function sprigTexture({ w = 1024, h = 384, stems = 34, seed = 23, ink = "
     const buds = 12 + Math.floor(rand() * 14);
     ctx.fillStyle = ink;
     for (let b = 0; b < buds; b++) {
-      const t = 0.25 + (b / buds) * 0.75;
-      const bx = x0 + bend * t + (rand() - 0.5) * 9;
+      const t = 0.22 + (b / buds) * 0.78 + (rand() - 0.5) * 0.06;
+      const bx = x0 + bend * t + (rand() - 0.5) * 8;
       const by = h - tall * t;
       ctx.globalAlpha = alpha * (0.5 + rand() * 0.6);
       ctx.beginPath();
-      ctx.arc(bx, by, 1.8 + rand() * 3.6, 0, Math.PI * 2);
+      ctx.arc(bx, by, 1.6 + rand() * 3.0, 0, Math.PI * 2);
       ctx.fill();
     }
   }

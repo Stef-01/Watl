@@ -118,7 +118,7 @@ function ribbonGeometry(curve, { segments = 220, width = 0.13, taper = true } = 
  * leaf motif uses. Two mirrored cubics from tip to tip, with the widest point
  * pushed a little below centre so it sits like a seed rather than a lens.
  */
-function mandorla(halfWidth, halfHeight, { belly = -0.06, tip = 0.44 } = {}) {
+function mandorla(halfWidth, halfHeight, { belly = -0.06, tip = 0.56 } = {}) {
   const w = halfWidth;
   const h = halfHeight;
   const y = belly * h;
@@ -206,17 +206,19 @@ function buildFigure({ gild, vine, theme }) {
   const EYE_X = 0.148;
   const EYE_Z = 0.190;
   for (const dir of [-1, 1]) {
-    const socket = new Mesh(new RingGeometry(0.062, 0.086, 36), eyeInk);
-    socket.position.set(dir * EYE_X, 0, EYE_Z);
-    socket.rotation.y = dir * 0.24;
-    socket.scale.y = 0.60;          // an almond, not a goggle
-    face.add(socket);
+    // A filled almond, with a concentric line outside it. A ring plus a
+    // separate pupil left a dark gap between the two and read as a fried egg.
+    const eye = new Mesh(new CircleGeometry(0.062, 28), eyeInk);
+    eye.position.set(dir * EYE_X, 0, EYE_Z);
+    eye.rotation.y = dir * 0.24;
+    eye.scale.y = 0.58;
+    face.add(eye);
 
-    const pupil = new Mesh(new CircleGeometry(0.026, 20), eyeInk);
-    pupil.position.set(dir * EYE_X, 0, EYE_Z + 0.004);
-    pupil.rotation.y = dir * 0.24;
-    pupil.scale.y = 0.72;
-    face.add(pupil);
+    const ring = new Mesh(new RingGeometry(0.080, 0.091, 36), eyeInk);
+    ring.position.set(dir * EYE_X, 0, EYE_Z - 0.004);
+    ring.rotation.y = dir * 0.24;
+    ring.scale.y = 0.58;
+    face.add(ring);
   }
 
   // The ridge from between the eyes to the chin. It exists so the face
@@ -334,7 +336,7 @@ function buildPod({ gild, fern, lace, theme }) {
   // Frame: the outer seed with the inner field cut out of it, so the rim has
   // real thickness and a bevel to catch light on both edges.
   const outer = mandorla(HALF_W, HALF_H);
-  outer.holes.push(mandorla(HALF_W * 0.76, HALF_H * 0.87, { tip: 0.50 }));
+  outer.holes.push(mandorla(HALF_W * 0.76, HALF_H * 0.87, { tip: 0.62 }));
 
   const rimGeo = new ExtrudeGeometry(outer, {
     depth: DEPTH, bevelEnabled: true, bevelThickness: 0.042,
@@ -342,7 +344,7 @@ function buildPod({ gild, fern, lace, theme }) {
   });
   normalizeUV(rimGeo);
   const rim = new Mesh(rimGeo, gildedMaterial({
-    gild, theme, motif: lace, motifInk: "#FBE8B6", motifGlow: 0.17,
+    gild, theme, motif: lace, motifInk: "#FBE8B6", motifGlow: 0.045,
     motifScale: [5, 34],
     gildScale: 2.4, gildAmount: 0.26, doubleSide: true,
   }));
@@ -354,7 +356,7 @@ function buildPod({ gild, fern, lace, theme }) {
 
   // Face: the field the fern is drawn on, sunk behind the rim so the frame
   // casts its own edge over it.
-  const faceGeo = new ShapeGeometry(mandorla(HALF_W * 0.775, HALF_H * 0.882, { tip: 0.50 }), 48);
+  const faceGeo = new ShapeGeometry(mandorla(HALF_W * 0.775, HALF_H * 0.882, { tip: 0.62 }), 48);
   normalizeUV(faceGeo);
   // The face is lit flatter and brighter than the frame around it. In the
   // reference the field inside the seed is the lightest thing in the picture
@@ -426,7 +428,7 @@ function buildSerpents({ lace, theme }) {
     const curve = new CatmullRomCurve3(
       pts.map(([x, y, z]) => new Vector3(x, y, z)), false, "catmullrom", 0.42
     );
-    const geo = ribbonGeometry(curve, { segments: 260, width: i === 0 ? 0.46 : 0.36 });
+    const geo = ribbonGeometry(curve, { segments: 260, width: i === 0 ? 0.36 : 0.28 });
     const map = lace.clone();
     map.repeat.set(i === 0 ? 20 : 15, 1);
     map.needsUpdate = true;
@@ -434,7 +436,7 @@ function buildSerpents({ lace, theme }) {
     const mesh = new Mesh(geo, new MeshBasicMaterial({
       map,
       transparent: true,
-      opacity: theme === "dark" ? 0.38 : 0.52,
+      opacity: theme === "dark" ? 0.09 : 0.30,
       blending: AdditiveBlending,
       depthWrite: false,
       side: DoubleSide,
@@ -455,12 +457,12 @@ export function buildEntity({ gild, vine, fern, lace, moon, theme = "light" }) {
 
   const figure = buildFigure({ gild, vine, theme });
   figure.group.position.set(-0.74, 0, 0);
-  figure.group.rotation.y = 0.09;
+  figure.group.rotation.y = 0.09;   // see FIG_REST_Y in scene.js
   root.add(figure.group);
 
   const pod = buildPod({ gild, fern, lace, theme });
   pod.group.position.set(0.82, -0.86, -0.20);
-  pod.group.rotation.y = -0.13;
+  pod.group.rotation.y = -0.13;     // see POD_REST_Y in scene.js
   root.add(pod.group);
 
   const halo = buildHalo({ moon });

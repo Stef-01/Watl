@@ -80,7 +80,7 @@ const GROUND_FRAG = /* glsl */ `
     // and the top edge falls away again. Getting this backwards is what made
     // the first pass read as an overexposed sky.
     float v = uv.y;
-    float lift = exp(-pow((v - 0.34) / 0.33, 2.0));
+    float lift = exp(-pow((v - 0.44) / 0.27, 2.0));
     vec3 col = mix(uMid, uHigh, lift);
     col = mix(col, uLow, smoothstep(0.58, 1.02, v));
 
@@ -105,7 +105,7 @@ const GROUND_FRAG = /* glsl */ `
 `;
 
 const GROUND = {
-  light: { high: "#FEF6D0", mid: "#F4DE94", low: "#CFA53A", glow: "#FFFBEA", vignette: 0.22 },
+  light: { high: "#FFF4B8", mid: "#F3D269", low: "#C4941F", glow: "#FFFBE4", vignette: 0.24 },
   dark:  { high: "#453750", mid: "#291F3C", low: "#12101F", glow: "#5E4A1C", vignette: 0.40 },
 };
 
@@ -119,7 +119,7 @@ function buildGround({ theme }) {
     uLow:        { value: new Color(p.low) },
     uGlow:       { value: new Color(p.glow) },
     uPool:       { value: new Vector2(0.33, 0.86) },
-    uPoolAmount: { value: theme === "dark" ? 0.16 : 0.22 },
+    uPoolAmount: { value: theme === "dark" ? 0.18 : 0.34 },
     uVignette:   { value: p.vignette },
     uGrain:      { value: 0.024 },
     uDrift:      { value: 1 },
@@ -252,7 +252,7 @@ function buildBlooms({
     off[i * 3 + 1] = (rand() * 2 - 1) * spread[1];
     off[i * 3 + 2] = z[0] + rand() * (z[1] - z[0]);
     // Skew toward the small end: a few giants, many middlings.
-    const k = Math.pow(rand(), 1.7);
+    const k = Math.pow(rand(), 2.6);
     sz[i] = size[0] + k * (size[1] - size[0]);
     al[i] = alpha[0] + rand() * (alpha[1] - alpha[0]);
     ti[i] = Math.min(1, Math.pow(rand(), 1.3) + (rand() - 0.5) * tintBias);
@@ -305,6 +305,8 @@ const POLLEN_VERT = /* glsl */ `
   uniform float uTime;
   uniform float uDpr;
   uniform float uRise;
+  uniform vec3  uDraw;      // world point the motes lean toward
+  uniform float uPull;
   varying float vFade;
 
   void main() {
@@ -316,9 +318,16 @@ const POLLEN_VERT = /* glsl */ `
 
     vFade = smoothstep(-5.5, -3.2, p.y) * (1.0 - smoothstep(3.0, 5.5, p.y));
 
+    // The cursor draws nearby motes toward it, and only nearby ones: the pull
+    // falls off over about a unit and a half, so the effect reads as air
+    // moving around a hand rather than as a magnet.
+    vec3 toward = uDraw - p;
+    float near = 1.0 - smoothstep(0.0, 1.6, length(toward));
+    p += normalize(toward + vec3(0.0001)) * near * near * uPull * 0.42;
+
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     // Perspective-correct point size, so near motes are genuinely bigger.
-    gl_PointSize = aSize * uDpr * (7.0 / max(0.6, -mv.z));
+    gl_PointSize = aSize * uDpr * (7.0 / max(0.6, -mv.z)) * (1.0 + near * uPull * 0.8);
     gl_Position = projectionMatrix * mv;
   }
 `;
@@ -359,6 +368,8 @@ function buildPollen({ theme, count = 300, seed = 41 }) {
     uTime:    { value: 0 },
     uDpr:     { value: 1 },
     uRise:    { value: 1 },
+    uDraw:    { value: new Vector3(0, 0, 0) },
+    uPull:    { value: 0 },
     uColor:   { value: new Color(theme === "dark" ? "#FFDE94" : "#FFF3CE") },
     uOpacity: { value: theme === "dark" ? 0.40 : 0.44 },
   };
@@ -490,9 +501,9 @@ function buildBurst({ map, theme, count = 58, seed = 77 }) {
 
 function buildSprigs({ map, theme }) {
   const g = new Group();
-  for (const [z, scale, opacity, y] of [[-3.4, 1.9, 0.26, -3.7], [1.2, 1.25, 0.34, -3.3]]) {
+  for (const [z, scale, opacity, y] of [[-3.4, 1.9, 0.42, -3.65], [1.2, 1.25, 0.56, -3.25]]) {
     const mesh = new Mesh(
-      new PlaneGeometry(16 * scale, 4.6 * scale),
+      new PlaneGeometry(11 * scale, 4.0 * scale),
       new ShaderMaterial({
         uniforms: {
           uMap: { value: map },
@@ -537,7 +548,7 @@ function buildSprigs({ map, theme }) {
  * Assembly
  * ================================================================== */
 
-export function buildField({ bokeh, sprig, theme, tier = "high" }) {
+export function buildField({ bokeh, petal, sprig, theme, tier = "high" }) {
   const g = new Group();
 
   const ground = buildGround({ theme });
@@ -549,15 +560,15 @@ export function buildField({ bokeh, sprig, theme, tier = "high" }) {
 
   const far = buildBlooms({
     map: bokeh, theme, seed: 101,
-    count: Math.round(88 * n), z: [-15, -5.5], size: [0.75, 4.6],
-    alpha: [0.045, 0.19], spread: [13, 8.5], tintBias: 0.70, sway: 1.2,
+    count: Math.round(70 * n), z: [-15, -5.5], size: [0.34, 3.4],
+    alpha: [0.08, 0.28], spread: [13, 8.5], tintBias: 0.70, sway: 1.2,
   });
   g.add(far.mesh);
 
   const mid = buildBlooms({
     map: bokeh, theme, seed: 202,
-    count: Math.round(42 * n), z: [-5.0, -1.2], size: [0.34, 2.0],
-    alpha: [0.055, 0.21], spread: [10.5, 7], tintBias: 0.55, sway: 1,
+    count: Math.round(34 * n), z: [-5.0, -1.2], size: [0.22, 1.5],
+    alpha: [0.09, 0.30], spread: [10.5, 7], tintBias: 0.55, sway: 1,
   });
   g.add(mid.mesh);
 
@@ -570,14 +581,14 @@ export function buildField({ bokeh, sprig, theme, tier = "high" }) {
   // The near field renders last and largest — these are the blooms that pass
   // in front of the figure and give the whole image its depth of field.
   const near = buildBlooms({
-    map: bokeh, theme, seed: 303,
-    count: Math.round(22 * n), z: [2.4, 6.2], size: [1.5, 5.4],
-    alpha: [0.035, 0.125], spread: [8.5, 6], tintBias: 0.85, sway: 1.5,
+    map: petal || bokeh, theme, seed: 303,
+    count: Math.round(13 * n), z: [2.6, 6.4], size: [1.6, 5.6],
+    alpha: [0.07, 0.23], spread: [8.5, 6], tintBias: 0.85, sway: 1.5,
   });
   near.mesh.renderOrder = 40;
   g.add(near.mesh);
 
-  const burst = buildBurst({ map: bokeh, theme });
+  const burst = buildBurst({ map: petal || bokeh, theme });
   burst.mesh.renderOrder = 45;
   g.add(burst.mesh);
 

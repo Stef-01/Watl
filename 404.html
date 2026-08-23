@@ -3,28 +3,107 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Not found — Wattle Technologies</title>
-<meta name="robots" content="noindex">
-<meta name="theme-color" content="#2E2545">
+<title>Not found — WATL</title>
+<meta name="description" content="That page is not on this site.">
+<meta name="theme-color" content="#FBFBFA">
+<meta name="theme-color" content="#0D0D0C" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Not found — WATL">
+<meta property="og:description" content="That page is not on this site.">
+<meta property="og:image" content="assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..400;1,6..72,200..300&display=swap" rel="stylesheet">
 <script>document.documentElement.classList.remove("no-js");try{var t=localStorage.getItem("watl-theme");if(t)document.documentElement.setAttribute("data-theme",t);else if(matchMedia("(prefers-color-scheme: dark)").matches)document.documentElement.setAttribute("data-theme","dark");}catch(e){}</script>
 </head>
 <body>
-<main id="main">
-  <section class="soft panel" style="min-height:100dvh">
-    <canvas class="ground" data-ground aria-hidden="true"></canvas>
-    <div class="wrap panel__in">
-      <p class="eyebrow" style="color:rgba(255,255,255,.8)">404 &nbsp;·&nbsp; Signal lost</p>
-      <p class="panel__note">This page does not exist, or it did and the season moved on. Everything still standing is one click away.</p>
-      <p style="margin:0 0 2rem"><a class="go" href="index.html">Back to index <span aria-hidden="true">&rarr;</span></a></p>
-      <p class="panel__mark">404</p>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="mast">
+  <div class="mast__in">
+    <a class="brand" href="index.html" aria-label="WATL — home">
+      <span class="brand__mark">WATL</span>
+      <span class="brand__sub">Wattle Technologies</span>
+    </a>
+    <nav class="nav" id="primary-nav" data-open="false" aria-label="Primary">
+      <a href="index.html">Index</a>
+      <a href="work.html">Work</a>
+      <a href="approach.html">Craft</a>
+      <a href="about.html">Studio</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+    <div class="tools">
+      <button class="theme-btn" type="button" data-theme-toggle aria-label="Switch to dark theme" aria-pressed="false">
+        <svg class="moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+        <svg class="sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" stroke-linecap="round"/></svg>
+      </button>
+      <button class="nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="primary-nav" aria-label="Menu"><span></span></button>
     </div>
-    <a class="panel__label" href="index.html">Wattle Technologies</a>
+  </div>
+</header>
+
+<main id="main">
+  <section class="head">
+    <div class="wrap">
+      <p class="meta">404</p>
+      <h1>Nothing<br>grows here</h1>
+      <p class="lede">The page you asked for is not on this site. It may never have been.</p>
+      <p style="margin-top:clamp(2.5rem,6vw,4rem)"><a class="go" href="index.html" data-go>Back to the index <span data-arrow aria-hidden="true">&rarr;</span></a></p>
+    </div>
   </section>
 </main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__grid">
+      <div>
+        <h4>WATL</h4>
+        <ul class="foot__list">
+          <li>Visual design, Wattle Technologies</li>
+          <li>Naarm / Melbourne</li>
+          <li><a href="mailto:hello@wattle.technology">hello@wattle.technology</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Site</h4>
+        <ul class="foot__list">
+          <li><a href="index.html">Index</a></li>
+          <li><a href="work.html">Work</a></li>
+          <li><a href="approach.html">Craft</a></li>
+          <li><a href="about.html">Studio</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Practice</h4>
+        <ul class="foot__list">
+          <li><a href="approach.html#gild">How the gild works</a></li>
+          <li><a href="approach.html#motion">The motion system</a></li>
+          <li><a href="work.html#bloom">Bloom of Remembrance</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Elsewhere</h4>
+        <ul class="foot__list">
+          <li><a href="https://github.com/Stef-01/Watl">Source</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="foot__mark">WATL</p>
+
+    <p class="foot__ack">WATL works on the lands of the Wurundjeri Woi-wurrung and Bunurong peoples of the Kulin Nation. We pay respect to Elders past and present, and acknowledge that the longest continuous practice of reading country, season and signal on this continent is not ours.</p>
+
+    <div class="foot__base">
+      <span>&copy; <span data-year>2026</span> Wattle Technologies</span>
+      <span>Signals before seasons</span>
+    </div>
+  </div>
+</footer>
+
 <script type="module" src="/src/main.js"></script>
 </body>
 </html>

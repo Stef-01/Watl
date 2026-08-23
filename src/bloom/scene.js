@@ -121,6 +121,10 @@ const CROWN = new Vector3(-0.48, 1.72, 0.0);
 const REST_RADIUS = 11.8;
 const CLIMB_RADIUS = 9.4;
 
+/** Resting yaw of each body, kept here because the scroll turn is relative. */
+const POD_REST_Y = -0.13;
+const FIG_REST_Y = 0.09;
+
 export function createBloom(canvas, { theme = "light" } = {}) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const tier = pickTier();
@@ -163,10 +167,11 @@ export function createBloom(canvas, { theme = "light" } = {}) {
     lace:  laceTexture({ size: 512 }),
     moon:  moonTexture({ size: lean ? 256 : 512 }),
     bokeh: bokehTexture({ size: lean ? 128 : 256 }),
+    petal: bokehTexture({ size: lean ? 160 : 320, wobble: 0.125 }),
     sprig: sprigTexture({ w: lean ? 512 : 1024 }),
   };
 
-  const field = buildField({ bokeh: tex.bokeh, sprig: tex.sprig, theme, tier });
+  const field = buildField({ bokeh: tex.bokeh, petal: tex.petal, sprig: tex.sprig, theme, tier });
   scene.add(field.group);
 
   const entity = buildEntity({
@@ -217,12 +222,20 @@ export function createBloom(canvas, { theme = "light" } = {}) {
     heat: 0,
     reveal: 0,
     burst: 0,
-    exposure: 1,
+    /** Accumulated drag, in radians. Hover parallax is a glance; this is a
+     *  deliberate turn, and it persists until the visitor lets it spring back. */
+    spin: 0,
+    /** Eyelid. 0 open, 1 shut. Driven by the idle blink. */
+    lid: 0,
+    /** Where the cursor is in the world, for the pollen to lean toward. */
+    draw: new Vector3(0, 0, 0),
+    pull: 0,
     theme,
   };
 
   const target = new Vector3();
   const dir = new Vector3();
+  const draw = new Vector3();
 
   function frame() {
     const w = canvas.clientWidth || window.innerWidth;
@@ -233,14 +246,14 @@ export function createBloom(canvas, { theme = "light" } = {}) {
     // spans 2.6 units horizontally, which a 0.46 aspect will not hold at the
     // landscape distance — so the lens retreats rather than the art cropping.
     const portrait = Math.max(0, Math.min(1, (1.05 - aspect) / 0.65));
-    const pull = 1 + portrait * 0.62;
-    const shift = portrait * 0.14;
+    const pull = 1 + portrait * 0.34;
+    const shift = portrait * -0.13;
 
     target.copy(CHEST).lerp(CROWN, state.scroll * 0.9);
     target.x += shift;
 
     const radius = (REST_RADIUS - state.scroll * (REST_RADIUS - CLIMB_RADIUS)) * pull;
-    const yaw = state.pointer.x * 0.115 + 0.02;
+    const yaw = state.pointer.x * 0.115 + state.spin + 0.02;
     const pitch = 0.025 - state.pointer.y * 0.055 + state.scroll * 0.10;
 
     dir.set(
@@ -261,8 +274,26 @@ export function createBloom(canvas, { theme = "light" } = {}) {
     entity.root.rotation.y = -state.pointer.x * 0.045;
     entity.root.position.x = state.pointer.x * 0.035;
 
+    // And the pair turns toward each other as the lens climbs. At rest they
+    // face out, as the poster does; by the top of the runway the pod has
+    // swung open far enough to show its edge and the figure has turned to
+    // meet it. It gives the scroll something to be *for*.
+    const turn = state.scroll * state.scroll;   // late, so the rest pose holds
+    entity.pod.group.rotation.y = POD_REST_Y - turn * 0.62;
+    entity.figure.group.rotation.y = FIG_REST_Y + turn * 0.30;
+    entity.figure.group.position.z = turn * 0.22;
+
     // The moon always faces us.
     entity.halo.quaternion.copy(camera.quaternion);
+
+    // Unproject the cursor onto the plane the bodies stand in, so the pollen
+    // leans toward where the hand actually is in the scene rather than toward
+    // a screen-space guess.
+    draw.set(state.pointer.x, -state.pointer.y, 0.5).unproject(camera);
+    draw.sub(camera.position).normalize();
+    const t = camera.position.z / -draw.z;
+    field.pollen.uniforms.uDraw.value.copy(camera.position).addScaledVector(draw, t);
+    field.pollen.uniforms.uPull.value = state.pull;
   }
 
   /* --- per-frame ------------------------------------------------------ */
@@ -292,10 +323,9 @@ export function createBloom(canvas, { theme = "light" } = {}) {
     setMotif("uReveal", state.reveal);
     setMotif("uHeat", state.heat);
 
-    // The eyes brighten with heat; they are the entity's only tell.
-    for (const child of entity.figure.face.children) {
-      child.material.opacity = 1;
-    }
+    // The eyes are the entity's only tell, so they carry the blink. Scaling in
+    // y rather than fading keeps it reading as a lid and not as a dimmer.
+    entity.figure.face.scale.y = Math.max(0.02, 1 - state.lid);
 
     // The halo answers the pulse, and drifts on the breath.
     const halo = 2.55 + Math.sin(t * 0.5) * 0.035 + state.heat * 0.20;
@@ -400,7 +430,7 @@ export function createBloom(canvas, { theme = "light" } = {}) {
 
     const g = next === "dark"
       ? { high: "#453750", mid: "#291F3C", low: "#12101F", glow: "#5E4A1C", vig: 0.40, pool: 0.16 }
-      : { high: "#FEF6D0", mid: "#F4DE94", low: "#CFA53A", glow: "#FFFBEA", vig: 0.22, pool: 0.22 };
+      : { high: "#FFF4B8", mid: "#F3D269", low: "#C4941F", glow: "#FFFBE4", vig: 0.24, pool: 0.34 };
     const u = field.ground.uniforms;
     u.uHigh.value.set(g.high);
     u.uMid.value.set(g.mid);
@@ -421,7 +451,7 @@ export function createBloom(canvas, { theme = "light" } = {}) {
     field.burst.uniforms.uColor.value.set(next === "dark" ? "#FFE9AE" : "#FFFCEE");
 
     for (const m of entity.serpents.meshes) {
-      m.material.opacity = next === "dark" ? 0.16 : 0.20;
+      m.material.opacity = next === "dark" ? 0.09 : 0.30;
     }
     if (bloomPass) {
       bloomPass.strength = next === "dark" ? 0.34 : 0.22;
@@ -447,6 +477,13 @@ export function createBloom(canvas, { theme = "light" } = {}) {
     setScroll(p) { state.scroll = Math.max(0, Math.min(1, p)); if (reduced) tick(); },
     setPointer(x, y) { state.pointer.set(x, y); },
     setHeat(v) { state.heat = Math.max(0, Math.min(1, v)); },
+    /** Accumulated drag, in radians, clamped to a turn that stays composed. */
+    setSpin(r) { state.spin = Math.max(-0.62, Math.min(0.62, r)); },
+    getSpin() { return state.spin; },
+    /** 0 open, 1 shut. */
+    setLid(v) { state.lid = Math.max(0, Math.min(1, v)); if (reduced) tick(); },
+    /** How strongly the cursor draws the pollen, 0–1. */
+    setPull(v) { state.pull = Math.max(0, Math.min(1, v)); },
     setReveal(v) { state.reveal = Math.max(0, Math.min(1, v)); if (reduced) tick(); },
     pulse,
     setTheme,

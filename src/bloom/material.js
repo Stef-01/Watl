@@ -152,9 +152,9 @@ const FRAG = /* glsl */ `
  */
 export const GILD = {
   light: {
-    shadow: "#2A1B06",
-    base:   "#63450F",
-    lit:    "#96701C",
+    shadow: "#2E1C05",
+    base:   "#6A470C",
+    lit:    "#A2761A",
     rim:    "#F9E7B6",
     bounce: "#8E6A1E",
     atmos:  "#F2E3AE",
