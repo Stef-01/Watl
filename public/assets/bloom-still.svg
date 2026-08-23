@@ -1,0 +1,180 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1250" role="img"
+     aria-label="Bloom of Remembrance — a gilded figure and a seed pod standing in a field of wattle">
+  <title>Bloom of Remembrance</title>
+  <!--
+    The still.
+
+    Shown before WebGL answers, and left in place if it never does. It is the
+    same composition as the live scene — figure left, pod right, moon behind
+    the head, blooms front and back — flattened to the two dozen shapes that
+    survive losing a renderer.
+  -->
+  <defs>
+    <radialGradient id="field" cx="42%" cy="34%" r="86%">
+      <stop offset="0%"   stop-color="#FFFCF1"/>
+      <stop offset="46%"  stop-color="#F6E2AC"/>
+      <stop offset="100%" stop-color="#DCB255"/>
+    </radialGradient>
+    <radialGradient id="moon">
+      <stop offset="0%"   stop-color="#FFFDF4"/>
+      <stop offset="54%"  stop-color="#FFFAEA"/>
+      <stop offset="78%"  stop-color="#F3DA9C" stop-opacity=".85"/>
+      <stop offset="100%" stop-color="#E9B44C" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="petal">
+      <stop offset="0%"   stop-color="#FFFDF6" stop-opacity=".55"/>
+      <stop offset="72%"  stop-color="#FFFAE8" stop-opacity=".38"/>
+      <stop offset="88%"  stop-color="#FFFFFF" stop-opacity=".62"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="shade">
+      <stop offset="0%"   stop-color="#B07E22" stop-opacity=".34"/>
+      <stop offset="80%"  stop-color="#B07E22" stop-opacity=".14"/>
+      <stop offset="100%" stop-color="#B07E22" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gild" x1="0" y1="0" x2=".55" y2="1">
+      <stop offset="0%"   stop-color="#C69836"/>
+      <stop offset="44%"  stop-color="#8B681F"/>
+      <stop offset="100%" stop-color="#543C0F"/>
+    </linearGradient>
+    <linearGradient id="gildLit" x1=".2" y1="0" x2=".8" y2="1">
+      <stop offset="0%"   stop-color="#E7BC63"/>
+      <stop offset="52%"  stop-color="#A87C28"/>
+      <stop offset="100%" stop-color="#5E4412"/>
+    </linearGradient>
+    <linearGradient id="rimlight" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#FBE6B0" stop-opacity=".85"/>
+      <stop offset="26%"  stop-color="#FBE6B0" stop-opacity="0"/>
+      <stop offset="76%"  stop-color="#FBE6B0" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#FBE6B0" stop-opacity=".55"/>
+    </linearGradient>
+
+    <!-- One leaf, mirrored and scaled everywhere a leaf is needed. -->
+    <path id="leaf" d="M0 0 Q19 -14 0 -42 Q-19 -14 0 0Z"/>
+
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+    <filter id="softer" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="42"/>
+    </filter>
+
+    <clipPath id="podClip">
+      <path d="M660 300 C760 400 800 520 800 610 C800 700 760 820 660 920
+               C560 820 520 700 520 610 C520 520 560 400 660 300Z"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1000" height="1250" fill="url(#field)"/>
+
+  <!-- Far blooms: the wall of gold the whole image sits in. -->
+  <g filter="url(#softer)">
+    <circle cx="120"  cy="180"  r="150" fill="url(#petal)"/>
+    <circle cx="880"  cy="120"  r="120" fill="url(#petal)"/>
+    <circle cx="960"  cy="470"  r="170" fill="url(#shade)"/>
+    <circle cx="60"   cy="620"  r="140" fill="url(#petal)"/>
+    <circle cx="820"  cy="1080" r="200" fill="url(#shade)"/>
+    <circle cx="300"  cy="1140" r="160" fill="url(#petal)"/>
+    <circle cx="520"  cy="90"   r="100" fill="url(#shade)"/>
+  </g>
+
+  <!-- The moon. -->
+  <circle cx="330" cy="300" r="185" fill="url(#moon)"/>
+
+  <!-- The pool the figure stands in. -->
+  <ellipse cx="330" cy="1060" rx="230" ry="70" fill="#FFF8E0" opacity=".5" filter="url(#soft)"/>
+
+  <!-- The pod: frame, field, fern. -->
+  <g>
+    <path d="M660 288 C766 393 812 518 812 612 C812 706 766 831 660 936
+             C554 831 508 706 508 612 C508 518 554 393 660 288Z"
+          fill="url(#gild)"/>
+    <path d="M660 300 C760 400 800 520 800 610 C800 700 760 820 660 920
+             C560 820 520 700 520 610 C520 520 560 400 660 300Z"
+          fill="none" stroke="#F3D896" stroke-opacity=".42" stroke-width="2"/>
+    <g clip-path="url(#podClip)">
+      <rect x="500" y="280" width="330" height="660" fill="#F4DA9C"/>
+      <g fill="#3A2A0B">
+        <rect x="657" y="360" width="6" height="510"/>
+        <g transform="translate(660 840)"><use href="#leaf" transform="rotate(46) scale(1.5)"/><use href="#leaf" transform="rotate(-46) scale(1.5)"/></g>
+        <g transform="translate(660 760)"><use href="#leaf" transform="rotate(50) scale(1.42)"/><use href="#leaf" transform="rotate(-50) scale(1.42)"/></g>
+        <g transform="translate(660 682)"><use href="#leaf" transform="rotate(54) scale(1.33)"/><use href="#leaf" transform="rotate(-54) scale(1.33)"/></g>
+        <g transform="translate(660 608)"><use href="#leaf" transform="rotate(58) scale(1.22)"/><use href="#leaf" transform="rotate(-58) scale(1.22)"/></g>
+        <g transform="translate(660 540)"><use href="#leaf" transform="rotate(62) scale(1.1)"/><use href="#leaf" transform="rotate(-62) scale(1.1)"/></g>
+        <g transform="translate(660 478)"><use href="#leaf" transform="rotate(66) scale(.96)"/><use href="#leaf" transform="rotate(-66) scale(.96)"/></g>
+        <g transform="translate(660 424)"><use href="#leaf" transform="rotate(70) scale(.8)"/><use href="#leaf" transform="rotate(-70) scale(.8)"/></g>
+      </g>
+      <rect x="500" y="280" width="330" height="660" fill="url(#rimlight)" opacity=".5"/>
+    </g>
+  </g>
+
+  <!-- The figure. -->
+  <g>
+    <!-- legs -->
+    <path d="M296 640 L286 1064 L318 1064 L322 640Z" fill="url(#gild)"/>
+    <path d="M344 640 L352 1064 L384 1064 L370 640Z" fill="url(#gildLit)"/>
+    <!-- torso -->
+    <path d="M258 336 Q250 470 262 640 L404 640 Q414 470 404 336
+             Q404 316 384 316 L278 316 Q258 316 258 336Z" fill="url(#gildLit)"/>
+    <!-- arms -->
+    <path d="M244 332 L232 690 L262 690 L268 332Z" fill="url(#gild)"/>
+    <path d="M398 332 L404 690 L434 690 L422 332Z" fill="url(#gild)"/>
+    <circle cx="256" cy="336" r="24" fill="url(#gildLit)"/>
+    <circle cx="410" cy="336" r="24" fill="url(#gildLit)"/>
+    <!-- thorn hands -->
+    <g fill="url(#gild)">
+      <path d="M244 686 L118 726 L246 716Z"/>
+      <path d="M246 700 L152 796 L256 728Z"/>
+      <path d="M244 676 L156 656 L248 692Z"/>
+      <path d="M420 686 L546 726 L418 716Z"/>
+      <path d="M418 700 L512 796 L408 728Z"/>
+      <path d="M420 676 L508 656 L416 692Z"/>
+    </g>
+    <!-- the vine on the chest -->
+    <g fill="#FFF4D6" opacity=".92">
+      <rect x="329" y="360" width="5" height="266"/>
+      <g transform="translate(331 604)"><use href="#leaf" transform="rotate(48) scale(.72)"/><use href="#leaf" transform="rotate(-48) scale(.72)"/></g>
+      <g transform="translate(331 558)"><use href="#leaf" transform="rotate(52) scale(.67)"/><use href="#leaf" transform="rotate(-52) scale(.67)"/></g>
+      <g transform="translate(331 514)"><use href="#leaf" transform="rotate(56) scale(.62)"/><use href="#leaf" transform="rotate(-56) scale(.62)"/></g>
+      <g transform="translate(331 472)"><use href="#leaf" transform="rotate(60) scale(.56)"/><use href="#leaf" transform="rotate(-60) scale(.56)"/></g>
+      <g transform="translate(331 434)"><use href="#leaf" transform="rotate(64) scale(.49)"/><use href="#leaf" transform="rotate(-64) scale(.49)"/></g>
+      <g transform="translate(331 400)"><use href="#leaf" transform="rotate(68) scale(.42)"/><use href="#leaf" transform="rotate(-68) scale(.42)"/></g>
+    </g>
+    <!-- neck -->
+    <path d="M312 232 L306 320 L356 320 L350 232Z" fill="url(#gild)"/>
+    <!-- head -->
+    <path d="M331 96 C388 96 416 152 416 202 C416 256 380 300 331 336
+             C282 300 246 256 246 202 C246 152 274 96 331 96Z" fill="url(#gildLit)"/>
+    <!-- nose ridge -->
+    <path d="M331 206 L322 300 L340 300Z" fill="#C89A38" opacity=".55"/>
+    <!-- eyes -->
+    <g fill="#FFFCF0">
+      <circle cx="298" cy="196" r="21" fill="none" stroke="#FFFCF0" stroke-width="6"/>
+      <circle cx="298" cy="196" r="10"/>
+      <circle cx="364" cy="196" r="21" fill="none" stroke="#FFFCF0" stroke-width="6"/>
+      <circle cx="364" cy="196" r="10"/>
+    </g>
+  </g>
+
+  <!-- Sprigs along the lower edge. -->
+  <g stroke="#C89A2E" fill="#C89A2E" opacity=".4">
+    <path d="M90 1250 Q100 1150 84 1076" fill="none" stroke-width="2"/>
+    <path d="M170 1250 Q160 1160 178 1104" fill="none" stroke-width="2"/>
+    <path d="M910 1250 Q900 1140 918 1064" fill="none" stroke-width="2"/>
+    <path d="M842 1250 Q852 1170 836 1120" fill="none" stroke-width="2"/>
+    <g>
+      <circle cx="86"  cy="1088" r="6"/><circle cx="94" cy="1120" r="5"/><circle cx="80" cy="1152" r="4"/>
+      <circle cx="176" cy="1112" r="5"/><circle cx="168" cy="1146" r="4"/>
+      <circle cx="916" cy="1076" r="6"/><circle cx="906" cy="1110" r="5"/><circle cx="914" cy="1146" r="4"/>
+      <circle cx="838" cy="1128" r="5"/><circle cx="846" cy="1162" r="4"/>
+    </g>
+  </g>
+
+  <!-- Near blooms: the out-of-focus foreground that gives the depth. -->
+  <g filter="url(#softer)">
+    <circle cx="140"  cy="1010" r="210" fill="url(#petal)"/>
+    <circle cx="906"  cy="760"  r="180" fill="url(#petal)"/>
+    <circle cx="600"  cy="1210" r="170" fill="url(#petal)"/>
+    <circle cx="30"   cy="380"  r="130" fill="url(#petal)"/>
+  </g>
+</svg>
