@@ -187,7 +187,7 @@ export function initHero(stage) {
    * ================================================================== */
   let taught = 0;
   function teach(next) {
-    if (!cue || taught > 1) return;
+    if (!cue || taught > 2) return;
     taught += 1;
     if (next) {
       animate(cue, { opacity: [1, 0] }, { duration: 0.32, ease: "easeOut" }).then(() => {
@@ -207,12 +207,28 @@ export function initHero(stage) {
    * every time somebody tries to turn it.
    * ================================================================== */
   let down = null;
+  let holding = 0;
+
+  /** Past this a press is a hold, and the pod opens rather than the vine. */
+  const HOLD_MS = 430;
 
   el.addEventListener("pointerdown", (e) => {
-    down = { x: e.clientX, y: e.clientY, spin: spin.get(), moved: 0 };
+    down = { x: e.clientX, y: e.clientY, spin: spin.get(), moved: 0, deep: false };
     el.setPointerCapture?.(e.pointerId);
     el.dataset.dragging = "true";
     clearTimeout(idle);
+
+    // Hold, and the pod's fern lights too. It fires while the finger is still
+    // down — a gesture whose payoff waits for release does not feel like a
+    // hold, it feels like a slow click.
+    clearTimeout(holding);
+    holding = setTimeout(() => {
+      if (!down || down.moved > DRAG_SLOP) return;
+      down.deep = true;
+      stage.current?.pulse({ deep: true });
+      // Nothing left to teach: they have just found the deepest gesture.
+      teach(null);
+    }, HOLD_MS);
   }, { passive: true });
 
   el.addEventListener("pointermove", (e) => {
@@ -226,8 +242,9 @@ export function initHero(stage) {
       // without ever letting the composition fall apart.
       const dx = e.clientX - down.x;
       down.moved = Math.max(down.moved, Math.hypot(dx, e.clientY - down.y));
+      if (down.moved > DRAG_SLOP) clearTimeout(holding);
       spin.set(down.spin - (dx / r.width) * 1.2);
-      if (down.moved > DRAG_SLOP && taught === 1) teach(null);
+      if (down.moved > DRAG_SLOP && taught === 1) teach("Hold to open the seed");
     } else {
       px.set(nx);
       py.set(ny);
@@ -247,7 +264,9 @@ export function initHero(stage) {
 
   function release(e) {
     if (!down) return;
-    const tapped = down.moved <= DRAG_SLOP;
+    clearTimeout(holding);
+    // A hold has already had its answer; releasing it must not fire a second.
+    const tapped = down.moved <= DRAG_SLOP && !down.deep;
     down = null;
     el.dataset.dragging = "false";
     el.releasePointerCapture?.(e.pointerId);
@@ -256,7 +275,7 @@ export function initHero(stage) {
     spin.set(0);
     if (tapped) {
       stage.current?.pulse();
-      teach(touch ? null : "Drag to turn");
+      teach(touch ? "Hold to open the seed" : "Drag to turn");
     }
     wake();
   }
@@ -279,7 +298,8 @@ export function initHero(stage) {
     switch (e.key) {
       case "Enter":
       case " ":
-        stage.current?.pulse();
+        // Shift is the keyboard's long press.
+        stage.current?.pulse({ deep: e.shiftKey });
         teach(touch ? null : "Arrow keys turn it");
         break;
       case "ArrowLeft":  spin.set(spin.get() + step); break;

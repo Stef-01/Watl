@@ -31,6 +31,7 @@ import { animate } from "motion";
 import { vineTexture, fernTexture, laceTexture, moonTexture, bokehTexture, sprigTexture, gildTexture } from "./textures.js";
 import { buildEntity } from "./entity.js";
 import { buildField } from "./field.js";
+import { buildSettle } from "./settle.js";
 import { retintGild, tickGild, setGild, GILDED } from "./material.js";
 import { retintMotifs, setMotif } from "./motif.js";
 
@@ -125,11 +126,34 @@ const CLIMB_RADIUS = 9.4;
 const POD_REST_Y = -0.13;
 const FIG_REST_Y = 0.09;
 
-/** The two skies, and everything about the ground that differs between them. */
+/**
+ * The skies.
+ *
+ * The light theme is not one sky but three, chosen from the visitor's own
+ * clock: a cool bright morning, the flat gold of the middle of the day, and a
+ * deep amber dusk. The dark theme is night. Nobody sees the same bloom twice
+ * in a day, and the crossfade the theme toggle already uses carries the
+ * difference for nothing.
+ */
 const SKY = {
-  light: { high: "#FFF4B8", mid: "#F3D269", low: "#C4941F", glow: "#FFFBE4", vig: 0.24, pool: 0.34 },
-  dark:  { high: "#453750", mid: "#291F3C", low: "#12101F", glow: "#5E4A1C", vig: 0.40, pool: 0.16 },
+  morning: { high: "#FFFAD6", mid: "#F6DE8E", low: "#CFA53A", glow: "#FFFDF0", vig: 0.20, pool: 0.30 },
+  day:     { high: "#FFF4B8", mid: "#F3D269", low: "#C4941F", glow: "#FFFBE4", vig: 0.24, pool: 0.34 },
+  dusk:    { high: "#FFE7A4", mid: "#EDBB58", low: "#A96D14", glow: "#FFF3D0", vig: 0.34, pool: 0.42 },
+  night:   { high: "#453750", mid: "#291F3C", low: "#12101F", glow: "#5E4A1C", vig: 0.40, pool: 0.16 },
 };
+
+/** Which of the three daylight skies the clock is asking for. */
+function skyNow() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 10) return "morning";
+  if (h >= 16 && h < 20) return "dusk";
+  return "day";
+}
+
+/** A theme is light or dark; a sky is one of four. This is the mapping. */
+function skyFor(theme) {
+  return theme === "dark" ? "night" : skyNow();
+}
 
 // Scratch colours for the dusk crossfade, so it allocates nothing per frame.
 const scratch = new Color();
@@ -190,6 +214,10 @@ export function createBloom(canvas, { theme = "light" } = {}) {
   });
   scene.add(entity.root);
 
+  // Petals that stay. Added after the entity so they draw over the feet.
+  const settle = buildSettle({ map: tex.petal, theme, slots: lean ? 24 : 40 });
+  scene.add(settle.mesh);
+
   /* --- post ----------------------------------------------------------- *
    * The chain always exists, even on the cheapest tier, and the reason is a
    * bug worth recording. Every material in this scene is a custom
@@ -237,6 +265,8 @@ export function createBloom(canvas, { theme = "light" } = {}) {
     spin: 0,
     /** Eyelid. 0 open, 1 shut. Driven by the idle blink. */
     lid: 0,
+    /** How brightly the pod's fern is lit. Only the long press raises it. */
+    podGlow: 0,
     /** Where the cursor is in the world, for the pollen to lean toward. */
     draw: new Vector3(0, 0, 0),
     pull: 0,
@@ -325,11 +355,13 @@ export function createBloom(canvas, { theme = "light" } = {}) {
       for (const child of g.children) child.material.uniforms.uTime.value = t;
     }
 
+    settle.uniforms.uTime.value = t;
     field.burst.uniforms.uBurst.value = state.burst;
     field.burst.mesh.visible = state.burst > 0.001 && state.burst < 0.999;
 
     setGild("uHeat", state.heat);
     setGild("uReveal", state.reveal);
+    setGild("uPodGlow", state.podGlow);
     setMotif("uReveal", state.reveal);
     setMotif("uHeat", state.heat);
 
@@ -377,7 +409,35 @@ export function createBloom(canvas, { theme = "light" } = {}) {
   let running = false;
   let raf = 0;
 
-  function loop() {
+  /* Device capability was picked from pointer type, core count and viewport,
+   * which is a proxy. This watches the first three seconds of real frames and
+   * steps the cost down if the proxy was wrong: pixel ratio first, then the
+   * glow pass. Both are safe to change at runtime; instance counts are not. */
+  let probe = { frames: 0, slow: 0, last: 0, done: tier === "low" };
+
+  function measure(now) {
+    if (probe.done) return;
+    if (probe.last) {
+      const dt = now - probe.last;
+      probe.frames += 1;
+      if (dt > 22) probe.slow += 1;
+      // Ignore the first handful: shader compiles and texture uploads land there.
+      if (probe.frames > 180) {
+        probe.done = true;
+        const ratio = probe.slow / probe.frames;
+        if (ratio > 0.35) {
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.1));
+          if (bloomPass) bloomPass.enabled = false;
+          resize();
+          document.documentElement.setAttribute("data-bloom-tier", tier + "-eased");
+        }
+      }
+    }
+    probe.last = now;
+  }
+
+  function loop(now) {
+    measure(now || 0);
     tick();
     raf = requestAnimationFrame(loop);
   }
@@ -410,9 +470,12 @@ export function createBloom(canvas, { theme = "light" } = {}) {
    * ------------------------------------------------------------------- */
   let pulsing = [];
 
-  function pulse({ reveal = true } = {}) {
+  function pulse({ reveal = true, deep = false } = {}) {
     if (reduced) return Promise.resolve();
     for (const a of pulsing) a.stop();
+
+    // A few of the thrown petals do not go back where they came from.
+    settle.sow(clock.getElapsedTime(), deep ? 12 : 6);
 
     state.burst = 0;
     // Motion animates the state object in place; nothing here has to know
@@ -425,6 +488,13 @@ export function createBloom(canvas, { theme = "light" } = {}) {
     if (reveal) {
       state.reveal = 0;
       acts.push(animate(state, { reveal: 1 }, { duration: 1.45, ease: [0.22, 1, 0.36, 1] }));
+    }
+    if (deep) {
+      // The pod answers a held press, on a slower curve than the vine, so the
+      // two motifs light in sequence rather than together.
+      state.podGlow = 0;
+      acts.push(animate(state, { podGlow: [0, 1, 0.34] },
+        { duration: 3.0, times: [0, 0.42, 1], ease: "easeOut" }));
     }
     pulsing = acts;
     return Promise.all(acts.map((a) => a.then(() => {}))).then(() => { state.burst = 0; });
@@ -448,8 +518,8 @@ export function createBloom(canvas, { theme = "light" } = {}) {
       return;
     }
     dusk?.stop();
-    const A = SKY[from] || SKY.light;
-    const B = SKY[next] || SKY.light;
+    const A = SKY[skyFor(from)];
+    const B = SKY[skyFor(next)];
     let flipped = false;
     dusk = animate(0, 1, {
       duration: 1.15,
@@ -471,7 +541,7 @@ export function createBloom(canvas, { theme = "light" } = {}) {
   }
 
   function applyTheme(next) {
-    const g = SKY[next];
+    const g = SKY[skyFor(next)];
     const u = field.ground.uniforms;
     u.uHigh.value.set(g.high);
     u.uMid.value.set(g.mid);
@@ -496,6 +566,7 @@ export function createBloom(canvas, { theme = "light" } = {}) {
       layer.uniforms.uGold.value.set(b.gold);
       layer.uniforms.uAmber.value.set(b.amber);
     }
+    settle.retint(next);
     field.pollen.uniforms.uColor.value.set(next === "dark" ? "#FFDE94" : "#FFF3CE");
     field.burst.uniforms.uColor.value.set(next === "dark" ? "#FFE9AE" : "#FFFCEE");
 

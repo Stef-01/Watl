@@ -68,6 +68,7 @@ const FRAG = /* glsl */ `
   uniform float uHasMotif;
   uniform vec3  uMotifInk;
   uniform float uMotifGlow;
+  uniform float uPodGlow;
   uniform float uReveal;
   uniform float uMotifOpaque;
 
@@ -121,6 +122,26 @@ const FRAG = /* glsl */ `
 
       // Opaque motifs (the pod's fern) simply replace the surface colour.
       col = mix(col, m.rgb, uMotifOpaque * m.a);
+
+      // And then, on a long press, they light from the root the way the vine
+      // does. There is no alpha mask to work from here, so the ink is found
+      // by luminance: the darker the leaf, the more gold it takes.
+      if (uMotifOpaque > 0.5 && uPodGlow > 0.001) {
+        float ink = 1.0 - dot(m.rgb, vec3(0.299, 0.587, 0.114));
+        float behind = 1.0 - smoothstep(uReveal - 0.20, uReveal + 0.05, vUv.y);
+        float crest = exp(-pow((vUv.y - uReveal) / 0.06, 2.0));
+        float lit = behind * 0.85 + crest * 1.6;
+
+        // Adding gold to dark leaves on a cream field only walks them toward
+        // the field, and the fern reads as vanishing. So the field falls away
+        // as the leaves come up: the seed lighting from the inside.
+        //
+        // The field falls toward the warm bounce, not toward the gild's own
+        // shadow — mixing cream into a dark brown lands on a cold grey, and
+        // the seed looked dirty rather than lit.
+        col = mix(col, uBounce, uPodGlow * (1.0 - ink) * 0.70 * lit);
+        col += uMotifInk * ink * uPodGlow * lit * 1.8;
+      }
 
       // Emissive motifs (the vine on the chest) add light where the ink is.
       float front = smoothstep(uReveal - 0.22, uReveal + 0.06, vUv.y);
@@ -216,6 +237,7 @@ export function gildedMaterial({
       uHasMotif:    { value: motif ? 1 : 0 },
       uMotifInk:    { value: new Color(motifInk) },
       uMotifGlow:   { value: motifGlow },
+      uPodGlow:     { value: 0 },
       uMotifOpaque: { value: motifOpaque ? 1 : 0 },
       uReveal:      { value: 0 },
 
