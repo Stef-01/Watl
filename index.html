@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en-AU">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta id="theme-color" name="theme-color" content="#070807" />
+    <meta
+      name="description"
+      content="WATL is a technology design practice creating interfaces, systems, and experimental tools for futures that have not settled into form."
+    />
+    <title>WATL / Technology Design</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="modulepreload" href="./node_modules/three/build/three.module.js" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./node_modules/three/build/three.module.js",
+          "three/addons/": "./node_modules/three/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "WATL",
+        "legalName": "Wattle Technologies",
+        "url": "https://github.com/Stef-01/Watl",
+        "description": "A technology design practice creating interfaces, systems, and experimental tools for unformed futures.",
+        "knowsAbout": ["Technology design", "Interface design", "Generative systems", "WebGL", "Experimental tools"]
+      }
+    </script>
+  </head>
+  <body>
+    <main class="experience">
+      <section
+        class="stage"
+        id="wattle-stage"
+        data-testid="wattle-stage"
+        tabindex="0"
+        role="group"
+        aria-label="Interactive 3D golden wattle bouquet"
+        aria-describedby="scene-description scene-pointer-instructions keyboard-instructions"
+        aria-busy="true"
+      >
+        <div class="backdrop" aria-hidden="true"></div>
+        <canvas id="wattle-canvas" aria-hidden="true"></canvas>
+        <img
+          class="stage__fallback"
+          id="scene-fallback"
+          data-testid="scene-fallback"
+          src="./assets/wattle-bouquet-poster.png"
+          alt="A whole hand-tied bouquet of golden wattle with dense symmetrical yellow pom-pom flower heads suspended in a dark field of distant light."
+          hidden
+        />
+        <div class="stage__light" aria-hidden="true"></div>
+
+        <div class="loader" id="scene-loading" data-testid="scene-loading" aria-hidden="true">
+          <p>Building the 3D bouquet</p>
+          <span class="loader__track"><span></span></span>
+        </div>
+
+        <div class="scene-error" id="scene-error" data-testid="scene-error" hidden>
+          <p class="scene-error__title">The 3D garden could not open.</p>
+          <p class="scene-error__copy">A still bouquet is shown instead.</p>
+          <button id="retry-button" type="button">Reload</button>
+        </div>
+      </section>
+
+      <header class="hero interface-layer">
+        <p class="wordmark">WATL</p>
+        <h1>Technology design</h1>
+        <p class="hero__copy" id="scene-instructions">
+          Instruments for the not-yet.
+        </p>
+      </header>
+
+      <aside class="botanical-note interface-layer" aria-label="Field object identification">
+        <p>Field object / 001</p>
+        <span><i>Acacia pycnantha</i></span>
+      </aside>
+
+      <div class="control-dock interface-layer" aria-label="Bouquet controls">
+        <label class="breeze-control" for="breeze">
+          <span>Drift</span>
+          <input
+            id="breeze"
+            name="breeze"
+            type="range"
+            min="0"
+            max="100"
+            value="42"
+            aria-label="Spatial drift intensity"
+            aria-describedby="breeze-value"
+          />
+          <output id="breeze-value" for="breeze">042</output>
+        </label>
+
+        <div class="control-actions">
+          <button id="motion-button" type="button" aria-pressed="false" aria-label="Hold all autonomous motion">Hold</button>
+          <button id="reset-button" type="button" aria-label="Return to the original camera position">Origin</button>
+          <button id="download-button" class="download-button" type="button" aria-label="Download the botanical object as a GLB file">Object</button>
+        </div>
+      </div>
+
+      <p class="sr-only" id="scene-description">
+        WATL is a technology design practice represented here by a complete hand-tied bouquet of golden wattle suspended within a deep, slowly moving field of light and spatial signals. Curved green phyllodes surround dense, symmetrical yellow pom-pom heads built from mirrored layers of tightly packed five-part florets. Stars occupy several real depths, so turning the object also changes the surrounding space.
+      </p>
+      <p class="sr-only" id="keyboard-instructions">
+        Use the arrow keys to rotate the bouquet, plus and minus to zoom, Enter to brighten the flowers, and Home to reset the view.
+      </p>
+      <p class="sr-only" id="scene-pointer-instructions">
+        Drag to orbit, scroll or pinch to approach, and tap a flower to illuminate it.
+      </p>
+      <p class="sr-only" id="stage-status" role="status" aria-live="polite">Building the 3D bouquet.</p>
+
+      <noscript>
+        <p class="noscript-message">JavaScript is required to explore the interactive 3D bouquet.</p>
+      </noscript>
+    </main>
+
+    <script type="module" src="./script.js"></script>
+  </body>
+</html>
