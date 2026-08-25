@@ -1,0 +1,621 @@
+/* ============================================================
+   WATTLE TECHNOLOGIES — WATL
+
+   One object, then silence.
+
+   The site holds a single image: a gilded figure standing in a
+   field, rendered live. Everything else is a document — warm bone
+   paper, off-black ink, hairline rules, and a great deal of air.
+   No cards, no panels, no gradients, no shadows, no colour except
+   the object itself.
+
+   The discipline is deliberate. An anchoring graphic only anchors
+   if nothing competes with it.
+   ============================================================ */
+
+/* ---------- 1. Tokens ---------- */
+:root {
+  /* Paper and ink. Warm monochrome; never pure black, never pure white. */
+  --bone:    #FBFBFA;
+  --bone-2:  #F6F5F1;
+  --ink:     #1A1A18;
+  --ink-2:   #78776F;
+  --ink-3:   #A8A69C;
+  --rule:    #E7E6E1;
+
+  /* The object's colour. It appears in the canvas, and almost nowhere else:
+     a focus ring, one hairline, the selection. */
+  --gold:      #B98B33;
+  --gold-lift: #E9B44C;
+
+  /* Cream — only ever used over the canvas. */
+  --cream:  #FFFDF6;
+  --cream-2: rgba(255, 253, 246, 0.72);
+
+  /* Type. One webfont; the rest is native. */
+  --display: "Newsreader", "Lyon Text", Georgia, "Times New Roman", serif;
+  --sans:    "Geist Sans", "SF Pro Text", -apple-system, BlinkMacSystemFont,
+             "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono:    "Geist Mono", ui-monospace, "SF Mono", "JetBrains Mono", Menlo,
+             Consolas, monospace;
+
+  /* Scale — six steps, no more. */
+  --t-meta: 0.6875rem;
+  --t-small: 0.8125rem;
+  --t-body: clamp(0.9375rem, 0.905rem + 0.16vw, 1.0625rem);
+  --t-lede: clamp(1.25rem, 1.06rem + 0.85vw, 1.75rem);
+  --t-h3:   clamp(1.0625rem, 1rem + 0.3vw, 1.25rem);
+  --t-h2:   clamp(1.875rem, 1.42rem + 2.1vw, 3.25rem);
+  --t-h1:   clamp(2.25rem, 1.5rem + 3.6vw, 4.25rem);
+  --t-mark: clamp(3rem, 0.5rem + 11.5vw, 10rem);
+
+  /* Air. The single most important token on the page. */
+  --gutter: clamp(1.5rem, 5vw, 4.5rem);
+  --bay:    clamp(6rem, 14vw, 13rem);
+  --shell:  1080px;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root[data-theme="dark"] {
+  --bone:    #0D0D0C;
+  --bone-2:  #141413;
+  --ink:     #F2F1EC;
+  --ink-2:   #8C8B82;
+  --ink-3:   #605F58;
+  --rule:    rgba(242, 241, 236, 0.13);
+  --gold:    #E9B44C;
+}
+
+/* ---------- 2. Reset ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  background: var(--bone);
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
+body {
+  margin: 0;
+  background: var(--bone);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--t-body);
+  line-height: 1.62;
+  font-weight: 400;
+  letter-spacing: -0.002em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  transition: background .6s var(--ease), color .6s var(--ease);
+}
+img, svg, canvas { display: block; max-width: 100%; }
+img, svg { height: auto; }
+a { color: inherit; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; }
+::selection { background: rgba(185, 139, 51, 0.22); color: var(--ink); }
+
+/* ---------- 3. Type ---------- */
+h1, h2, h3, h4 {
+  font-family: var(--display);
+  font-weight: 300;
+  margin: 0;
+  text-wrap: balance;
+}
+h1, h2 { line-height: 1.06; letter-spacing: -0.026em; }
+h1 { font-size: var(--t-h1); }
+h2 { font-size: var(--t-h2); }
+h3 {
+  font-size: var(--t-h3); line-height: 1.32;
+  letter-spacing: -0.012em; font-weight: 400;
+}
+p { margin: 0 0 1.15em; }
+p:last-child { margin-bottom: 0; }
+em { font-style: italic; }
+
+/* Metadata: mono, small, wide. The only uppercase on the site. */
+.meta {
+  font-family: var(--mono);
+  font-size: var(--t-meta);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin: 0;
+  font-weight: 400;
+}
+
+.lede {
+  font-family: var(--display);
+  font-size: var(--t-lede);
+  line-height: 1.4;
+  font-weight: 300;
+  letter-spacing: -0.018em;
+  max-width: 30ch;
+  color: var(--ink);
+}
+.prose { max-width: 60ch; color: var(--ink-2); }
+.prose > p + p { margin-top: 0; }
+.prose em { color: var(--ink); }
+.prose a, .lnk {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.26em;
+  text-decoration-color: var(--rule);
+  transition: text-decoration-color .3s var(--ease);
+}
+.prose a:hover, .lnk:hover { text-decoration-color: var(--gold); }
+
+/* ---------- 4. Layout ---------- */
+.wrap { width: min(100% - (var(--gutter) * 2), var(--shell)); margin-inline: auto; }
+
+/* A seam is the only section type. Hairline in, index, heading, body. */
+.seam { border-top: 1px solid var(--rule); padding-block: var(--bay); }
+.seam:first-of-type { border-top: 0; }
+.seam__in { display: grid; gap: clamp(2.5rem, 6vw, 4.5rem); }
+@media (min-width: 900px) {
+  .seam__in {
+    grid-template-columns: 8rem minmax(0, 5fr) minmax(0, 6fr);
+    gap: clamp(2rem, 5vw, 4rem);
+    align-items: start;
+  }
+}
+.seam__idx { padding-top: 0.55rem; }
+.seam__body { display: grid; gap: 1.6rem; }
+
+/* ---------- 5. The stage ---------- */
+/* Taller than the viewport so the lens has somewhere to travel. The inner
+   plate sticks; the document arrives underneath it. */
+.stage {
+  position: relative;
+  height: 168vh;
+  background: var(--bone);
+  /* The cursor is the whole drag affordance. No handle, no hint, no overlay:
+     grab, and grabbing. Everything else about the interaction is discovered
+     by doing it. */
+  cursor: grab;
+  /* Vertical stays with the browser so the page still scrolls; horizontal
+     comes to us, so a drag turns the entity instead of doing nothing. */
+  touch-action: pan-y;
+}
+.stage[data-dragging="true"] { cursor: grabbing; }
+
+/* The artwork is operable, so it is a real button rather than a section with
+   listeners bolted on. It sits under the plate — which is pointer-transparent
+   — so the whole picture is the target, and keyboard focus lands somewhere
+   visible. */
+.stage__touch {
+  position: absolute; inset: 0; z-index: 2;
+  width: 100%; height: 100%;
+  cursor: inherit; background: none; border: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.stage__touch:focus-visible { outline: 2px solid var(--gold-lift); outline-offset: -8px; }
+
+.stage__hold {
+  position: sticky; top: 0;
+  will-change: opacity;
+  height: 100vh; height: 100svh;
+  overflow: hidden;
+  display: grid;
+  isolation: isolate;
+}
+.stage__canvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+  transition: opacity 1.6s var(--ease);
+  z-index: 1;
+}
+.stage__canvas.is-live { opacity: 1; }
+
+/* Until WebGL answers — or if it never does — the still holds the frame. */
+.stage__still {
+  position: absolute; inset: 0; z-index: 0;
+  width: 100%; height: 100%; object-fit: cover;
+}
+
+/* The plate: the poster's own lockup, in the site's type. */
+.stage__plate {
+  position: relative; z-index: 3;
+  display: grid;
+  /* brow · the figure · title · ornament · tail. The 1fr row is empty on
+     purpose: it is the hole the entity is seen through. */
+  grid-template-rows: auto 1fr auto auto auto;
+  justify-items: center;
+  align-content: stretch;
+  padding: clamp(3.5rem, 9vh, 6rem) var(--gutter) clamp(3rem, 6.5vh, 4rem);
+  text-align: center;
+  pointer-events: none;
+  color: var(--cream);
+}
+.stage__plate > * { grid-column: 1; }
+.brow:not(.brow--tail) { grid-row: 1; }
+
+.brow {
+  font-family: var(--mono);
+  font-size: var(--t-meta);
+  line-height: 2.1;
+  text-transform: uppercase;
+  color: var(--cream-2);
+  margin: 0;
+  opacity: 0;
+  text-shadow: 0 1px 3px rgba(58, 38, 4, 0.45), 0 2px 26px rgba(58, 38, 4, 0.6);
+}
+.brow--tail { grid-row: 5; letter-spacing: 0.28em; }
+
+/* BLOOM / of remembrance */
+.lock { grid-row: 3; margin: 0; display: grid; justify-items: center; }
+.lock__caps {
+  display: block;
+  font-family: var(--display);
+  font-weight: 200;
+  font-size: clamp(2.75rem, 1rem + 8.4vw, 7.5rem);
+  line-height: 0.94;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  opacity: 0;
+  text-shadow: 0 1px 2px rgba(58, 38, 4, 0.28), 0 4px 64px rgba(58, 38, 4, 0.55);
+}
+.lock__caps .ltr { display: inline-block; will-change: transform, opacity; }
+.lock__script {
+  display: block;
+  font-family: var(--display);
+  font-style: italic;
+  font-weight: 200;
+  font-size: clamp(2rem, 0.6rem + 6.4vw, 5.5rem);
+  line-height: 1;
+  letter-spacing: -0.012em;
+  margin-top: -0.24em;
+  opacity: 0;
+  text-shadow: 0 1px 2px rgba(58, 38, 4, 0.28), 0 4px 54px rgba(58, 38, 4, 0.55);
+}
+
+.orn { grid-row: 4; margin-top: clamp(1.1rem, 2.4vh, 1.8rem); opacity: 0; color: var(--cream); }
+.orn svg { opacity: 0.8; }
+
+/* The one instruction on the page, and it removes itself once obeyed. */
+.cue {
+  position: absolute; z-index: 4;
+  right: var(--gutter); bottom: clamp(1rem, 3vh, 2rem);
+  display: inline-flex; align-items: center; gap: 0.7em;
+  font-family: var(--mono); font-size: var(--t-meta);
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--cream-2);
+  margin: 0; opacity: 0; pointer-events: none;
+  text-shadow: 0 1px 16px rgba(58, 38, 4, 0.75);
+}
+@media (max-width: 560px) { .cue { right: 50%; transform: translateX(50%); } }
+.cue::before {
+  content: ""; width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor; opacity: 0.85;
+  animation: pip 2.6s var(--ease) infinite;
+}
+@keyframes pip {
+  0%, 100% { opacity: 0.25; transform: scale(0.72); }
+  50%      { opacity: 0.95; transform: scale(1); }
+}
+
+/* Identity, held quietly in the corner of the plate. */
+.stage__rail {
+  position: absolute; z-index: 4;
+  left: var(--gutter); bottom: clamp(1rem, 3vh, 2rem);
+  font-family: var(--mono); font-size: var(--t-meta);
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--cream-2); opacity: 0; pointer-events: none;
+  text-shadow: 0 1px 16px rgba(58, 38, 4, 0.75);
+}
+@media (max-width: 820px) { .stage__rail { display: none; } }
+
+/* ---------- 6. Masthead ---------- */
+/* Over the stage it is cream and weightless; past it, ink on a hairline. */
+.mast {
+  position: fixed; inset: 0 0 auto 0; z-index: 60;
+  transition: background .5s var(--ease), border-color .5s var(--ease),
+              color .5s var(--ease), text-shadow .5s var(--ease);
+  border-bottom: 1px solid transparent;
+  color: var(--cream);
+  /* Over the artwork the chrome is cream on gold, which is not enough on its
+     own. The shadow goes away with the transparency. */
+  text-shadow: 0 1px 3px rgba(58, 38, 4, 0.45), 0 2px 18px rgba(58, 38, 4, 0.5);
+}
+:root[data-past-stage="true"] .mast { text-shadow: none; }
+.mast .nav a, .mast .brand__sub { opacity: 0.82; }
+:root[data-past-stage="true"] .mast :is(.nav a, .brand__sub) { opacity: 0.62; }
+:root[data-past-stage="true"] .mast .nav a:hover,
+:root[data-past-stage="true"] .mast .nav a[aria-current="page"] { opacity: 1; }
+.mast__in {
+  width: min(100% - (var(--gutter) * 2), var(--shell));
+  margin-inline: auto;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 2rem; padding-block: 1.05rem;
+}
+/* The one indicator on the site: a gold hairline across the masthead that
+   fills as you read. It costs a pseudo-element and a scaleX, and it replaces
+   any need for a scroll-spy, a section nav or a percentage. */
+.mast::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 1px; background: var(--gold-lift);
+  transform: scaleX(var(--read, 0)); transform-origin: left;
+  opacity: 0.55; pointer-events: none;
+}
+:root[data-past-stage="true"] .mast::after { background: var(--gold); opacity: 0.9; }
+
+:root[data-past-stage="true"] .mast {
+  background: color-mix(in oklab, var(--bone) 93%, transparent);
+  backdrop-filter: blur(14px) saturate(1.1);
+  border-bottom-color: var(--rule);
+  color: var(--ink);
+}
+
+.brand { text-decoration: none; display: inline-flex; align-items: baseline; gap: 0.65rem; }
+.brand__mark {
+  font-family: var(--mono); font-size: 0.8125rem; font-weight: 500;
+  letter-spacing: 0.22em; line-height: 1;
+}
+.brand__sub {
+  font-family: var(--mono); font-size: var(--t-meta);
+  letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.6;
+}
+@media (max-width: 620px) { .brand__sub { display: none; } }
+
+.nav { display: flex; align-items: center; gap: clamp(1.1rem, 2.6vw, 2.2rem); }
+.nav a {
+  font-family: var(--mono); font-size: var(--t-meta);
+  letter-spacing: 0.12em; text-transform: uppercase;
+  text-decoration: none; opacity: 0.62;
+  transition: opacity .3s var(--ease);
+  padding-block: 3px; position: relative;
+}
+.nav a:hover, .nav a[aria-current="page"] { opacity: 1; }
+.nav a[aria-current="page"]::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 1px; background: currentColor; opacity: 0.4;
+}
+
+.tools { display: flex; align-items: center; gap: 0.9rem; }
+.theme-btn {
+  width: 30px; height: 30px; display: grid; place-items: center;
+  cursor: pointer; opacity: 0.62; transition: opacity .3s var(--ease);
+}
+.theme-btn:hover { opacity: 1; }
+.theme-btn .sun { display: none; }
+:root[data-theme="dark"] .theme-btn .sun  { display: block; }
+:root[data-theme="dark"] .theme-btn .moon { display: none; }
+
+.nav-toggle { display: none; }
+@media (max-width: 780px) {
+  .nav {
+    position: fixed; inset: 52px 0 auto 0;
+    flex-direction: column; align-items: flex-start; gap: 0;
+    background: var(--bone); color: var(--ink);
+    border-bottom: 1px solid var(--rule);
+    padding: var(--gutter);
+    transform: translateY(-110%);
+    transition: transform .5s var(--ease);
+  }
+  .nav[data-open="true"] { transform: none; }
+  .nav a {
+    font-family: var(--display); font-size: 1.5rem; text-transform: none;
+    letter-spacing: -0.02em; padding-block: 0.7rem; width: 100%; opacity: 1;
+  }
+  .nav a[aria-current="page"]::after { display: none; }
+  .nav-toggle { display: grid; place-items: center; width: 30px; height: 30px; cursor: pointer; }
+  .nav-toggle span, .nav-toggle span::before, .nav-toggle span::after {
+    content: ""; display: block; width: 16px; height: 1px;
+    background: currentColor; transition: transform .3s var(--ease);
+  }
+  .nav-toggle span::before { transform: translateY(-5px); }
+  .nav-toggle span::after  { transform: translateY(4px); }
+  .nav-toggle[aria-expanded="true"] span { background: transparent; }
+  .nav-toggle[aria-expanded="true"] span::before { transform: rotate(45deg); }
+  .nav-toggle[aria-expanded="true"] span::after  { transform: rotate(-45deg) translateY(-1px); }
+}
+
+/* ---------- 7. Interior page heads ---------- */
+/* No image, no ground. A rule, a label, a title, a line of air. */
+.head {
+  padding-block: clamp(8rem, 20vh, 13rem) clamp(3.5rem, 9vw, 6rem);
+  border-bottom: 1px solid var(--rule);
+}
+.head h1 { max-width: 22ch; }
+.head .lede { margin-top: clamp(1.8rem, 4vw, 2.6rem); }
+.head .meta { margin-bottom: 1.6rem; }
+
+/* ---------- 8. The ledger ---------- */
+/* Every list on the site is this: hairline rows, mono index, serif term,
+   prose definition. It replaces cards, plates, grids and accordions. */
+.ledger { border-top: 1px solid var(--rule); }
+.ledger__row {
+  display: grid; gap: 0.55rem 3rem; align-items: baseline;
+  padding-block: clamp(1.7rem, 3.4vw, 2.6rem);
+  border-bottom: 1px solid var(--rule);
+}
+@media (min-width: 860px) {
+  .ledger__row { grid-template-columns: 8rem minmax(0, 5fr) minmax(0, 6fr); }
+}
+.ledger__row h3 { color: var(--ink); }
+.ledger__row p { color: var(--ink-2); font-size: var(--t-small); line-height: 1.72; margin: 0; }
+.ledger__row ul { list-style: none; margin: 0.7rem 0 0; padding: 0; display: grid; gap: 0.42rem; }
+.ledger__row li {
+  color: var(--ink-2); font-size: var(--t-small); line-height: 1.6;
+  padding-left: 1.05rem; position: relative;
+}
+.ledger__row li::before {
+  content: ""; position: absolute; left: 0; top: 0.62em;
+  width: 4px; height: 1px; background: var(--ink-3);
+}
+
+/* ---------- 9. Figures ---------- */
+/* Numbers, set large in the serif. The only decorative typography below
+   the stage. */
+.figures {
+  display: grid; gap: clamp(2.5rem, 5vw, 4rem);
+  border-top: 1px solid var(--rule); padding-top: clamp(2.5rem, 5vw, 3.5rem);
+}
+@media (min-width: 760px) { .figures { grid-template-columns: repeat(3, 1fr); } }
+.figure { margin: 0; }
+.figure__n {
+  font-family: var(--display); font-weight: 200;
+  font-size: clamp(2.25rem, 1.4rem + 2.6vw, 3.5rem);
+  line-height: 1; letter-spacing: -0.03em; color: var(--ink);
+}
+.figure figcaption {
+  font-family: var(--mono); font-size: var(--t-meta);
+  letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--ink-2); margin-top: 0.95rem; line-height: 1.8;
+}
+
+/* ---------- 10. The quiet link ---------- */
+.go {
+  display: inline-flex; align-items: center; gap: 0.55em;
+  font-family: var(--mono); font-size: var(--t-meta);
+  letter-spacing: 0.14em; text-transform: uppercase;
+  text-decoration: none; color: var(--ink);
+  padding-bottom: 0.5em; border-bottom: 1px solid var(--rule);
+  transition: border-color .35s var(--ease);
+}
+.go:hover { border-color: var(--gold); }
+.go span { display: inline-block; }
+
+/* Solid action, used once per page at most. */
+.act {
+  display: inline-flex; align-items: center; gap: 0.6em;
+  background: var(--ink); color: var(--bone);
+  font-family: var(--mono); font-size: var(--t-meta);
+  letter-spacing: 0.14em; text-transform: uppercase;
+  text-decoration: none; padding: 0.95em 1.5em; border-radius: 4px;
+  transition: background .25s var(--ease), transform .12s var(--ease);
+}
+.act:hover { background: #333330; }
+:root[data-theme="dark"] .act:hover { background: #DAD9D2; }
+.act:active { transform: scale(0.985); }
+
+/* ---------- 11. Form ---------- */
+.field { display: grid; gap: 0.45rem; margin-bottom: 1.7rem; }
+.field label {
+  font-family: var(--mono); font-size: var(--t-meta);
+  letter-spacing: 0.13em; text-transform: uppercase; color: var(--ink-2);
+}
+.field input, .field select, .field textarea {
+  font: inherit; font-size: var(--t-small); color: var(--ink);
+  background: transparent; border: 0; border-bottom: 1px solid var(--rule);
+  padding: 0.65rem 0; width: 100%; border-radius: 0;
+  transition: border-color .3s var(--ease);
+}
+.field textarea { min-height: 116px; resize: vertical; }
+.field :is(input, select, textarea):focus { outline: none; border-bottom-color: var(--gold); }
+.field ::placeholder { color: var(--ink-3); }
+.form-status { font-family: var(--mono); font-size: var(--t-meta); letter-spacing: 0.1em; margin-top: 1.2rem; min-height: 1.4em; color: var(--ink-2); }
+.form-status[data-state="err"] { color: #9F2F2D; }
+
+/* ---------- 12. Footer ---------- */
+.foot { border-top: 1px solid var(--rule); padding-block: clamp(4rem, 9vw, 7rem) 2.2rem; }
+.foot a { color: var(--ink-2); text-decoration: none; transition: color .3s var(--ease); }
+.foot a:hover { color: var(--ink); }
+.foot__grid {
+  display: grid; gap: 2.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+}
+.foot__grid h4 {
+  font-family: var(--mono); font-size: var(--t-meta);
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 400; margin: 0;
+}
+.foot__list {
+  list-style: none; margin: 1rem 0 0; padding: 0;
+  display: grid; gap: 0.5rem; font-size: var(--t-small); color: var(--ink-2);
+}
+.foot__mark {
+  font-family: var(--display); font-weight: 200; font-size: var(--t-mark);
+  line-height: 0.82; letter-spacing: 0.03em; color: var(--ink);
+  margin: clamp(3.5rem, 9vw, 6rem) 0 0; user-select: none;
+  display: flex; gap: 0.02em;
+}
+/* Each letter lifts under the cursor and its neighbours lean after it. The
+   only playful thing below the stage, and it is at the very end of the page —
+   a reward for having read the whole thing. */
+.foot__mark .ltr {
+  display: inline-block;
+  transition: transform .5s var(--ease), color .5s var(--ease);
+}
+.foot__mark:hover .ltr { color: var(--gold); }
+.foot__mark .ltr:hover { transform: translateY(-0.055em); }
+.foot__ack {
+  max-width: 62ch; font-size: var(--t-small); line-height: 1.8;
+  color: var(--ink-2); margin: 2.6rem 0 0;
+}
+.foot__base {
+  margin-top: 2.6rem; padding-top: 1.4rem; border-top: 1px solid var(--rule);
+  display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between;
+  font-family: var(--mono); font-size: var(--t-meta);
+  letter-spacing: 0.11em; text-transform: uppercase; color: var(--ink-3);
+}
+
+/* ---------- 13. Reveal ---------- */
+/* Motion animates these in. They start hidden so nothing flashes between
+   first paint and the module running — and are shown outright when there is
+   no JS, or when the visitor asked for no motion. */
+[data-reveal] { opacity: 0; }
+.no-js [data-reveal] { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] { opacity: 1; }
+  .brow, .lock__caps, .lock__script, .orn, .cue, .stage__rail { opacity: 1 !important; }
+  .cue::before { animation: none; }
+}
+.no-js :is(.brow, .lock__caps, .lock__script, .orn, .stage__rail) { opacity: 1; }
+/* Paper has no viewport to enter, so nothing would ever be observed arriving.
+   Print an unscrolled page without this and you get the hero and the footer
+   with the argument missing from between them. */
+@media print {
+  [data-reveal] { opacity: 1 !important; transform: none !important; }
+  :is(.brow, .lock__caps, .lock__script, .orn, .stage__rail) { opacity: 1 !important; }
+}
+
+/* ---------- 14. Preferences ---------- */
+/* Somebody asking for more contrast is asking for the hairlines to stop being
+   a suggestion, and for the muted text to stop being muted. */
+@media (prefers-contrast: more) {
+  :root {
+    --ink-2: #45443E;
+    --ink-3: #6B6A62;
+    --rule:  #B9B8B1;
+  }
+  :root[data-theme="dark"] {
+    --ink-2: #D2D1CA;
+    --ink-3: #A6A59D;
+    --rule:  rgba(242, 241, 236, 0.34);
+  }
+  .brow, .cue, .stage__rail { color: var(--cream); }
+}
+
+/* In forced-colours mode the canvas is decoration the OS cannot restyle, so
+   the still stands in and the type falls back to system colours. */
+@media (forced-colors: active) {
+  .stage__canvas { display: none; }
+  .stage__plate { color: CanvasText; }
+  .brow, .cue, .stage__rail, .lock__caps, .lock__script { text-shadow: none; }
+  .mast::after { background: Highlight; }
+}
+
+/* ---------- 15. A11y ---------- */
+.skip {
+  position: absolute; left: -9999px; top: 0; z-index: 99;
+  background: var(--ink); color: var(--bone);
+  padding: 0.8rem 1.2rem; font-family: var(--mono); font-size: var(--t-meta);
+  letter-spacing: 0.12em; text-transform: uppercase;
+}
+.skip:focus { left: 0; }
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--gold); outline-offset: 3px;
+}
+.vh {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
