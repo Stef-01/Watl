@@ -11,12 +11,13 @@
     <title>WATL / Technology Design</title>
     <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="modulepreload" href="./node_modules/three/build/three.module.js" />
+    <link rel="modulepreload" href="./vendor/three/three.module.js" />
+    <link rel="modulepreload" href="./vendor/three/three.core.js" />
     <script type="importmap">
       {
         "imports": {
-          "three": "./node_modules/three/build/three.module.js",
-          "three/addons/": "./node_modules/three/examples/jsm/"
+          "three": "./vendor/three/three.module.js",
+          "three/addons/": "./vendor/three/addons/"
         }
       }
     </script>
@@ -121,5 +122,53 @@
     </main>
 
     <script type="module" src="./script.js"></script>
+    <script>
+      /* A module that fails to resolve reports nothing the page can act on:
+         no error to catch, no init() to reject, no chance for the poster and
+         the message beneath it — both already written and sitting in the
+         markup — to be reached. The loader just sweeps, forever. That is the
+         one failure this site had no floor under.
+
+         The check is not a timeout on the build, which would punish a slow
+         phone for being slow. It asks a different question: did script.js
+         ever start? If the flag is missing the module never ran, and no
+         amount of waiting will change that. */
+      (function () {
+        window.setTimeout(function () {
+          var stage = document.getElementById("wattle-stage");
+          if (window.__WATTLE_BOOTED__) return;
+          if (!stage || stage.getAttribute("aria-busy") !== "true") return;
+
+          document.body.classList.add("has-error", "is-ready");
+          stage.setAttribute("aria-busy", "false");
+          stage.dataset.state = "error";
+          document.getElementById("scene-fallback").hidden = false;
+          document.getElementById("scene-error").hidden = false;
+
+          var instructions = document.getElementById("scene-instructions");
+          if (instructions) {
+            instructions.textContent = "A still view of the complete golden wattle bouquet.";
+          }
+          var status = document.getElementById("stage-status");
+          if (status) {
+            status.textContent = "The interactive 3D bouquet could not open. A still bouquet is shown.";
+          }
+
+          ["breeze", "motion-button", "reset-button", "download-button"].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.disabled = true;
+          });
+
+          /* setupEvents() never ran either, so the reload button is inert
+             unless it is wired here. */
+          var retry = document.getElementById("retry-button");
+          if (retry) {
+            retry.addEventListener("click", function () {
+              window.location.reload();
+            });
+          }
+        }, 8000);
+      })();
+    </script>
   </body>
 </html>

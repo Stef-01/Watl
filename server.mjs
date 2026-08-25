@@ -106,10 +106,10 @@ function isPublicPath(segments) {
   if (segments.length === 1) return publicFiles.has(segments[0]);
   if (segments[0] === "assets") return true;
 
-  return segments[0] === "node_modules"
-    && segments[1] === "three"
-    && (segments[2] === "build"
-      || (segments[2] === "examples" && segments[3] === "jsm"));
+  // Three.js is vendored, so the only library path the page asks for is this
+  // one. The node_modules rules this replaced — including the special case for
+  // pnpm's hidden store junction — served a tree the page no longer loads.
+  return segments[0] === "vendor" && segments[1] === "three";
 }
 
 function isAllowedCanonicalPath(requestedPath, canonicalPath) {
@@ -128,19 +128,9 @@ function isAllowedCanonicalPath(requestedPath, canonicalPath) {
     return canonicalSegments[0] === "assets" && !hasHiddenSegment;
   }
 
-  const isDirectThreePath = canonicalSegments[0] === "node_modules"
+  return canonicalSegments[0] === "vendor"
     && canonicalSegments[1] === "three"
     && !hasHiddenSegment;
-  if (isDirectThreePath) return true;
-
-  // pnpm installs the public Three.js junction through its hidden local store.
-  return requestedPath[0] === "node_modules"
-    && requestedPath[1] === "three"
-    && canonicalSegments[0] === "node_modules"
-    && canonicalSegments[1] === ".pnpm"
-    && canonicalSegments[2]?.startsWith("three@0.185.1") === true
-    && canonicalSegments[3] === "node_modules"
-    && canonicalSegments[4] === "three";
 }
 
 async function locateFile(segments) {

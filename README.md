@@ -4,14 +4,14 @@ WATL is a technology design practice creating interfaces, systems, and experimen
 
 Orbiting the camera reveals spatial parallax. A nearly imperceptible celestial drift, soft twinkle, and sparse connections keep the surrounding field alive without competing with the botanical form. The object is the identity; everything else has been reduced to coordinates.
 
-Mature heads form dense, symmetrical biconvex pom-poms. Complete five-part florets and five round anthers per floret follow mirrored golden-angle Fermat spirals across both faces, so the back is as full as the front. Compact young buds retain their round form. Curved falcate phyllodes taper at both ends and carry five parallel-convergent longitudinal veins. Three.js `0.185.1` is installed locally rather than loaded from a CDN.
+Mature heads form dense, symmetrical biconvex pom-poms. Complete five-part florets and five round anthers per floret follow mirrored golden-angle Fermat spirals across both faces, so the back is as full as the front. Compact young buds retain their round form. Curved falcate phyllodes taper at both ends and carry five parallel-convergent longitudinal veins. Three.js `0.185.1` is vendored into `vendor/three/` rather than loaded from a CDN, so a fresh clone runs with no install step.
 
 ## Run locally
 
-Node.js 18 or newer is recommended.
+Node.js 18 or newer is recommended. There are no runtime dependencies to
+fetch — Three.js is committed under `vendor/three/`.
 
 ```bash
-npm install
 npm run dev
 ```
 

@@ -61,6 +61,10 @@ const LOW_PROFILE = Object.freeze({
   dprCap: 1.25,
 });
 
+/* Read by the watchdog in index.html. If the imports above fail this line is
+   never reached, which is exactly what the watchdog needs to know. */
+window.__WATTLE_BOOTED__ = true;
+
 const query = new URLSearchParams(window.location.search);
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const coarsePointer = window.matchMedia("(pointer: coarse)");
