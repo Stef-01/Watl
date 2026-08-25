@@ -1,8 +1,16 @@
 :root {
   color-scheme: dark;
-  --night: #070807;
+  /* Warm dark earth rather than a neutral near-black. The old value was very
+     slightly green, which is the one cast that makes gold look synthetic. */
+  --night: #0a0806;
+  --strata: 58, 37, 21;
+  --ember: 152, 68, 26;
+  --dust: 198, 122, 54;
   --ink: #f2f0e8;
-  --muted: rgba(242, 240, 232, 0.48);
+  /* Nudged up from 0.48. The warmer ground is a shade lighter than the old
+     near-black, which put the micro-labels at 4.49:1 — under AA by a
+     hundredth. The palette moved, so the text that sits on it moves too. */
+  --muted: rgba(242, 240, 232, 0.52);
   --faint: rgba(242, 240, 232, 0.14);
   --gold: #f4c323;
   --edge: rgba(242, 240, 232, 0.16);
@@ -80,9 +88,116 @@ button {
   outline-offset: -5px;
 }
 
+/* ---------- The ground ----------
+   Flat near-black is the one background that turns a golden object into a
+   cut-out, and it was carrying the whole site. This is the country the wattle
+   actually grows in, held at very low contrast: warm dark earth, an ember low
+   in the frame where ground light would be, uneven bands like a cut through
+   rock, and grain across all of it.
+
+   The vocabulary is deliberately geological and cartographic — strata, a
+   horizon, a section line, grain. Nothing here is borrowed from Aboriginal
+   visual language, which encodes particular Country and story and is not a
+   free pattern library; if this site ever wants that, it should commission the
+   people whose it is. What it takes from this continent instead is the palette
+   and the landform, which are nobody's private property.
+
+   Every layer is pushed far enough down that you have to go looking for it.
+   The bouquet stays the only thing in the frame you actually look at. */
 .backdrop {
   z-index: -2;
-  background: var(--night);
+  background-color: var(--night);
+  background-image:
+    /* a single datum line, the way a section drawing carries one */
+    linear-gradient(
+      to bottom,
+      rgba(var(--dust), 0) 71.55%,
+      rgba(var(--dust), 0.22) 71.75%,
+      rgba(var(--dust), 0) 71.95%
+    ),
+    /* the air the object stands in */
+    radial-gradient(
+      126% 80% at 50% 60%,
+      rgba(var(--dust), 0.115) 0%,
+      rgba(var(--ember), 0.05) 36%,
+      rgba(10, 8, 6, 0) 70%
+    ),
+    /* strata — irregular on purpose: no two bands the same depth or spacing,
+       because evenly spaced lines read as a UI texture, not as rock */
+    linear-gradient(
+      to bottom,
+      rgba(var(--strata), 0) 0%,
+      rgba(var(--strata), 0) 12.4%,
+      rgba(var(--strata), 0.15) 13.1%,
+      rgba(var(--strata), 0) 13.6%,
+      rgba(var(--strata), 0) 27.8%,
+      rgba(var(--strata), 0.11) 29.3%,
+      rgba(var(--strata), 0) 30.9%,
+      rgba(var(--strata), 0) 44.1%,
+      rgba(var(--strata), 0.17) 44.7%,
+      rgba(var(--strata), 0) 45.1%,
+      rgba(var(--strata), 0) 58.6%,
+      rgba(var(--strata), 0.13) 60.4%,
+      rgba(var(--strata), 0) 62.7%,
+      rgba(var(--strata), 0) 71.2%,
+      rgba(var(--strata), 0.2) 71.7%,
+      rgba(var(--strata), 0) 72.1%,
+      rgba(var(--strata), 0) 82.5%,
+      rgba(var(--strata), 0.16) 84.6%,
+      rgba(var(--strata), 0) 87.4%,
+      rgba(var(--strata), 0) 100%
+    ),
+    /* the ember at the base */
+    linear-gradient(
+      to top,
+      rgba(var(--ember), 0.17) 0%,
+      rgba(var(--ember), 0.07) 11%,
+      rgba(10, 8, 6, 0) 33%
+    ),
+    /* and the corners returned to quiet */
+    radial-gradient(
+      132% 104% at 50% 48%,
+      rgba(10, 8, 6, 0) 44%,
+      rgba(3, 2, 2, 0.6) 100%
+    );
+}
+
+/* The contour field, on its own layer so it can be taken away from the middle
+   of the frame. Held at the edges and faded out behind the bouquet — the same
+   thing a photographer's depth of field does, and the reason the drawing can be
+   this present without competing with the object. */
+.backdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("./assets/ground-contours.svg") center 62% / cover no-repeat;
+  -webkit-mask-image: radial-gradient(
+    58% 54% at 50% 45%,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.45) 54%,
+    rgba(0, 0, 0, 1) 80%
+  );
+  mask-image: radial-gradient(
+    58% 54% at 50% 45%,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.45) 54%,
+    rgba(0, 0, 0, 1) 80%
+  );
+  pointer-events: none;
+}
+
+/* Grain, on its own layer so the blend mode reaches nothing else. Generated
+   rather than fetched — the page stays self-contained. */
+.backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  opacity: 0.055;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
 }
 
 #wattle-canvas {
@@ -91,19 +206,35 @@ button {
   outline: 0;
 }
 
+/* The still is a transparent render of the bouquet alone, with no ground baked
+   into it — so it contains at any aspect ratio and composites onto the same
+   earth, contours and ember the live page draws. It used to carry its own black
+   background, which was invisible against flat black and showed as two seams
+   the moment the ground had anything drawn on it. */
 .stage__fallback {
   z-index: -1;
   display: block;
   object-fit: contain;
-  background: var(--night);
 }
 
 .stage__fallback[hidden] {
   display: none;
 }
 
+/* A hook that was sitting at display:none. It is the light the object stands
+   in — screened, so it lifts the ground behind the bouquet without ever
+   lightening the bouquet itself. */
 .stage__light {
-  display: none;
+  z-index: -1;
+  display: block;
+  pointer-events: none;
+  background: radial-gradient(
+    44% 38% at 50% 45%,
+    rgba(244, 195, 35, 0.075) 0%,
+    rgba(244, 195, 35, 0.028) 46%,
+    rgba(244, 195, 35, 0) 72%
+  );
+  mix-blend-mode: screen;
 }
 
 .interface-layer {
@@ -192,7 +323,7 @@ button {
   grid-template-columns: minmax(18rem, 1fr) auto;
   align-items: stretch;
   border-top: 1px solid var(--edge);
-  background: rgba(7, 8, 7, 0.78);
+  background: rgba(10, 8, 6, 0.78);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
 }
@@ -381,7 +512,7 @@ input:disabled {
   width: min(22rem, calc(100vw - 3rem));
   padding: 1.5rem 1.5rem 1.375rem;
   border: 1px solid var(--edge);
-  background: rgba(7, 8, 7, 0.94);
+  background: rgba(10, 8, 6, 0.94);
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
 }
@@ -521,5 +652,16 @@ input:disabled {
 
   .stage__fallback {
     display: block !important;
+  }
+}
+/* On a tall screen the still and the panel are both centred, so the panel lands
+   squarely on the bouquet and the reader is told a still is shown while looking
+   at almost none of it. Drop the panel into the lower third and the still has
+   the frame. */
+@media (max-aspect-ratio: 3 / 4) {
+  .scene-error {
+    top: auto;
+    bottom: 19%;
+    transform: translateX(-50%);
   }
 }

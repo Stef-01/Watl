@@ -19,6 +19,19 @@ const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const GATHER_POINT = new THREE.Vector3(0, -2.04, 0);
 const BLOOM_CORE_SCALE = 0.36;
 
+/* Floret counts are unchanged from the flat version, and deliberately so: a
+   real Acacia pycnantha head carries forty to eighty florets, so the original
+   numbers were already botanically right, and raising them to cover the
+   shell's larger area would have been botany bent around an implementation
+   detail. The hexagonal spacing widens by root two instead, which fills the
+   ball with the florets the species actually has — and costs nothing. */
+
+/* How much of each hemisphere the mirrored pairs cover, measured in cos(theta)
+   rather than in radius. One would be a closed hemisphere per side and would
+   put both florets of the equatorial pair in the same place; this stops just
+   short of the equator and leaves them a gap to occupy. */
+const SHELL_COS_SPAN = 0.94;
+
 const STEM_COLORS = [0x165c30, 0x276f36, 0x477d3b, 0x8b782b];
 const YOUNG_STEM_COLORS = [0x8f5520, 0xa76624, 0xb9782e];
 const LEAF_COLORS = [0x075f2b, 0x0b7b32, 0x15923a, 0x2ba84a];
@@ -27,7 +40,9 @@ const CORE_SUPPORT_COLORS = [0xf2a600, 0xf7b309, 0xfbc018, 0xffc927];
 const FILAMENT_COLORS = [0xf6a900, 0xffb900, 0xffc715, 0xffd525];
 const PETAL_COLORS = [0xffad03, 0xffba08, 0xffc615, 0xffd127];
 const TIP_COLORS = [0xffc20a, 0xffd311, 0xffdf25, 0xffe83c];
-const UNIVERSE_COLORS = [0xf4f0e4, 0xc8d0cc, 0xe6dfcf, 0xf4c323];
+// Warmed toward bone and ochre, so the field reads as dust and distance over
+// country rather than as stars over space.
+const UNIVERSE_COLORS = [0xf2ebda, 0xd8c9b4, 0xe8d8bd, 0xf4c323];
 
 const HIGH_PROFILE = Object.freeze({
   id: "high",
@@ -69,7 +84,9 @@ const query = new URLSearchParams(window.location.search);
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const coarsePointer = window.matchMedia("(pointer: coarse)");
 
-if (query.get("poster") === "1") {
+const posterMode = query.get("poster") === "1";
+
+if (posterMode) {
   document.documentElement.classList.add("poster-mode");
 }
 
@@ -211,9 +228,18 @@ function createRenderer(profile) {
     antialias: profile.id === "high",
     alpha: true,
     powerPreference: "high-performance",
+    /* Poster mode exists to export the still, and reading a canvas back is the
+       one thing you cannot do once the drawing buffer has been composited away.
+       It costs a little performance, so it is on for that one query string and
+       off for every visitor. */
+    preserveDrawingBuffer: posterMode,
   });
 
-  renderer.setClearColor(0x070807, 1);
+  /* Cleared to nothing rather than to a colour. The canvas used to paint an
+     opaque near-black over the whole viewport, which meant any ground built in
+     CSS was rendered and then hidden. Transparent, and the earth behind it is
+     part of the picture. */
+  renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = 1.05;
@@ -486,15 +512,17 @@ function generateBouquetData(profile, seed) {
     faceQuaternion.multiply(new THREE.Quaternion().setFromAxisAngle(Y_AXIS, phase * 0.31));
     const basisU = X_AXIS.clone().applyQuaternion(faceQuaternion).normalize();
     const basisV = Z_AXIS.clone().applyQuaternion(faceQuaternion).normalize();
-    const headForm = archetype === "bud" ? "globular-bud" : "symmetric-biconvex-rosette";
+    const headForm = archetype === "bud" ? "globular-bud" : "spherical-rosette";
     const rosetteRadius = radius * (
       archetype === "bud" ? 0.59 : archetype === "hero" ? 0.9 : 0.87
     );
+    // The receptacle used to be flattened to sit inside a lens. Inside a ball
+    // it has to be a ball, or the flanks show a disc through the florets.
     const coreScale3 = archetype === "bud"
       ? new THREE.Vector3(0.48, 0.48, 0.48)
       : archetype === "hero"
-        ? new THREE.Vector3(0.38, 0.19, 0.38)
-        : new THREE.Vector3(0.4, 0.2, 0.4);
+        ? new THREE.Vector3(0.4, 0.37, 0.4)
+        : new THREE.Vector3(0.42, 0.39, 0.42);
     const coreOffset = 0;
     const coreColor = archetype === "bud"
       ? choose(CORE_SUPPORT_COLORS, random)
@@ -617,7 +645,14 @@ function generateBouquetData(profile, seed) {
           ^ Math.imul(pairIndex + 1, 0xc2b2ae35)
         ) >>> 0);
         const sample = (pairIndex + 0.5) / pairCount;
-        radialT = Math.sqrt(sample);
+        /* Equal-area bands on a shell need cos(theta) spaced evenly, not
+           radius. Spacing radius evenly — sqrt(sample), the disc rule — is
+           precisely what piled these florets onto a lens and left the flanks
+           of every head bare. Archimedes' hat-box, and the heads become
+           balls. */
+        const cosTheta = 1 - sample * SHELL_COS_SPAN;
+        const sinTheta = Math.sqrt(Math.max(0, 1 - cosTheta * cosTheta));
+        radialT = sinTheta;
         const angle = pairIndex * GOLDEN_ANGLE + phase;
         const radialDirection = basisU.clone().multiplyScalar(Math.cos(angle))
           .addScaledVector(basisV, Math.sin(angle))
@@ -627,39 +662,45 @@ function generateBouquetData(profile, seed) {
           .crossVectors(sideNormal, radialDirection)
           .normalize();
         const edgeWeight = THREE.MathUtils.smoothstep(radialT, 0.58, 1);
-        const scallop = edgeWeight * (
-          0.08 * Math.sin(angle * 7 + phase * 1.7)
-          + 0.035 * Math.sin(angle * 11 - phase * 0.8)
-          + 0.025 * signed(pairRandom)
-        );
-        const planarRadius = rosetteRadius * radialT * (1 + scallop);
+        /* A real head is a lumpy ball, not a turned one. The wobble now rides
+           the whole radius rather than the rim alone, because on a sphere
+           every part of the surface is silhouette from some angle. */
+        const scallop = 0.022 * Math.sin(angle * 5 + phase * 1.3)
+          + edgeWeight * (
+            0.055 * Math.sin(angle * 7 + phase * 1.7)
+            + 0.03 * Math.sin(angle * 11 - phase * 0.8)
+            + 0.022 * signed(pairRandom)
+          );
+        const shellRadius = rosetteRadius * (1 + scallop);
         layer = radialT < 0.34 ? 0 : radialT < 0.72 ? 1 : 2;
-        const layerLift = [0.05, 0.022, 0][layer];
-        const domeLift = radius * (
-          0.085
-          + 0.255 * (1 - radialT * radialT)
-          + layerLift
-        );
         const surfacePoint = position.clone()
-          .addScaledVector(radialDirection, planarRadius)
-          .addScaledVector(faceNormal, domeLift * side);
-        const outwardSlope = 0.64 * radialT
-          + edgeWeight * 0.07 * Math.sin(angle * 3 + phase);
-        normal = sideNormal
-          .addScaledVector(radialDirection, outwardSlope)
-          .addScaledVector(tangentDirection, 0.025 * Math.sin(angle * 7 - phase))
+          .addScaledVector(radialDirection, shellRadius * sinTheta)
+          .addScaledVector(faceNormal, shellRadius * cosTheta * side);
+        /* On a ball the normal is the radius. The old outward-slope fudge was
+           an approximation of a curvature the geometry now actually has. */
+        normal = radialDirection.clone().multiplyScalar(sinTheta)
+          .addScaledVector(sideNormal, cosTheta)
+          .addScaledVector(tangentDirection, 0.02 * Math.sin(angle * 7 - phase))
           .normalize();
+        /* A hemisphere carries twice the area of the disc it projects onto, so
+           the hexagonal spacing that fills it is wider by root two. */
         const spacing = rosetteRadius * Math.sqrt(
-          2 * Math.PI / (Math.sqrt(3) * pairCount),
+          4 * Math.PI / (Math.sqrt(3) * pairCount),
         );
-        const layerScale = [0.92, 1.04, 1.2][layer];
+        /* Nearly flat now. The old gradient shrank the florets at the centre
+           of the head, which is right for a lens — the middle of a lens is the
+           part you look straight down onto — and wrong for a ball, where it
+           leaves the pole smooth while the rim stays fizzy and reads as a bald
+           patch from any distance. A real head is one size of floret all
+           over. */
+        const layerScale = [1, 1.02, 1.08][layer];
         const rimCharacter = 1 + edgeWeight * (
           0.1 * Math.sin(angle * 7 + phase * 0.43)
           + 0.055 * signed(pairRandom)
         );
         motifScale = spacing / (2 * 0.82) * 1.38 * layerScale * rimCharacter
           * (0.95 + pairRandom() * 0.1);
-        heightScale = [0.8, 0.94, 1.12][layer] * (0.96 + pairRandom() * 0.08);
+        heightScale = [1.02, 1, 1.06][layer] * (0.96 + pairRandom() * 0.08);
         floretAnchor = surfacePoint.clone().addScaledVector(normal, -motifScale * 0.035);
         terminal = floretAnchor.clone().addScaledVector(normal, motifScale * 0.66 * heightScale);
         filamentStart = surfacePoint.clone().addScaledVector(
@@ -1084,7 +1125,7 @@ function buildBouquet(data) {
     species: "Acacia pycnantha",
     seed: data.seed,
     description: "Procedural hand-tied golden wattle bouquet",
-    headForm: "symmetric biconvex rosettes with globular buds",
+    headForm: "spherical rosettes with globular buds",
     floretMerosity: FLORET_PARTS,
     floretPacking: "mirrored golden-angle Fermat rosettes for mature heads; spherical Fibonacci for buds",
     phyllodeForm: "falcate with parallel-convergent longitudinal veins",
@@ -1418,7 +1459,7 @@ function createCoreInstances(items, geometry, material) {
   mesh.userData.bloomIndices = items.map((item) => item.index);
   mesh.userData.hitShapes = items.map((item) => ({
     radial: item.radius * 1.16,
-    axial: item.archetype === "bud" ? item.radius * 1.16 : item.radius * 0.62,
+    axial: item.radius * 1.16,
     centerOffset: -(item.coreOffset ?? 0),
   }));
   return mesh;
@@ -2399,7 +2440,7 @@ function createBakedExportGroup(data) {
     species: "Acacia pycnantha",
     generator: "Wattle procedural WebGL study",
     seed: data.seed,
-    headForm: "symmetric-biconvex-rosette with globular buds",
+    headForm: "spherical-rosette with globular buds",
     floretMerosity: FLORET_PARTS,
     floretPacking: "mirrored golden-angle Fermat rosettes for mature heads; spherical Fibonacci for buds",
     phyllodeForm: "falcate with parallel-convergent longitudinal veins",
@@ -2822,13 +2863,17 @@ function measureRosettePacking(samples, bloom) {
       normalizedRho: Math.hypot(u, v) / Math.max(0.0001, bloom.rosetteRadius),
       petalReach: sample.motifScale * 0.82,
       angle: Math.atan2(v, u),
-      facingDot: sample.normal.dot(bloom.faceNormal) * side,
+      /* A lens could be asked to face the viewer. A ball cannot — its
+         equatorial florets point sideways, and that is what makes it round.
+         The invariant that survives the change is stronger: every floret
+         points away from the centre of its own head. */
+      outwardDot: sample.normal.dot(offset.clone().normalize()),
     });
   }
 
   if (valid.length === 0) {
     return {
-      model: "mirrored-golden-angle-biconvex-rosette",
+      model: "mirrored-golden-angle-spherical-rosette",
       planarCentroidOffsetRatio: Infinity,
       axialCentroidOffsetRatio: Infinity,
       surfaceDepthToDiameterRatio: Infinity,
@@ -2841,13 +2886,13 @@ function measureRosettePacking(samples, bloom) {
       centerToRimLiftRatio: -Infinity,
       radialBandCount: 0,
       angularSectorCount: 0,
-      largestRadialGapRatio: Infinity,
+      largestShellGapRatio: Infinity,
       nearestNeighborP90P10: Infinity,
       nearestNeighborCv: Infinity,
       outerEdgeRadiusCv: Infinity,
       renderedOuterEdgeRadiusCv: Infinity,
       radialReachRatio: 0,
-      minFacingDot: -1,
+      minOutwardDot: -1,
       layerCount: 0,
       domeInversions: 4,
       supportDepthToDiameter: Infinity,
@@ -2890,22 +2935,33 @@ function measureRosettePacking(samples, bloom) {
     const normalizedAngle = (item.angle + FULL_TURN) % FULL_TURN;
     return Math.floor(normalizedAngle / FULL_TURN * 12) % 12;
   }));
-  const sortedRadial = radialValues.map((value) => value / faceRadius).sort((a, b) => a - b);
-  let largestRadialGapRatio = sortedRadial[0] ?? 0;
-  for (let index = 1; index < sortedRadial.length; index += 1) {
-    largestRadialGapRatio = Math.max(
-      largestRadialGapRatio,
-      sortedRadial[index] - sortedRadial[index - 1],
+  /* Coverage has to be judged in the coordinate that is linear in area. On a
+     disc that is radius; on a shell it is cos(theta) — the axial height. Judged
+     by radius, the small polar cap of a perfectly even ball reads as a hole. */
+  const sortedShell = valid
+    .map((item) => item.absoluteAxial / faceRadius)
+    .sort((a, b) => a - b);
+  let largestShellGapRatio = sortedShell[0] ?? 0;
+  for (let index = 1; index < sortedShell.length; index += 1) {
+    largestShellGapRatio = Math.max(
+      largestShellGapRatio,
+      sortedShell[index] - sortedShell[index - 1],
     );
   }
 
+  /* Measured on the shell, not in its shadow. Equal spacing on a sphere
+     projects to crowding near the equator, so the old planar hypot would
+     report a perfectly even ball as badly packed. */
   const nearest = valid.map((item, index) => {
     let nearestDistance = Infinity;
     for (let otherIndex = 0; otherIndex < valid.length; otherIndex += 1) {
       if (index === otherIndex) continue;
       const other = valid[otherIndex];
       if (item.side !== other.side) continue;
-      nearestDistance = Math.min(nearestDistance, Math.hypot(item.u - other.u, item.v - other.v));
+      nearestDistance = Math.min(
+        nearestDistance,
+        item.surfacePoint.distanceTo(other.surfacePoint),
+      );
     }
     return nearestDistance / faceRadius;
   }).filter(Number.isFinite);
@@ -2941,12 +2997,17 @@ function measureRosettePacking(samples, bloom) {
   const rearSamples = valid.filter((item) => item.side < 0);
   const frontReach = Math.max(...frontSamples.map((item) => item.axial), 0.0001);
   const rearReach = Math.max(...rearSamples.map((item) => -item.axial), 0.0001);
-  const renderedFrontAxial = percentile(frontSamples.map(
+  /* Extremes on both axes, deliberately. A ninety-fifth percentile is fine on
+     a disc, where every direction holds a similar number of florets, but on a
+     shell the polar cap holds very few — so a percentile clips the poles while
+     the crowded equator sets the width, and reports a perfectly round head as
+     oblate. Same error as measuring spacing in the projection. */
+  const renderedFrontAxial = Math.max(...frontSamples.map(
     (item) => item.terminalAxial + item.motifScale * 0.08,
-  ), 0.95);
-  const renderedRearAxial = percentile(rearSamples.map(
+  ), 0.0001);
+  const renderedRearAxial = Math.max(...rearSamples.map(
     (item) => -item.terminalAxial + item.motifScale * 0.08,
-  ), 0.95);
+  ), 0.0001);
   const pairGroups = new Map();
   for (const item of valid) {
     if (!pairGroups.has(item.pairIndex)) pairGroups.set(item.pairIndex, []);
@@ -2966,7 +3027,7 @@ function measureRosettePacking(samples, bloom) {
     / Math.max(1, Math.max(frontSamples.length, rearSamples.length));
 
   return {
-    model: "mirrored-golden-angle-biconvex-rosette",
+    model: "mirrored-golden-angle-spherical-rosette",
     planarCentroidOffsetRatio: Math.hypot(centroidU, centroidV) / faceRadius,
     axialCentroidOffsetRatio: Math.abs(centroidAxial) / faceRadius,
     surfaceDepthToDiameterRatio: (
@@ -2974,7 +3035,7 @@ function measureRosettePacking(samples, bloom) {
     ) / faceDiameter,
     renderedEnvelopeDepthToDiameterRatio: (
       renderedFrontAxial + renderedRearAxial
-    ) / renderedFaceDiameter,
+    ) / Math.max(0.0001, (renderedUExtent + renderedVExtent) / 2),
     planCircularity: Math.max(uExtent, vExtent) / Math.max(0.0001, Math.min(uExtent, vExtent)),
     renderedPlanCircularity: Math.max(renderedUExtent, renderedVExtent)
       / Math.max(0.0001, Math.min(renderedUExtent, renderedVExtent)),
@@ -2984,14 +3045,14 @@ function measureRosettePacking(samples, bloom) {
     centerToRimLiftRatio: (zoneMeans[0] - zoneMeans[3]) / faceDiameter,
     radialBandCount: zones.filter((zone) => zone.length > 0).length,
     angularSectorCount: sectors.size,
-    largestRadialGapRatio,
+    largestShellGapRatio,
     nearestNeighborP90P10: percentile(nearest, 0.9) / Math.max(0.0001, percentile(nearest, 0.1)),
     nearestNeighborCv: Math.sqrt(nearestVariance) / Math.max(0.0001, nearestMean),
     outerEdgeRadiusCv: Math.sqrt(outerVariance) / Math.max(0.0001, outerMean),
     renderedOuterEdgeRadiusCv: Math.sqrt(renderedOuterVariance)
       / Math.max(0.0001, renderedOuterMean),
     radialReachRatio: percentile(radialValues, 0.95) / faceRadius,
-    minFacingDot: Math.min(...valid.map((item) => item.facingDot)),
+    minOutwardDot: Math.min(...valid.map((item) => item.outwardDot)),
     layerCount: new Set(valid.map((item) => item.layer)).size,
     domeInversions,
     supportDepthToDiameter: supportScale.y / Math.max(0.0001, bloom.rosetteRadius / bloom.radius),
@@ -3019,7 +3080,7 @@ function computeSemanticMetrics(data) {
   const packingSource = sampledHeads.length > 0 ? sampledHeads : packedHeads;
   const packingValues = (field) => packingSource.map((bloom) => bloom.packing[field]);
   const headPacking = {
-    model: "mirrored-golden-angle-biconvex-rosette",
+    model: "mirrored-golden-angle-spherical-rosette",
     sampledHeads: sampledHeads.length,
     minFloretsPerOpenHead: openFloretCounts.length > 0 ? Math.min(...openFloretCounts) : 0,
     maxFloretsPerHead: Math.max(...packedHeads.map((bloom) => bloom.surfaceFloretCount)),
@@ -3041,7 +3102,7 @@ function computeSemanticMetrics(data) {
     minCenterToRimLiftRatio: Math.min(...packingValues("centerToRimLiftRatio")),
     maxCenterToRimLiftRatio: Math.max(...packingValues("centerToRimLiftRatio")),
     minRadialReachRatio: Math.min(...packingValues("radialReachRatio")),
-    worstLargestRadialGapRatio: Math.max(...packingValues("largestRadialGapRatio")),
+    worstLargestShellGapRatio: Math.max(...packingValues("largestShellGapRatio")),
     worstNearestNeighborP90P10: Math.max(...packingValues("nearestNeighborP90P10")),
     worstNearestNeighborCv: Math.max(...packingValues("nearestNeighborCv")),
     worstOuterEdgeRadiusCv: Math.max(...packingValues("outerEdgeRadiusCv")),
@@ -3050,20 +3111,24 @@ function computeSemanticMetrics(data) {
     worstSupportDiameterToRenderedHeadDiameter: Math.max(
       ...packingValues("supportDiameterToRenderedHeadDiameter"),
     ),
-    minFacingDot: Math.min(...packingValues("minFacingDot")),
+    minOutwardDot: Math.min(...packingValues("minOutwardDot")),
     centroidViolations: packingSource.filter(
       (bloom) => bloom.packing.planarCentroidOffsetRatio > 0.045,
     ).length,
     axialBalanceViolations: packingSource.filter(
       (bloom) => bloom.packing.axialCentroidOffsetRatio > 0.025,
     ).length,
+    /* These two bands are the whole difference between a lens and a ball, and
+       they are the reason the heads read flat for as long as they did: 0.26 to
+       0.5 is a band that only a disc can satisfy. A pom-pom is as deep as it
+       is wide. */
     scaffoldDepthViolations: packingSource.filter((bloom) => (
-      bloom.packing.surfaceDepthToDiameterRatio < 0.26
-      || bloom.packing.surfaceDepthToDiameterRatio > 0.5
+      bloom.packing.surfaceDepthToDiameterRatio < 0.78
+      || bloom.packing.surfaceDepthToDiameterRatio > 1.04
     )).length,
     renderedDepthViolations: packingSource.filter((bloom) => (
-      bloom.packing.renderedEnvelopeDepthToDiameterRatio < 0.38
-      || bloom.packing.renderedEnvelopeDepthToDiameterRatio > 0.75
+      bloom.packing.renderedEnvelopeDepthToDiameterRatio < 0.84
+      || bloom.packing.renderedEnvelopeDepthToDiameterRatio > 1.12
     )).length,
     planCircularityViolations: packingSource.filter((bloom) => (
       bloom.packing.planCircularity > 1.22
@@ -3079,21 +3144,21 @@ function computeSemanticMetrics(data) {
       (bloom) => bloom.packing.mirrorPairErrorRatio > 0.025,
     ).length,
     centerLiftViolations: packingSource.filter((bloom) => (
-      bloom.packing.centerToRimLiftRatio < 0.08
-      || bloom.packing.centerToRimLiftRatio > 0.28
+      bloom.packing.centerToRimLiftRatio < 0.24
+      || bloom.packing.centerToRimLiftRatio > 0.40
     )).length,
     radialReachViolations: packingSource.filter(
       (bloom) => bloom.packing.radialReachRatio < 0.88,
     ).length,
-    radialGapViolations: packingSource.filter(
-      (bloom) => bloom.packing.largestRadialGapRatio > 0.18,
+    shellGapViolations: packingSource.filter(
+      (bloom) => bloom.packing.largestShellGapRatio > 0.14,
     ).length,
     nearestNeighborViolations: packingSource.filter((bloom) => (
       bloom.packing.nearestNeighborP90P10 > 1.75
       || bloom.packing.nearestNeighborCv > 0.32
     )).length,
-    facingViolations: packingSource.filter(
-      (bloom) => bloom.packing.minFacingDot < 0.78,
+    outwardFacingViolations: packingSource.filter(
+      (bloom) => bloom.packing.minOutwardDot < 0.99,
     ).length,
     renderedBoundaryViolations: packingSource.filter((bloom) => (
       bloom.packing.renderedOuterEdgeRadiusCv < 0.04
@@ -3126,9 +3191,9 @@ function computeSemanticMetrics(data) {
     "mirrorSymmetryViolations",
     "centerLiftViolations",
     "radialReachViolations",
-    "radialGapViolations",
+    "shellGapViolations",
     "nearestNeighborViolations",
-    "facingViolations",
+    "outwardFacingViolations",
     "renderedBoundaryViolations",
     "radialBandViolations",
     "angularSectorViolations",

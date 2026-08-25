@@ -2,9 +2,11 @@
 
 WATL is a technology design practice creating interfaces, systems, and experimental tools for futures that have not settled into form. Its homepage is an extreme-minimal field object: a procedural Three.js portrait of a complete hand-tied golden wattle bouquet (*Acacia pycnantha*) suspended inside a deterministic universe of warm light and faint, unresolved signals.
 
+The ground behind it is warm dark earth, a contour field drawn in elevation, an ember low in the frame and grain over all of it — geological and cartographic vocabulary, borrowing nothing from Aboriginal visual language, which encodes particular Country and story and is not a free pattern library.
+
 Orbiting the camera reveals spatial parallax. A nearly imperceptible celestial drift, soft twinkle, and sparse connections keep the surrounding field alive without competing with the botanical form. The object is the identity; everything else has been reduced to coordinates.
 
-Mature heads form dense, symmetrical biconvex pom-poms. Complete five-part florets and five round anthers per floret follow mirrored golden-angle Fermat spirals across both faces, so the back is as full as the front. Compact young buds retain their round form. Curved falcate phyllodes taper at both ends and carry five parallel-convergent longitudinal veins. Three.js `0.185.1` is vendored into `vendor/three/` rather than loaded from a CDN, so a fresh clone runs with no install step.
+Mature heads are dense spherical pom-poms, as deep as they are wide. Complete five-part florets and five round anthers per floret are spread over the whole shell by mirrored golden-angle spirals stepped in equal area — even bands of cos(theta) rather than of radius, which is what fills the flanks of a head instead of piling its florets onto a disc. Compact young buds retain their round form. Curved falcate phyllodes taper at both ends and carry five parallel-convergent longitudinal veins. Three.js `0.185.1` is vendored into `vendor/three/` rather than loaded from a CDN, so a fresh clone runs with no install step.
 
 ## Run locally
 
@@ -18,6 +20,18 @@ npm run dev
 Open `http://127.0.0.1:4173`. Keep the local server running instead of opening `index.html` directly, because the viewer uses JavaScript modules. This is a development-only server bound to the loopback interface; set `PORT` to an integer from 1 through 65535 to use another local port.
 
 Run `npm run check` to syntax-check both the server and scene code.
+
+`?poster=1` hides every interface layer and, because it is the mode the still
+is exported from, also asks the renderer to preserve its drawing buffer so the
+canvas can be read back. That is how `assets/wattle-bouquet-poster.png` is
+made: load `?poster=1` at a square viewport, take `canvas.toDataURL()`, then
+trim and centre on the botanical mass. The result is transparent on purpose —
+no ground is baked into it, so it composites onto the live earth at any aspect
+ratio. Regenerate it whenever the artwork changes, or the still shown to
+visitors without WebGL will quietly disagree with the site.
+
+`python tools/generate-ground.py` rebuilds the contour field behind the
+bouquet.
 
 ## Explore the bouquet
 
