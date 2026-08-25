@@ -570,6 +570,13 @@ em { font-style: italic; }
   .cue::before { animation: none; }
 }
 .no-js :is(.brow, .lock__caps, .lock__script, .orn, .stage__rail) { opacity: 1; }
+/* Paper has no viewport to enter, so nothing would ever be observed arriving.
+   Print an unscrolled page without this and you get the hero and the footer
+   with the argument missing from between them. */
+@media print {
+  [data-reveal] { opacity: 1 !important; transform: none !important; }
+  :is(.brow, .lock__caps, .lock__script, .orn, .stage__rail) { opacity: 1 !important; }
+}
 
 /* ---------- 14. Preferences ---------- */
 /* Somebody asking for more contrast is asking for the hairlines to stop being

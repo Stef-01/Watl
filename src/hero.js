@@ -371,8 +371,11 @@ export function initHero(stage) {
 function initDocument(reduced, touch) {
   const reveals = document.querySelectorAll("[data-reveal]");
 
+  /** The finished state, applied outright. No arrival, because none is owed. */
+  const settled = (node) => { node.style.opacity = "1"; node.style.transform = "none"; };
+
   if (reduced) {
-    reveals.forEach((node) => { node.style.opacity = "1"; node.style.transform = "none"; });
+    reveals.forEach(settled);
   } else {
     reveals.forEach((node) => {
       inView(node, () => {
@@ -385,6 +388,44 @@ function initDocument(reduced, touch) {
         }
       }, { amount: 0.18, margin: "0px 0px -12% 0px" });
     });
+
+    /* An entry observer only ever reports a crossing, and a jump does not
+     * cross anything. Reload halfway down a page and the browser restores the
+     * scroll instantly; the same goes for the back button, for find-in-page,
+     * and for a flick fast enough to clear a section between two frames.
+     * Every section that was skipped was never entered, so it sits at its
+     * hidden starting state for as long as the page is open — and the reader
+     * who scrolls back up finds blank paper where the argument should be.
+     *
+     * The rule that closes it: anything now above the top of the window has
+     * had its arrival, whether or not we were watching. Give it the finished
+     * state. Nothing the reader can see changes — during ordinary downward
+     * reading a section only passes the top edge long after it animated in.
+     *
+     * This runs late and then keeps watch, because scroll restoration lands
+     * after a deferred module has already executed, and because a jump can
+     * come at any point afterwards. It retires itself once every section has
+     * arrived, which on every page here is well before the footer. */
+    let pending = [...reveals];
+    const settlePassed = () => {
+      pending = pending.filter((node) => {
+        if (node.getBoundingClientRect().top >= 0) return true;
+        settled(node);
+        return false;
+      });
+      if (!pending.length) window.removeEventListener("scroll", onScroll);
+    };
+
+    let queued = false;
+    const onScroll = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => { queued = false; settlePassed(); });
+    };
+
+    requestAnimationFrame(() => requestAnimationFrame(settlePassed));
+    window.addEventListener("load", settlePassed, { once: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
   }
 
   // Magnetic arrows: the only hover flourish on the site.
