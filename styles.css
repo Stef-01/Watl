@@ -243,7 +243,11 @@ button {
   pointer-events: none;
 }
 
-.interface-layer :is(a, button, input) {
+/* The descendant form alone misses a layer that is itself the control — the
+   ground switch is both — so it needs the element too, or the canvas behind it
+   swallows every click. */
+.interface-layer :is(a, button, input),
+.interface-layer:is(a, button, input) {
   pointer-events: auto;
 }
 
@@ -288,6 +292,132 @@ button {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/* ---------- The grounds ----------
+   The backdrop above is drawn entirely from four variables — --night, --strata,
+   --ember and --dust — so a ground is just a new set of those four, and every
+   gradient, band and ember re-tints together. Nothing is swapped in as an
+   image.
+
+   Earth is the authored one. Ochre and Dusk are palette shifts: this
+   continent's colour, which the ground's own note calls nobody's private
+   property. Night sky pulls the earth layers off so the star field the 3D
+   scene already renders becomes the whole background.
+
+   There is no dot-painting ground, and its absence is a decision, not an
+   omission. That visual language encodes particular Country and story and
+   belongs to the artists and communities it comes from; generating an
+   imitation of it here would be exactly the borrowing this file set out not to
+   do. The honest version is a commission — a named artist, licensed, paid and
+   credited on the page. When that artwork exists, it lands as one more entry
+   in GROUNDS in index.html plus a rule here that paints it, and the artist's
+   name goes beside it. */
+
+:root[data-ground="ochre"] {
+  --night: #0d0704;
+  --strata: 92, 38, 18;
+  --ember: 178, 66, 20;
+  --dust: 214, 116, 44;
+}
+
+:root[data-ground="dusk"] {
+  --night: #07060d;
+  --strata: 44, 34, 72;
+  --ember: 92, 54, 132;
+  --dust: 150, 120, 196;
+}
+
+:root[data-ground="night"] {
+  --night: #04060d;
+  --strata: 26, 34, 62;
+  --ember: 38, 52, 104;
+  --dust: 122, 148, 210;
+}
+
+/* Night sky is the one ground that changes the drawing and not just its
+   colour: the strata and the contour field come off, so the stars that were
+   always being rendered behind them have the frame to themselves. */
+:root[data-ground="night"] .backdrop {
+  background-image:
+    radial-gradient(
+      120% 84% at 50% 58%,
+      rgba(var(--dust), 0.085) 0%,
+      rgba(var(--ember), 0.06) 40%,
+      rgba(4, 6, 13, 0) 72%
+    ),
+    linear-gradient(
+      to top,
+      rgba(var(--ember), 0.13) 0%,
+      rgba(4, 6, 13, 0) 30%
+    ),
+    radial-gradient(
+      132% 104% at 50% 46%,
+      rgba(4, 6, 13, 0) 42%,
+      rgba(1, 2, 6, 0.68) 100%
+    );
+}
+
+:root[data-ground="night"] .backdrop::before {
+  opacity: 0;
+}
+
+/* ---------- The ground switch ----------
+   Small, dim, and top right — findable if you look for it, and quiet enough
+   that it never competes with the object. The name only appears on approach. */
+.ground-switch {
+  top: max(1.5rem, env(safe-area-inset-top));
+  right: max(1.5rem, env(safe-area-inset-right));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ground-switch__name {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0;
+  transform: translateX(0.4rem);
+  transition:
+    opacity 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ground-switch__dot {
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  background: rgba(var(--dust), 0.55);
+  opacity: 0.55;
+  transition:
+    opacity 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 420ms ease,
+    box-shadow 320ms ease;
+}
+
+.ground-switch:hover .ground-switch__name,
+.ground-switch:focus-visible .ground-switch__name {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.ground-switch:hover .ground-switch__dot,
+.ground-switch:focus-visible .ground-switch__dot {
+  opacity: 1;
+  box-shadow: 0 0 0 3px rgba(var(--dust), 0.12);
+}
+
+.ground-switch:focus-visible {
+  outline: 1px solid var(--gold);
+  outline-offset: 0.3rem;
 }
 
 /* ---------- The client rail ----------

@@ -27,6 +27,47 @@ what the wave staggers on, so the letters have to be split by hand — the link
 keeps the real name in `aria-label`, and the glyph container is `aria-hidden`
 so a screen reader never spells it out.
 
+## Grounds
+
+A small switch sits top right — a dot that names the current ground when you
+approach it. It cycles four:
+
+| Ground | What it is |
+| --- | --- |
+| **Earth** | the authored one: warm dark earth, strata, contour field, ember |
+| **Ochre** | the same drawing in red-earth colour |
+| **Dusk** | the same drawing in deep violet |
+| **Night sky** | strata and contours come off, so the star field the 3D scene already renders has the frame to itself |
+
+The backdrop is drawn entirely from four custom properties — `--night`,
+`--strata`, `--ember`, `--dust` — so three of the four grounds are just a new
+set of those, and every gradient re-tints together. Only Night sky changes the
+drawing rather than its colour.
+
+The switch is wired inline in `index.html`, not in `script.js`, so it still
+works if the scene module never loads. The choice is remembered in
+`localStorage` under `watl.ground`, and every read and write is wrapped —
+blocked site data changes nothing but whether the choice survives a reload.
+
+### On a dot-painting ground
+
+There isn't one, and that is a decision rather than an omission.
+
+Aboriginal dot painting is not a style in the public domain. It encodes
+particular Country and particular story, and which designs a person may paint
+is governed by customary law within the communities they belong to. A
+generated imitation of it — which is the only thing code in this repository
+could produce — would be the exact borrowing the ground's own note in
+`styles.css` was written to refuse, and an advisor's encouragement does not
+transfer a right that is not theirs alone to give.
+
+The honest version is a commission: a named artist, licensed, paid, and
+credited on the page beside their work. That is a good thing for this site to
+do, and the mechanism is ready for it — a commissioned ground is one more
+entry in `GROUNDS` in `index.html` and one rule in `styles.css` that paints
+the artwork, with the artist's name shown next to it. Bringing the artwork is
+the part that has to happen away from the keyboard.
+
 ## Run locally
 
 Node.js 18 or newer is recommended. There are no runtime dependencies to
