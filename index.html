@@ -78,15 +78,24 @@
       </header>
 
 
-      <button
+      <div
         class="ground-switch interface-layer"
-        id="ground-button"
-        type="button"
-        aria-label="Change the background"
+        role="group"
+        aria-label="Background"
       >
         <span class="ground-switch__name" id="ground-name" aria-hidden="true">Earth</span>
-        <span class="ground-switch__dot" aria-hidden="true"></span>
-      </button>
+        <button
+          class="ground-switch__toggle"
+          id="ground-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="ground-swatches"
+          aria-label="Change the background"
+        >
+          <span class="ground-switch__dot" aria-hidden="true"></span>
+        </button>
+        <div class="ground-switch__swatches" id="ground-swatches" hidden></div>
+      </div>
 
       <nav class="client-rail interface-layer" aria-label="Clients">
         <a class="client" href="https://bayhealth.com.au/" aria-label="Bay Health">
@@ -116,66 +125,127 @@
     </main>
 
     <script>
-      /* The ground switch. Four grounds, all of them built from the same four
-         colour variables the backdrop already reads, so switching one re-tints
-         every layer at once rather than swapping a picture in.
+      /* The ground switch. Seven grounds; the toggle opens a row of swatches
+         rather than cycling, because seven is too many to click through.
+
+         Five of them are only a new set of the four colour variables the
+         backdrop already reads, so every gradient, band and ember re-tints at
+         once. Night sky and Wash also change the drawing: Night sky takes the
+         strata and contours off so the star field has the frame, and Wash
+         replaces the geology with soft overlapping blooms — an abstract
+         painting ground, belonging to nobody.
 
          Deliberately not here: any generated imitation of Aboriginal dot
-         painting. The ground's own comment in styles.css says why — that
-         visual language encodes particular Country and story and belongs to
-         the artists and communities it comes from, so the honest way to put it
-         on this page is a commission, not a procedural pastiche. GROUNDS has a
-         slot ready for licensed artwork; see the README. */
+         painting. The ground's own note in styles.css says why. GROUNDS has a
+         slot ready for licensed artwork from a named artist; see the README. */
       (function () {
-        var GROUNDS = ["earth", "ochre", "dusk", "night"];
-        var LABELS = { earth: "Earth", ochre: "Ochre", dusk: "Dusk", night: "Night sky" };
-        var THEME = { earth: "#0a0806", ochre: "#0d0704", dusk: "#07060d", night: "#04060d" };
+        var GROUNDS = [
+          { id: "earth", label: "Earth", theme: "#0a0806", swatch: "#c67a36" },
+          { id: "ochre", label: "Ochre", theme: "#0d0704", swatch: "#d6742c" },
+          { id: "rose", label: "Desert rose", theme: "#0d0509", swatch: "#d1738f" },
+          { id: "moss", label: "Eucalypt", theme: "#050806", swatch: "#7fae7a" },
+          { id: "dusk", label: "Dusk", theme: "#07060d", swatch: "#9678c4" },
+          { id: "night", label: "Night sky", theme: "#04060d", swatch: "#7a94d2" },
+          { id: "wash", label: "Wash", theme: "#0a0709", swatch: "#c98f9c" }
+        ];
         var KEY = "watl.ground";
 
         var root = document.documentElement;
-        var button = document.getElementById("ground-button");
+        var toggle = document.getElementById("ground-toggle");
         var name = document.getElementById("ground-name");
+        var tray = document.getElementById("ground-swatches");
         var meta = document.getElementById("theme-color");
+
+        function find(id) {
+          for (var i = 0; i < GROUNDS.length; i++) {
+            if (GROUNDS[i].id === id) return GROUNDS[i];
+          }
+          return null;
+        }
 
         function read() {
           try {
-            var saved = window.localStorage.getItem(KEY);
-            if (GROUNDS.indexOf(saved) !== -1) return saved;
+            var found = find(window.localStorage.getItem(KEY));
+            if (found) return found.id;
           } catch (error) {
-            /* Private mode, or site data blocked. The default is still correct. */
+            /* Private mode, or site data blocked. The default is still right. */
           }
-          return GROUNDS[0];
+          return GROUNDS[0].id;
         }
 
-        function apply(ground, announce) {
-          root.dataset.ground = ground;
-          if (name) name.textContent = LABELS[ground];
-          if (meta) meta.setAttribute("content", THEME[ground]);
-          if (button) {
-            button.setAttribute(
-              "aria-label",
-              "Background: " + LABELS[ground] + ". Change the background."
-            );
+        function apply(id, announce) {
+          var ground = find(id) || GROUNDS[0];
+          root.dataset.ground = ground.id;
+          if (name) name.textContent = ground.label;
+          if (meta) meta.setAttribute("content", ground.theme);
+          if (toggle) {
+            toggle.setAttribute("aria-label", "Background: " + ground.label + ". Change it.");
+          }
+          if (tray) {
+            var buttons = tray.querySelectorAll("button");
+            for (var i = 0; i < buttons.length; i++) {
+              buttons[i].setAttribute("aria-pressed", String(buttons[i].dataset.ground === ground.id));
+            }
           }
           if (announce) {
             var status = document.getElementById("stage-status");
-            if (status) status.textContent = LABELS[ground] + " background.";
+            if (status) status.textContent = ground.label + " background.";
           }
           try {
-            window.localStorage.setItem(KEY, ground);
+            window.localStorage.setItem(KEY, ground.id);
           } catch (error) {
-            /* Not being able to remember the choice is not a reason to refuse it. */
+            /* Not remembering the choice is no reason to refuse it. */
+          }
+        }
+
+        function open(state) {
+          if (!tray || !toggle) return;
+          tray.hidden = !state;
+          toggle.setAttribute("aria-expanded", String(state));
+        }
+
+        if (tray) {
+          for (var i = 0; i < GROUNDS.length; i++) {
+            var g = GROUNDS[i];
+            var b = document.createElement("button");
+            b.type = "button";
+            b.dataset.ground = g.id;
+            b.className = "ground-swatch";
+            b.style.setProperty("--swatch", g.swatch);
+            b.setAttribute("aria-label", g.label);
+            b.setAttribute("aria-pressed", "false");
+            b.addEventListener("click", function () {
+              apply(this.dataset.ground, true);
+              open(false);
+              if (toggle) toggle.focus();
+            });
+            tray.append(b);
           }
         }
 
         apply(read(), false);
 
-        if (button) {
-          button.addEventListener("click", function () {
-            var next = GROUNDS[(GROUNDS.indexOf(root.dataset.ground) + 1) % GROUNDS.length];
-            apply(next, true);
+        if (toggle) {
+          toggle.addEventListener("click", function () {
+            open(toggle.getAttribute("aria-expanded") !== "true");
           });
         }
+
+        /* A click anywhere else, or Escape, puts the tray away. The canvas
+           swallows pointerdown before it reaches document in some paths, so
+           both events are listened for. */
+        ["pointerdown", "focusin"].forEach(function (type) {
+          document.addEventListener(type, function (event) {
+            if (tray && !tray.hidden && !event.target.closest(".ground-switch")) open(false);
+          });
+        });
+
+        document.addEventListener("keydown", function (event) {
+          if (event.key === "Escape" && tray && !tray.hidden) {
+            open(false);
+            if (toggle) toggle.focus();
+          }
+        });
       })();
     </script>
 
