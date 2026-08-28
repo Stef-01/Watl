@@ -75,24 +75,29 @@
         <p class="hero__copy" id="scene-instructions">
           Instruments for the not-yet.
         </p>
-
-        <nav class="clients" aria-label="Design clients">
-          <p class="clients__label" id="clients-label">Clients</p>
-          <ul aria-labelledby="clients-label">
-            <li>
-              <a href="https://bayhealth.com.au/">Bay Health<i aria-hidden="true">&#8599;</i></a>
-            </li>
-            <li>
-              <a href="https://www.adhdme.au/">ADHDme<i aria-hidden="true">&#8599;</i></a>
-            </li>
-          </ul>
-        </nav>
       </header>
 
-      <aside class="botanical-note interface-layer" aria-label="Field object identification">
-        <p>Field object / 001</p>
-        <span><i>Acacia pycnantha</i></span>
-      </aside>
+
+      <button
+        class="ground-switch interface-layer"
+        id="ground-button"
+        type="button"
+        aria-label="Change the background"
+      >
+        <span class="ground-switch__name" id="ground-name" aria-hidden="true">Earth</span>
+        <span class="ground-switch__dot" aria-hidden="true"></span>
+      </button>
+
+      <nav class="client-rail interface-layer" aria-label="Clients">
+        <a class="client" href="https://bayhealth.com.au/" aria-label="Bay Health">
+          <span class="client__name" aria-hidden="true"><span style="--i:0">B</span><span style="--i:1">a</span><span style="--i:2">y</span><span style="--i:3">&nbsp;</span><span style="--i:4">H</span><span style="--i:5">e</span><span style="--i:6">a</span><span style="--i:7">l</span><span style="--i:8">t</span><span style="--i:9">h</span></span>
+          <i class="client__arrow" aria-hidden="true">&#8599;</i>
+        </a>
+        <a class="client" href="https://www.adhdme.au/" aria-label="ADHDme">
+          <span class="client__name" aria-hidden="true"><span style="--i:0">A</span><span style="--i:1">D</span><span style="--i:2">H</span><span style="--i:3">D</span><span style="--i:4">m</span><span style="--i:5">e</span></span>
+          <i class="client__arrow" aria-hidden="true">&#8599;</i>
+        </a>
+      </nav>
 
       <p class="sr-only" id="scene-description">
         WATL is a technology design practice represented here by a complete hand-tied bouquet of golden wattle suspended within a deep, slowly moving field of light and spatial signals. Curved green phyllodes surround dense, symmetrical yellow pom-pom heads built from mirrored layers of tightly packed five-part florets. Stars occupy several real depths, so turning the object also changes the surrounding space.
@@ -109,6 +114,70 @@
         <p class="noscript-message">JavaScript is required to explore the interactive 3D bouquet.</p>
       </noscript>
     </main>
+
+    <script>
+      /* The ground switch. Four grounds, all of them built from the same four
+         colour variables the backdrop already reads, so switching one re-tints
+         every layer at once rather than swapping a picture in.
+
+         Deliberately not here: any generated imitation of Aboriginal dot
+         painting. The ground's own comment in styles.css says why — that
+         visual language encodes particular Country and story and belongs to
+         the artists and communities it comes from, so the honest way to put it
+         on this page is a commission, not a procedural pastiche. GROUNDS has a
+         slot ready for licensed artwork; see the README. */
+      (function () {
+        var GROUNDS = ["earth", "ochre", "dusk", "night"];
+        var LABELS = { earth: "Earth", ochre: "Ochre", dusk: "Dusk", night: "Night sky" };
+        var THEME = { earth: "#0a0806", ochre: "#0d0704", dusk: "#07060d", night: "#04060d" };
+        var KEY = "watl.ground";
+
+        var root = document.documentElement;
+        var button = document.getElementById("ground-button");
+        var name = document.getElementById("ground-name");
+        var meta = document.getElementById("theme-color");
+
+        function read() {
+          try {
+            var saved = window.localStorage.getItem(KEY);
+            if (GROUNDS.indexOf(saved) !== -1) return saved;
+          } catch (error) {
+            /* Private mode, or site data blocked. The default is still correct. */
+          }
+          return GROUNDS[0];
+        }
+
+        function apply(ground, announce) {
+          root.dataset.ground = ground;
+          if (name) name.textContent = LABELS[ground];
+          if (meta) meta.setAttribute("content", THEME[ground]);
+          if (button) {
+            button.setAttribute(
+              "aria-label",
+              "Background: " + LABELS[ground] + ". Change the background."
+            );
+          }
+          if (announce) {
+            var status = document.getElementById("stage-status");
+            if (status) status.textContent = LABELS[ground] + " background.";
+          }
+          try {
+            window.localStorage.setItem(KEY, ground);
+          } catch (error) {
+            /* Not being able to remember the choice is not a reason to refuse it. */
+          }
+        }
+
+        apply(read(), false);
+
+        if (button) {
+          button.addEventListener("click", function () {
+            var next = GROUNDS[(GROUNDS.indexOf(root.dataset.ground) + 1) % GROUNDS.length];
+            apply(next, true);
+          });
+        }
+      })();
+    </script>
 
     <script type="module" src="./script.js"></script>
     <script>
