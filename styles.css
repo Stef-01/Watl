@@ -471,6 +471,10 @@ button {
 }
 
 /* The tray. Opens leftward from the dot, so it never leaves the frame. */
+.ground-switch__swatches[hidden] {
+  display: none;
+}
+
 .ground-switch__swatches {
   display: flex;
   align-items: center;
