@@ -75,35 +75,24 @@
         <p class="hero__copy" id="scene-instructions">
           Instruments for the not-yet.
         </p>
+
+        <nav class="clients" aria-label="Design clients">
+          <p class="clients__label" id="clients-label">Clients</p>
+          <ul aria-labelledby="clients-label">
+            <li>
+              <a href="https://bayhealth.com.au/">Bay Health<i aria-hidden="true">&#8599;</i></a>
+            </li>
+            <li>
+              <a href="https://www.adhdme.au/">ADHDme<i aria-hidden="true">&#8599;</i></a>
+            </li>
+          </ul>
+        </nav>
       </header>
 
       <aside class="botanical-note interface-layer" aria-label="Field object identification">
         <p>Field object / 001</p>
         <span><i>Acacia pycnantha</i></span>
       </aside>
-
-      <div class="control-dock interface-layer" aria-label="Bouquet controls">
-        <label class="breeze-control" for="breeze">
-          <span>Drift</span>
-          <input
-            id="breeze"
-            name="breeze"
-            type="range"
-            min="0"
-            max="100"
-            value="42"
-            aria-label="Spatial drift intensity"
-            aria-describedby="breeze-value"
-          />
-          <output id="breeze-value" for="breeze">042</output>
-        </label>
-
-        <div class="control-actions">
-          <button id="motion-button" type="button" aria-pressed="false" aria-label="Hold all autonomous motion">Hold</button>
-          <button id="reset-button" type="button" aria-label="Return to the original camera position">Origin</button>
-          <button id="download-button" class="download-button" type="button" aria-label="Download the botanical object as a GLB file">Object</button>
-        </div>
-      </div>
 
       <p class="sr-only" id="scene-description">
         WATL is a technology design practice represented here by a complete hand-tied bouquet of golden wattle suspended within a deep, slowly moving field of light and spatial signals. Curved green phyllodes surround dense, symmetrical yellow pom-pom heads built from mirrored layers of tightly packed five-part florets. Stars occupy several real depths, so turning the object also changes the surrounding space.
@@ -153,11 +142,6 @@
           if (status) {
             status.textContent = "The interactive 3D bouquet could not open. A still bouquet is shown.";
           }
-
-          ["breeze", "motion-button", "reset-button", "download-button"].forEach(function (id) {
-            var el = document.getElementById(id);
-            if (el) el.disabled = true;
-          });
 
           /* setupEvents() never ran either, so the reload button is inert
              unless it is wired here. */
