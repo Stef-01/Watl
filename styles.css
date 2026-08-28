@@ -243,7 +243,7 @@ button {
   pointer-events: none;
 }
 
-.interface-layer :is(button, input) {
+.interface-layer :is(a, button, input) {
   pointer-events: auto;
 }
 
@@ -290,6 +290,63 @@ button {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/* ---------- The client index ----------
+   The one piece of the page that leaves it. It is set at the hero's own
+   size and colour so it reads as another line of the lockup, not as
+   navigation bolted onto the object. */
+.clients {
+  grid-column: 1 / -1;
+  margin-top: 1.5rem;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.clients__label {
+  margin: 0 0 0.6rem;
+  color: rgba(242, 240, 232, 0.32);
+}
+
+.clients ul {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.clients a {
+  display: inline-block;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.35s ease;
+}
+
+.clients a i {
+  display: inline-block;
+  margin-left: 0.55em;
+  font-style: normal;
+  color: rgba(242, 240, 232, 0.34);
+  transition: transform 0.35s ease, color 0.35s ease;
+}
+
+.clients a:hover,
+.clients a:focus-visible {
+  color: var(--ink);
+}
+
+.clients a:hover i,
+.clients a:focus-visible i {
+  color: var(--gold);
+  transform: translate(0.2em, -0.2em);
+}
+
+.clients a:focus-visible {
+  outline: 1px solid var(--gold);
+  outline-offset: 4px;
 }
 
 .botanical-note {

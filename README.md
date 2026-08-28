@@ -8,6 +8,19 @@ Orbiting the camera reveals spatial parallax. A nearly imperceptible celestial d
 
 Mature heads are dense spherical pom-poms, as deep as they are wide. Complete five-part florets and five round anthers per floret are spread over the whole shell by mirrored golden-angle spirals stepped in equal area — even bands of cos(theta) rather than of radius, which is what fills the flanks of a head instead of piling its florets onto a disc. Compact young buds retain their round form. Curved falcate phyllodes taper at both ends and carry five parallel-convergent longitudinal veins. Three.js `0.185.1` is vendored into `vendor/three/` rather than loaded from a CDN, so a fresh clone runs with no install step.
 
+## Clients
+
+The client index sits in the hero lockup, top left, set at the same size and
+colour as the rest of it.
+
+| Client | Site |
+| --- | --- |
+| Bay Health | <https://bayhealth.com.au/> |
+| ADHDme | <https://www.adhdme.au/> |
+
+To add one, copy a `<li>` inside `nav.clients` in `index.html` and change the
+name and the `href`. Nothing else moves.
+
 ## Run locally
 
 Node.js 18 or newer is recommended. There are no runtime dependencies to
