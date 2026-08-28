@@ -29,20 +29,29 @@ so a screen reader never spells it out.
 
 ## Grounds
 
-A small switch sits top right — a dot that names the current ground when you
-approach it. It cycles four:
+A small dot sits top right. It names the current ground when you approach it,
+and opens a row of swatches on click — seven is too many to cycle through.
 
 | Ground | What it is |
 | --- | --- |
 | **Earth** | the authored one: warm dark earth, strata, contour field, ember |
 | **Ochre** | the same drawing in red-earth colour |
+| **Desert rose** | the same drawing in dusk pink |
+| **Eucalypt** | the same drawing in deep leaf green |
 | **Dusk** | the same drawing in deep violet |
 | **Night sky** | strata and contours come off, so the star field the 3D scene already renders has the frame to itself |
+| **Wash** | the geology comes off and soft overlapping blooms take its place — an abstract painting ground, nothing quoted |
 
 The backdrop is drawn entirely from four custom properties — `--night`,
-`--strata`, `--ember`, `--dust` — so three of the four grounds are just a new
-set of those, and every gradient re-tints together. Only Night sky changes the
-drawing rather than its colour.
+`--strata`, `--ember`, `--dust` — so five of the seven grounds are just a new
+set of those, and every gradient, band and ember re-tints together. Only Night
+sky and Wash change the drawing rather than its colour.
+
+All seven stay dark on purpose: the wordmark, the client names and the field
+copy are all set in light ink, so a pale ground would take their contrast with
+it.
+
+The tray closes on Escape, on a click outside it, and when focus leaves.
 
 The switch is wired inline in `index.html`, not in `script.js`, so it still
 works if the scene module never loads. The choice is remembered in
