@@ -31,6 +31,45 @@ what the wave staggers on, so the letters have to be split by hand — the link
 keeps the real name in `aria-label`, and the glyph container is `aria-hidden`
 so a screen reader never spells it out.
 
+## Motion
+
+The page composes itself rather than simply being there. The identity rises a
+letter at a time, then the discipline, then the ground switch, then each link
+in the rail — about 1.6 seconds end to end.
+
+That timeline is deliberately **not** gated on the 3D scene. The interface is
+text and should be readable immediately; waiting on a WebGL build would hold an
+empty frame on a slow phone, and would hide the page entirely for the eight
+seconds the no-module floor takes to fire. Only the canvas waits for
+`.is-ready`.
+
+Elsewhere:
+
+- **The light behind the bouquet breathes** on a 19-second cycle, slow enough
+  that you never catch it moving.
+- **Hovering one name lets the others recede** to 42%, so the rail has a focus.
+- **The swatches deal out** in sequence when the tray opens.
+- **Changing ground dissolves rather than cuts.** Gradient stacks cannot
+  interpolate, so the backdrop dips to 26% and the layers are swapped at the
+  darkest frame — the bouquet stays lit throughout, so it reads as the light
+  changing rather than the page redrawing.
+
+Two implementation notes worth keeping:
+
+Entrance animations use `animation-fill-mode: backwards`, not `both`. `both`
+keeps the final keyframe applied at animation precedence for the life of the
+page, which would outrank the hover-dim declaration and quietly kill it.
+`backwards` holds the element hidden through its delay and then hands it back
+to the cascade, where every resting value already lives.
+
+The dissolve is a keyframe, not a transition. A transition would have to race
+the timer that removes the class, and on a slow frame the dip either never
+lands or reverses halfway.
+
+`prefers-reduced-motion: reduce` collapses all of it — duration, delay, and
+iteration count — and every animation is written so a single collapsed
+iteration leaves the element exactly at rest.
+
 ## Grounds
 
 A small dot sits top right. It names the current ground when you approach it,

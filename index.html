@@ -70,7 +70,7 @@
       </section>
 
       <header class="hero interface-layer">
-        <p class="wordmark">WATL</p>
+        <p class="wordmark" aria-label="WATL"><span aria-hidden="true" style="--i:0">W</span><span aria-hidden="true" style="--i:1">A</span><span aria-hidden="true" style="--i:2">T</span><span aria-hidden="true" style="--i:3">L</span></p>
         <h1>Design</h1>
       </header>
 
@@ -179,9 +179,32 @@
           return GROUNDS[0].id;
         }
 
-        function apply(id, announce) {
+        var paintTimer = 0;
+        var clearTimer = 0;
+
+        /* The ground itself is swapped at the darkest frame of the dissolve,
+           not at the click — that is what makes it read as a cross-fade rather
+           than a cut with a flicker in front of it. Both timers are cleared on
+           every call, so a fast run of clicks still settles on the last one. */
+        function apply(id, announce, dissolve) {
           var ground = find(id) || GROUNDS[0];
-          root.dataset.ground = ground.id;
+          window.clearTimeout(paintTimer);
+          window.clearTimeout(clearTimer);
+
+          if (dissolve && root.dataset.ground !== ground.id) {
+            root.classList.remove("is-shifting");
+            void root.offsetWidth; /* restart the animation on a repeat click */
+            root.classList.add("is-shifting");
+            paintTimer = window.setTimeout(function () {
+              root.dataset.ground = ground.id;
+            }, 260);
+            clearTimer = window.setTimeout(function () {
+              root.classList.remove("is-shifting");
+            }, 660);
+          } else {
+            root.dataset.ground = ground.id;
+          }
+
           if (name) name.textContent = ground.label;
           if (meta) meta.setAttribute("content", ground.theme);
           if (toggle) {
@@ -218,10 +241,11 @@
             b.dataset.ground = g.id;
             b.className = "ground-swatch";
             b.style.setProperty("--swatch", g.swatch);
+            b.style.setProperty("--i", String(i));
             b.setAttribute("aria-label", g.label);
             b.setAttribute("aria-pressed", "false");
             b.addEventListener("click", function () {
-              apply(this.dataset.ground, true);
+              apply(this.dataset.ground, true, true);
               open(false);
               if (toggle) toggle.focus();
             });
