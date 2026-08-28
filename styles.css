@@ -262,9 +262,6 @@ button {
 
 .wordmark,
 .hero h1,
-.hero__copy {
-  margin: 0;
-}
 
 .wordmark {
   font-family: var(--mono);
@@ -282,17 +279,6 @@ button {
   color: var(--muted);
 }
 
-.hero__copy {
-  grid-column: 1 / -1;
-  margin-top: 0.55rem;
-  max-width: 33rem;
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  line-height: 1.45;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
 
 /* ---------- The grounds ----------
    The backdrop above is drawn entirely from four variables — --night, --strata,
@@ -535,6 +521,16 @@ button {
     max(1.75rem, env(safe-area-inset-left));
 }
 
+/* Clients sit together at the left so the contact link can hold the right
+   corner on its own. Both groups wrap as one before either splits. */
+.client-rail__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1.25rem clamp(1.5rem, 4vw, 3rem);
+  min-width: 0;
+}
+
 .client {
   position: relative;
   display: inline-flex;
@@ -600,6 +596,19 @@ button {
 .client:focus-visible .client__arrow {
   transform: translate(0.3em, -0.3em);
   color: var(--gold);
+}
+
+.client--contact {
+  margin-left: auto;
+  color: rgba(244, 195, 35, 0.68);
+}
+
+.client--contact .client__arrow {
+  color: rgba(244, 195, 35, 0.42);
+}
+
+.client--contact::after {
+  transform-origin: right center;
 }
 
 .client:focus-visible {
@@ -773,16 +782,8 @@ input:disabled {
     left: max(1.15rem, env(safe-area-inset-left));
   }
 
-  .hero__copy {
-    max-width: 18rem;
-  }
 }
 
-@media (max-width: 420px) {
-  .hero__copy {
-    display: none;
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   *,
