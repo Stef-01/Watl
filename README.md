@@ -16,10 +16,14 @@ and nudges the arrow; the stagger runs on exit too, so the word settles back
 the way it rose. It is CSS on static spans, so it works even if `script.js`
 never loads, and `prefers-reduced-motion: reduce` stops it entirely.
 
-| Client | Site |
+| Link | Goes to |
 | --- | --- |
 | Bay Health | <https://bayhealth.com.au/> |
 | ADHDme | <https://www.adhdme.au/> |
+| Contact us | `mailto:` — the address is set on the `.client--contact` link in `index.html` |
+
+Clients sit together at the left of the rail; the contact link holds the right
+corner on its own, and keeps it when the rail wraps.
 
 To add one, copy an `<a class="client">` inside `nav.client-rail` in
 `index.html`. Each glyph is its own `<span>` carrying a `--i` index, which is

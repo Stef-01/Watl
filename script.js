@@ -2342,7 +2342,11 @@ function showFailure(error) {
   ui.stage.dataset.state = "error";
   ui.fallback.hidden = false;
   ui.error.hidden = false;
-  ui.instructions.textContent = "A still view of the complete golden wattle bouquet.";
+  /* This lives in the markup only as a status target; guard it so the failure
+     path can never itself fail on a missing node. */
+  if (ui.instructions) {
+    ui.instructions.textContent = "A still view of the complete golden wattle bouquet.";
+  }
   setStatus("The interactive 3D bouquet could not open. A still bouquet is shown.");
   window.__WATTLE_QA__ = Object.freeze({
     snapshot: () => ({ state: "error", renderer: "fallback" }),
