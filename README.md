@@ -51,14 +51,12 @@ bouquet.
 - Drag to orbit; use the wheel or a pinch gesture to zoom.
 - Click or tap a flower to brighten that bloom.
 - With the 3D stage focused, use the arrow keys to rotate, `+` / `-` to zoom, `Enter` to trigger a whole-bouquet pollen pulse, and `Home` to restore the authored view.
-- Adjust **Drift** to change the botanical sway. **Hold** stops both bouquet movement and celestial drift without disabling manual inspection; **Release** starts them again.
-- Use **Origin** to restore the authored camera.
 
-## Export
-
-Choose **Object** to save `golden-wattle-bouquet.glb`. The GLB contains the generated bouquet asset, including the symmetrical double-sided five-merous flower heads, compact buds, and falcate veined phyllodes, for use in GLB-compatible 3D software. The spatial universe, webpage controls, and interactive camera are intentionally not part of the exported botanical asset.
-
-A ready-made high-detail copy is also included at `assets/golden-wattle-bouquet.glb`.
+The page carries no visible controls. The bouquet is operated directly — by
+pointer, by touch, and by keyboard — and its sway is fixed at the authored
+value (`AUTHORED_DRIFT` in `script.js`). `assets/golden-wattle-bouquet.glb` is
+still in the repo as a standalone copy of the object, but nothing on the page
+links to it.
 
 ## Accessibility and fallbacks
 

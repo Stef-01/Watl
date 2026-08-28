@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
@@ -84,6 +83,11 @@ const query = new URLSearchParams(window.location.search);
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const coarsePointer = window.matchMedia("(pointer: coarse)");
 
+/* The sway the bouquet is authored at. This was the drift slider's default
+   position; with the slider gone it is just the number the artwork breathes
+   at, and the only thing that still overrides it is prefers-reduced-motion. */
+const AUTHORED_DRIFT = 0.42;
+
 const posterMode = query.get("poster") === "1";
 
 if (posterMode) {
@@ -100,11 +104,6 @@ const ui = Object.freeze({
   retry: document.querySelector("#retry-button"),
   status: document.querySelector("#stage-status"),
   instructions: document.querySelector("#scene-instructions"),
-  breeze: document.querySelector("#breeze"),
-  breezeValue: document.querySelector("#breeze-value"),
-  motion: document.querySelector("#motion-button"),
-  reset: document.querySelector("#reset-button"),
-  download: document.querySelector("#download-button"),
 });
 
 const state = {
@@ -131,7 +130,7 @@ const state = {
   motionPaused: false,
   inViewport: true,
   userMoved: false,
-  breeze: Number(ui.breeze.value) / 100,
+  breeze: AUTHORED_DRIFT,
   motionTime: 0,
   pulse: 0,
   pulsePeak: 0,
@@ -141,16 +140,12 @@ const state = {
   lastFrame: 0,
   renderedFrames: 0,
   frameTimes: [],
-  exporting: false,
   statusTimer: 0,
   defaultView: null,
   press: null,
   pointerDragged: false,
   selectedBloomIndex: -1,
 };
-
-setControlsEnabled(false);
-updateBreezeLabel();
 
 init().catch(showFailure);
 
@@ -196,8 +191,6 @@ async function init() {
   ui.stage.setAttribute("aria-busy", "false");
   ui.stage.dataset.state = "ready";
   ui.body.classList.add("is-ready");
-  setControlsEnabled(true);
-  updateMotionControl();
   setStatus("The 3D bouquet is ready.");
   performance.mark("wattle-scene-ready");
   exposeQaSnapshot();
@@ -1681,20 +1674,6 @@ function setupEvents() {
   ui.canvas.addEventListener("click", onCanvasClick);
 
   ui.stage.addEventListener("keydown", onStageKeydown);
-  ui.breeze.addEventListener("input", () => {
-    state.breeze = Number(ui.breeze.value) / 100;
-    updateBreezeLabel();
-    invalidate();
-  });
-  ui.motion.addEventListener("click", () => {
-    if (state.reduced) return;
-    state.motionPaused = !state.motionPaused;
-    updateMotionControl();
-    setStatus(state.motionPaused ? "Natural motion paused." : "Natural motion resumed.", 1400);
-    invalidate();
-  });
-  ui.reset.addEventListener("click", () => resetView(true));
-  ui.download.addEventListener("click", downloadGlb);
   ui.retry.addEventListener("click", () => window.location.reload());
 
   state.resizeObserver = new ResizeObserver(() => resizeScene(false));
@@ -2104,7 +2083,6 @@ function onReducedMotionChange() {
     resetSwayPose();
     resetUniversePose();
   }
-  updateMotionControl();
   invalidate();
 }
 
@@ -2115,42 +2093,6 @@ function onVisibilityChange() {
     state.lastFrame = 0;
     invalidate();
   }
-}
-
-function updateMotionControl() {
-  if (state.reduced) {
-    ui.motion.textContent = "Still";
-    ui.motion.setAttribute("aria-label", "Natural motion is reduced by system preference");
-    ui.motion.setAttribute("aria-pressed", "true");
-    ui.motion.disabled = true;
-    ui.breeze.disabled = true;
-    return;
-  }
-
-  ui.motion.disabled = !state.ready;
-  ui.breeze.disabled = !state.ready;
-  ui.motion.textContent = state.motionPaused ? "Release" : "Hold";
-  ui.motion.setAttribute("aria-label", state.motionPaused ? "Release autonomous motion" : "Hold all autonomous motion");
-  ui.motion.setAttribute("aria-pressed", String(state.motionPaused));
-}
-
-function updateBreezeLabel() {
-  const value = Number(ui.breeze.value);
-  let label = "Still";
-  if (value > 66) label = "Lively";
-  else if (value > 33) label = "Gentle";
-  else if (value > 0) label = "Soft";
-  const numeric = String(value).padStart(3, "0");
-  ui.breezeValue.value = numeric;
-  ui.breezeValue.textContent = numeric;
-  ui.breeze.setAttribute("aria-valuetext", `${label} drift, ${value} percent`);
-}
-
-function setControlsEnabled(enabled) {
-  ui.breeze.disabled = !enabled;
-  ui.motion.disabled = !enabled;
-  ui.reset.disabled = !enabled;
-  ui.download.disabled = !enabled;
 }
 
 function setStatus(message, resetAfter = 0) {
@@ -2390,297 +2332,6 @@ function bouquetWithinFrustum() {
   return corners.every((corner) => frustum.containsPoint(corner));
 }
 
-async function downloadGlb() {
-  if (!state.ready || state.exporting) return;
-  state.exporting = true;
-  ui.download.disabled = true;
-  ui.download.textContent = "...";
-  setStatus("Preparing the 3D bouquet for download.");
-  await nextFrame();
-
-  let exportRoot;
-  try {
-    exportRoot = createBakedExportGroup(state.data);
-    const exporter = new GLTFExporter();
-    const result = await new Promise((resolve, reject) => {
-      exporter.parse(exportRoot, resolve, reject, {
-        binary: true,
-        onlyVisible: true,
-        trs: false,
-      });
-    });
-
-    if (!(result instanceof ArrayBuffer)) throw new Error("The 3D exporter returned an unexpected result.");
-    const blob = new Blob([result], { type: "model/gltf-binary" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "golden-wattle-bouquet.glb";
-    document.body.append(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1200);
-    setStatus("The 3D bouquet was downloaded.", 1800);
-  } catch (error) {
-    console.error("Wattle GLB export failed", error);
-    setStatus("The 3D download could not be prepared.", 2400);
-  } finally {
-    if (exportRoot) disposeObject(exportRoot);
-    state.exporting = false;
-    ui.download.disabled = false;
-    ui.download.textContent = "Object";
-  }
-}
-
-function createBakedExportGroup(data) {
-  const root = new THREE.Group();
-  root.name = "Golden_Wattle_Bouquet";
-  root.userData = {
-    title: "Golden Wattle Bouquet",
-    species: "Acacia pycnantha",
-    generator: "Wattle procedural WebGL study",
-    seed: data.seed,
-    headForm: "spherical-rosette with globular buds",
-    floretMerosity: FLORET_PARTS,
-    floretPacking: "mirrored golden-angle Fermat rosettes for mature heads; spherical Fibonacci for buds",
-    phyllodeForm: "falcate with parallel-convergent longitudinal veins",
-    qaStats: {
-      flowerHeads: data.all.blooms.length,
-      symmetricBiconvexHeads: data.all.blooms.filter((item) => item.archetype !== "bud").length,
-      globularBuds: data.all.blooms.filter((item) => item.archetype === "bud").length,
-      floretMotifs: data.all.florets.length,
-      floretPetals: data.metrics.florets.petalInstances,
-      floretAnthers: data.all.tips.filter((item) => item.role === "floret-anther").length,
-      petalsPerFloret: FLORET_PARTS,
-      veinedLeaves: data.metrics.phyllodes.veinedLeaves,
-      veinsPerLeaf: PHYLLODE_VEIN_COUNT,
-      veinSegments: data.metrics.phyllodes.veinSegments,
-      exportedOuterStamens: data.all.filaments.filter(
-        (item) => item.role === "outer" && item.exportable !== false,
-      ).length,
-      exportedInnerFibers: data.all.filaments.filter(
-        (item) => item.role === "inner" && item.exportable !== false,
-      ).length,
-      exportedPollenTips: data.all.tips.filter((item) => item.exportable !== false).length,
-      rosettePacking: data.metrics.headPacking,
-      qualityTier: state.profile.id,
-    },
-  };
-
-  const stemBase = new THREE.CylinderGeometry(0.7, 1, 1, 8, 1, true);
-  const leafBase = createLeafGeometry();
-  const floretBase = createFivePartFloretGeometry();
-  const coreBase = createBloomSupportGeometry();
-
-  const stemGeometry = mergePaintedItems(stemBase, data.all.segments, (item, matrix) => {
-    composeSegmentMatrix(item.start, item.end, item.radius, matrix);
-  });
-  const leafGeometry = mergePaintedItems(leafBase, data.all.leaves, (item, matrix) => {
-    composeLeafMatrix(item, matrix);
-  });
-  const coreGeometry = mergePaintedItems(coreBase, data.all.blooms, (item, matrix) => {
-    composeBloomCoreMatrix(item, matrix);
-  });
-  const floretGeometry = mergePaintedItems(floretBase, data.all.florets, (item, matrix) => {
-    composeFloretMatrix(item, matrix);
-  });
-  const filamentGeometry = createFilamentExportGeometry(
-    data.all.filaments.filter((item) => item.exportable !== false),
-  );
-  const tipGeometry = createTipExportGeometry(data.all.tips.filter((item) => item.exportable !== false));
-
-  stemBase.dispose();
-  leafBase.dispose();
-  floretBase.dispose();
-  coreBase.dispose();
-
-  const makeMaterial = (
-    name,
-    roughness,
-    side = THREE.FrontSide,
-    emissive = 0x000000,
-    emissiveIntensity = 0,
-  ) => {
-    const material = new THREE.MeshStandardMaterial({
-      color: 0xfffffe,
-      vertexColors: true,
-      roughness,
-      metalness: 0,
-      side,
-      emissive,
-      emissiveIntensity,
-    });
-    material.name = name;
-    return material;
-  };
-
-  const parts = [
-    ["Stems", stemGeometry, makeMaterial("Stem_Material", 0.92)],
-    ["Falcate_Veined_Phyllodes", leafGeometry, makeMaterial("Phyllode_Material", 0.68, THREE.DoubleSide)],
-    ["Biconvex_Rosette_Supports_And_Bud_Cores", coreGeometry, makeMaterial("Bloom_Core_Material", 0.84, THREE.FrontSide, 0x4d2b00, 0.06)],
-    ["Five_Merous_Florets", floretGeometry, makeMaterial("Five_Merous_Floret_Material", 0.72, THREE.DoubleSide, 0x4a2a00, 0.09)],
-    ["Curved_Stamens", filamentGeometry, makeMaterial("Stamen_Material", 0.84, THREE.FrontSide, 0x3a2600, 0.07)],
-    ["Pollen_Tips", tipGeometry, makeMaterial("Pollen_Tip_Material", 0.78, THREE.FrontSide, 0x493500, 0.1)],
-  ];
-
-  for (const [name, geometry, material] of parts) {
-    if (!geometry) continue;
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.name = name;
-    root.add(mesh);
-  }
-
-  const tieMaterial = new THREE.MeshStandardMaterial({ color: 0xa77724, roughness: 0.92, metalness: 0 });
-  tieMaterial.name = "Natural_Twine_Material";
-  for (let index = 0; index < 3; index += 1) {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.017, 5, 28), tieMaterial);
-    ring.rotation.x = Math.PI / 2;
-    ring.position.set(0, GATHER_POINT.y - 0.08 + index * 0.038, 0);
-    ring.name = `Twine_Ring_${index + 1}`;
-    root.add(ring);
-  }
-  const knot = new THREE.Mesh(new THREE.IcosahedronGeometry(0.064, 1), tieMaterial);
-  knot.position.set(0.19, GATHER_POINT.y - 0.04, 0.035);
-  knot.scale.set(1.25, 0.9, 0.9);
-  knot.name = "Twine_Knot";
-  root.add(knot);
-  return root;
-}
-
-function mergePaintedItems(baseGeometry, items, applyTransform) {
-  if (items.length === 0) return null;
-  const geometries = [];
-  const matrix = new THREE.Matrix4();
-
-  for (const item of items) {
-    matrix.identity();
-    applyTransform(item, matrix);
-    const geometry = baseGeometry.clone();
-    geometry.applyMatrix4(matrix);
-    setGeometryColor(geometry, item.color);
-    geometries.push(geometry);
-  }
-
-  const merged = mergeGeometries(geometries, false);
-  for (const geometry of geometries) geometry.dispose();
-  if (merged) merged.computeBoundingSphere();
-  return merged;
-}
-
-function setGeometryColor(geometry, colorValue) {
-  const count = geometry.getAttribute("position").count;
-  const color = new THREE.Color(colorValue);
-  const existing = geometry.getAttribute("color");
-  const colors = new Float32Array(count * 3);
-  for (let index = 0; index < count; index += 1) {
-    colors[index * 3] = color.r * (existing?.getX(index) ?? 1);
-    colors[index * 3 + 1] = color.g * (existing?.getY(index) ?? 1);
-    colors[index * 3 + 2] = color.b * (existing?.getZ(index) ?? 1);
-  }
-  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-}
-
-function createFilamentExportGeometry(items) {
-  if (items.length === 0) return null;
-  const positions = [];
-  const colors = [];
-  const indices = [];
-  const axis = new THREE.Vector3();
-  const firstBasis = new THREE.Vector3();
-  const secondBasis = new THREE.Vector3();
-  const radial = new THREE.Vector3();
-  const vertex = new THREE.Vector3();
-
-  for (const item of items) {
-    const baseIndex = positions.length / 3;
-    axis.copy(item.end).sub(item.start).normalize();
-    const reference = Math.abs(axis.y) < 0.88 ? Y_AXIS : X_AXIS;
-    firstBasis.crossVectors(axis, reference).normalize();
-    secondBasis.crossVectors(axis, firstBasis).normalize();
-    const centers = [item.start, item.bend, item.end];
-    const radii = [item.radius, item.radius * 0.88, item.radius * 0.72];
-    const ringColors = [item.startColor, item.midColor, item.endColor];
-
-    for (let ringIndex = 0; ringIndex < 3; ringIndex += 1) {
-      const center = centers[ringIndex];
-      const radius = radii[ringIndex];
-      for (let side = 0; side < 3; side += 1) {
-        const angle = side / 3 * Math.PI * 2;
-        radial.copy(firstBasis).multiplyScalar(Math.cos(angle) * radius)
-          .addScaledVector(secondBasis, Math.sin(angle) * radius);
-        vertex.copy(center).add(radial);
-        positions.push(vertex.x, vertex.y, vertex.z);
-        appendColor(colors, ringColors[ringIndex]);
-      }
-    }
-
-    for (let ringIndex = 0; ringIndex < 2; ringIndex += 1) {
-      for (let side = 0; side < 3; side += 1) {
-        const next = (side + 1) % 3;
-        const startA = baseIndex + ringIndex * 3 + side;
-        const startB = baseIndex + ringIndex * 3 + next;
-        const endA = baseIndex + (ringIndex + 1) * 3 + side;
-        const endB = baseIndex + (ringIndex + 1) * 3 + next;
-        indices.push(startA, startB, endB, startA, endB, endA);
-      }
-    }
-    indices.push(
-      baseIndex, baseIndex + 2, baseIndex + 1,
-      baseIndex + 6, baseIndex + 7, baseIndex + 8,
-    );
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  geometry.computeBoundingSphere();
-  geometry.name = "Baked_Curved_Stamens";
-  return geometry;
-}
-
-function createTipExportGeometry(items) {
-  if (items.length === 0) return null;
-  const positions = [];
-  const colors = [];
-  const indices = [];
-
-  for (const item of items) {
-    const baseIndex = positions.length / 3;
-    const radius = Math.max(0.006, item.size * 0.72);
-    const { x, y, z } = item.position;
-    positions.push(
-      x + radius, y, z,
-      x - radius, y, z,
-      x, y + radius, z,
-      x, y - radius, z,
-      x, y, z + radius,
-      x, y, z - radius,
-    );
-    for (let index = 0; index < 6; index += 1) appendColor(colors, item.color);
-    indices.push(
-      baseIndex + 2, baseIndex, baseIndex + 4,
-      baseIndex + 2, baseIndex + 4, baseIndex + 1,
-      baseIndex + 2, baseIndex + 1, baseIndex + 5,
-      baseIndex + 2, baseIndex + 5, baseIndex,
-      baseIndex + 3, baseIndex + 4, baseIndex,
-      baseIndex + 3, baseIndex + 1, baseIndex + 4,
-      baseIndex + 3, baseIndex + 5, baseIndex + 1,
-      baseIndex + 3, baseIndex, baseIndex + 5,
-    );
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  geometry.computeBoundingSphere();
-  geometry.name = "Baked_Pollen_Tips";
-  return geometry;
-}
-
 function showFailure(error) {
   console.error("Wattle 3D initialization failed", error);
   state.rendererState = "error";
@@ -2692,7 +2343,6 @@ function showFailure(error) {
   ui.fallback.hidden = false;
   ui.error.hidden = false;
   ui.instructions.textContent = "A still view of the complete golden wattle bouquet.";
-  setControlsEnabled(false);
   setStatus("The interactive 3D bouquet could not open. A still bouquet is shown.");
   window.__WATTLE_QA__ = Object.freeze({
     snapshot: () => ({ state: "error", renderer: "fallback" }),

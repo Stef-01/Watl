@@ -371,85 +371,15 @@ button {
   color: var(--ink);
 }
 
-.control-dock {
-  right: 0;
-  bottom: 0;
-  left: 0;
-  min-height: 3.5rem;
-  display: grid;
-  grid-template-columns: minmax(18rem, 1fr) auto;
-  align-items: stretch;
-  border-top: 1px solid var(--edge);
-  background: rgba(10, 8, 6, 0.78);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
-}
 
-.breeze-control {
-  display: grid;
-  grid-template-columns: auto minmax(8rem, 18rem) auto;
-  align-items: center;
-  gap: 1rem;
-  min-width: 0;
-  padding: 0 max(1.5rem, env(safe-area-inset-left));
-  font-family: var(--mono);
-  font-size: 0.625rem;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
 
-.breeze-control output {
-  min-width: 3.9rem;
-  text-align: left;
-  color: var(--ink);
-}
 
-input[type="range"] {
-  width: 100%;
-  height: 1rem;
-  margin: 0;
-  padding: 0;
-  appearance: none;
-  background: transparent;
-  cursor: pointer;
-}
 
-input[type="range"]::-webkit-slider-runnable-track {
-  height: 1px;
-  background: var(--edge);
-}
 
-input[type="range"]::-webkit-slider-thumb {
-  width: 7px;
-  height: 7px;
-  margin-top: -3px;
-  appearance: none;
-  border: 0;
-  border-radius: 50%;
-  background: var(--ink);
-}
 
-input[type="range"]::-moz-range-track {
-  height: 1px;
-  background: var(--edge);
-}
 
-input[type="range"]::-moz-range-thumb {
-  width: 7px;
-  height: 7px;
-  border: 0;
-  border-radius: 50%;
-  background: var(--ink);
-}
 
-.control-actions {
-  display: flex;
-  align-items: stretch;
-  border-left: 1px solid var(--edge);
-}
 
-.control-actions button,
 .scene-error button {
   min-width: 5.2rem;
   border: 0;
@@ -465,29 +395,13 @@ input[type="range"]::-moz-range-thumb {
   transition: color 160ms ease, background-color 160ms ease;
 }
 
-.control-actions button:first-child {
-  border-left: 0;
-}
 
-.control-actions button:hover:not(:disabled),
-.control-actions button:focus-visible,
 .scene-error button:hover,
 .scene-error button:focus-visible {
   color: var(--ink);
   background: rgba(242, 240, 232, 0.06);
 }
 
-.control-actions .download-button {
-  min-width: 5.8rem;
-  background: transparent;
-  color: var(--gold);
-}
-
-.control-actions .download-button:hover:not(:disabled),
-.control-actions .download-button:focus-visible {
-  background: rgba(244, 195, 35, 0.06);
-  color: var(--ink);
-}
 
 :where(button, input):focus-visible {
   outline: 1px solid var(--gold);
@@ -641,30 +555,7 @@ input:disabled {
   .botanical-note {
     top: auto;
     right: max(1.15rem, env(safe-area-inset-right));
-    bottom: calc(6.7rem + env(safe-area-inset-bottom));
-  }
-
-  .control-dock {
-    min-height: 5.75rem;
-    grid-template-columns: 1fr;
-    grid-template-rows: 2.35rem 3.4rem;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .breeze-control {
-    grid-template-columns: auto 1fr auto;
-    gap: 0.8rem;
-    padding-inline: max(1.15rem, env(safe-area-inset-left));
-    border-bottom: 1px solid var(--edge);
-  }
-
-  .control-actions {
-    border-left: 0;
-  }
-
-  .control-actions button {
-    flex: 1;
-    min-width: 0;
+    bottom: max(1.15rem, env(safe-area-inset-bottom));
   }
 }
 
@@ -697,9 +588,7 @@ input:disabled {
 }
 
 @media (forced-colors: active) {
-  .backdrop,
-  .control-dock,
-  .control-actions .download-button {
+  .backdrop {
     forced-color-adjust: auto;
   }
 
