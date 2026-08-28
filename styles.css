@@ -258,9 +258,7 @@ button {
 
 .wordmark,
 .hero h1,
-.hero__copy,
-.botanical-note p,
-.botanical-note span {
+.hero__copy {
   margin: 0;
 }
 
@@ -292,93 +290,98 @@ button {
   color: var(--muted);
 }
 
-/* ---------- The client index ----------
-   The one piece of the page that leaves it. It is set at the hero's own
-   size and colour so it reads as another line of the lockup, not as
-   navigation bolted onto the object. */
-.clients {
-  grid-column: 1 / -1;
-  margin-top: 1.5rem;
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+/* ---------- The client rail ----------
+   The studio's whole outbound surface, laid along the foot of the screen.
+   It is the only thing on the page that answers a pointer, so it is the only
+   thing allowed to move: each name is split into glyphs that lift in a
+   staggered wave, and the stagger runs on exit too, so the word settles back
+   the way it rose. Everything here is CSS on static spans — if script.js
+   never loads, the rail still works and still animates. */
+.client-rail {
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.25rem clamp(1.5rem, 6vw, 5rem);
+  padding: 0 max(1.75rem, env(safe-area-inset-right))
+    calc(1.75rem + env(safe-area-inset-bottom))
+    max(1.75rem, env(safe-area-inset-left));
 }
 
-.clients__label {
-  margin: 0 0 0.6rem;
-  color: rgba(242, 240, 232, 0.32);
-}
-
-.clients ul {
-  display: grid;
-  gap: 0.45rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.clients a {
-  display: inline-block;
+.client {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5em;
+  padding-bottom: 0.5rem;
   color: var(--muted);
+  font-family: var(--mono);
+  font-size: clamp(1.05rem, 0.72rem + 1.5vw, 2.1rem);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   text-decoration: none;
-  transition: color 0.35s ease;
+  white-space: nowrap;
 }
 
-.clients a i {
+/* A hairline that draws itself under the name, left to right. */
+.client::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  background: var(--gold);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.client__name span {
   display: inline-block;
-  margin-left: 0.55em;
+  transition:
+    transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--i) * 26ms);
+}
+
+.client__arrow {
+  display: inline-block;
   font-style: normal;
+  font-size: 0.62em;
   color: rgba(242, 240, 232, 0.34);
-  transition: transform 0.35s ease, color 0.35s ease;
+  transition:
+    transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.clients a:hover,
-.clients a:focus-visible {
-  color: var(--ink);
-}
-
-.clients a:hover i,
-.clients a:focus-visible i {
+.client:hover .client__name span,
+.client:active .client__name span,
+.client:focus-visible .client__name span {
+  transform: translateY(-0.34em);
   color: var(--gold);
-  transform: translate(0.2em, -0.2em);
 }
 
-.clients a:focus-visible {
+.client:hover::after,
+.client:active::after,
+.client:focus-visible::after {
+  transform: scaleX(1);
+}
+
+.client:hover .client__arrow,
+.client:active .client__arrow,
+.client:focus-visible .client__arrow {
+  transform: translate(0.3em, -0.3em);
+  color: var(--gold);
+}
+
+.client:focus-visible {
   outline: 1px solid var(--gold);
-  outline-offset: 4px;
+  outline-offset: 0.5rem;
 }
-
-.botanical-note {
-  top: max(1.5rem, env(safe-area-inset-top));
-  right: max(1.5rem, env(safe-area-inset-right));
-  text-align: right;
-}
-
-.botanical-note p {
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.botanical-note span {
-  display: block;
-  margin-top: 0.35rem;
-  font-size: 0.76rem;
-  letter-spacing: 0.01em;
-  color: var(--ink);
-}
-
-
-
-
-
-
-
-
-
 
 .scene-error button {
   min-width: 5.2rem;
@@ -395,13 +398,11 @@ button {
   transition: color 160ms ease, background-color 160ms ease;
 }
 
-
 .scene-error button:hover,
 .scene-error button:focus-visible {
   color: var(--ink);
   background: rgba(242, 240, 232, 0.06);
 }
-
 
 :where(button, input):focus-visible {
   outline: 1px solid var(--gold);
@@ -551,20 +552,10 @@ input:disabled {
   .hero__copy {
     max-width: 18rem;
   }
-
-  .botanical-note {
-    top: auto;
-    right: max(1.15rem, env(safe-area-inset-right));
-    bottom: max(1.15rem, env(safe-area-inset-bottom));
-  }
 }
 
 @media (max-width: 420px) {
   .hero__copy {
-    display: none;
-  }
-
-  .botanical-note span {
     display: none;
   }
 }
@@ -577,6 +568,7 @@ input:disabled {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
   }
 }
 

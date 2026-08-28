@@ -10,16 +10,22 @@ Mature heads are dense spherical pom-poms, as deep as they are wide. Complete fi
 
 ## Clients
 
-The client index sits in the hero lockup, top left, set at the same size and
-colour as the rest of it.
+The clients run along the foot of the screen. Hovering or focusing a name
+lifts it glyph by glyph in a staggered wave, draws a gold hairline under it
+and nudges the arrow; the stagger runs on exit too, so the word settles back
+the way it rose. It is CSS on static spans, so it works even if `script.js`
+never loads, and `prefers-reduced-motion: reduce` stops it entirely.
 
 | Client | Site |
 | --- | --- |
 | Bay Health | <https://bayhealth.com.au/> |
 | ADHDme | <https://www.adhdme.au/> |
 
-To add one, copy a `<li>` inside `nav.clients` in `index.html` and change the
-name and the `href`. Nothing else moves.
+To add one, copy an `<a class="client">` inside `nav.client-rail` in
+`index.html`. Each glyph is its own `<span>` carrying a `--i` index, which is
+what the wave staggers on, so the letters have to be split by hand — the link
+keeps the real name in `aria-label`, and the glyph container is `aria-hidden`
+so a screen reader never spells it out.
 
 ## Run locally
 
