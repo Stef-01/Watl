@@ -83,6 +83,15 @@ button {
   cursor: grabbing;
 }
 
+/* script.js only sets this while a fine pointer is over a flower head. The
+   stage remains a grab surface everywhere else, so orbiting keeps its familiar
+   affordance and touch devices never inherit a synthetic hover cursor. */
+@media (hover: hover) and (pointer: fine) {
+  .stage[data-bloom-hover="true"] {
+    cursor: pointer;
+  }
+}
+
 .stage:focus-visible {
   outline: 1px solid var(--gold);
   outline-offset: -5px;

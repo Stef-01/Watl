@@ -39,10 +39,12 @@
         class="stage"
         id="wattle-stage"
         data-testid="wattle-stage"
+        data-bloom-hover="false"
         tabindex="0"
         role="group"
         aria-label="Interactive 3D golden wattle bouquet"
         aria-describedby="scene-description scene-pointer-instructions keyboard-instructions"
+        aria-keyshortcuts="Enter Space ArrowUp ArrowDown ArrowLeft ArrowRight + - Home"
         aria-busy="true"
       >
         <div class="backdrop" aria-hidden="true"></div>
@@ -118,12 +120,12 @@
         WATL is a technology design practice represented here by a complete hand-tied bouquet of golden wattle suspended within a deep, slowly moving field of light and spatial signals. Curved green phyllodes surround dense, symmetrical yellow pom-pom heads built from mirrored layers of tightly packed five-part florets. Stars occupy several real depths, so turning the object also changes the surrounding space.
       </p>
       <p class="sr-only" id="keyboard-instructions">
-        Use the arrow keys to rotate the bouquet, plus and minus to zoom, Enter to brighten the flowers, and Home to reset the view.
+        Use the arrow keys to rotate the bouquet, plus and minus to zoom, Enter or Space to bloom the bouquet in a bottom-to-top cascade, and Home to reset the view.
       </p>
       <p class="sr-only" id="scene-pointer-instructions">
-        Drag to orbit, scroll or pinch to approach, and tap a flower to illuminate it.
+        With a mouse or trackpad, hover a flower to preview it. Click or tap a flower to bloom it. Drag to orbit, and scroll or pinch to zoom.
       </p>
-      <p class="sr-only" id="stage-status" role="status" aria-live="polite">Building the 3D bouquet.</p>
+      <p class="sr-only" id="stage-status" role="status" aria-live="polite" aria-atomic="true">Building the 3D bouquet.</p>
 
       <noscript>
         <p class="noscript-message">JavaScript is required to explore the interactive 3D bouquet.</p>

@@ -109,8 +109,8 @@ bouquet.
 ## Explore the bouquet
 
 - Drag to orbit; use the wheel or a pinch gesture to zoom.
-- Click or tap a flower to brighten that bloom.
-- With the 3D stage focused, use the arrow keys to rotate, `+` / `-` to zoom, `Enter` to trigger a whole-bouquet pollen pulse, and `Home` to restore the authored view.
+- With a mouse or trackpad, hover a flower for a restrained bloom preview; click or tap a flower to open that head and lift its pollen before it settles.
+- With the 3D stage focused, use the arrow keys to rotate, `+` / `-` to zoom, `Enter` or `Space` to send a bloom cascade from the bottom of the bouquet to its crown, and `Home` to restore the authored view.
 
 The page carries no visible controls. The bouquet is operated directly — by
 pointer, by touch, and by keyboard — and its sway is fixed at the authored
@@ -118,6 +118,12 @@ value (`AUTHORED_DRIFT` in `script.js`). `assets/golden-wattle-bouquet.glb` is
 still in the repo as a standalone copy of the object, but nothing on the page
 links to it.
 
+Blooming is interaction feedback rather than a new navigation layer. Hover
+previews are limited to fine pointers, a drag cancels the pending bloom so an
+orbit never fires one accidentally, and repeated activations continue from the
+head's current state instead of snapping back to rest. Keyboard activation
+uses the same response as pointer activation, distributed across the bouquet.
+
 ## Accessibility and fallbacks
 
-The scene has a keyboard-focusable wrapper, visible focus treatment, concise operating instructions, and a text description of the bouquet and its spatial field. A `prefers-reduced-motion: reduce` preference disables autonomous bouquet and celestial motion while preserving direct pointer and keyboard controls. If WebGL is unavailable or scene setup fails, the interface presents an explanatory status and a still bouquet poster instead of an empty canvas.
+The scene has a keyboard-focusable wrapper, visible focus treatment, concise operating instructions, and a text description of the bouquet and its spatial field. A polite live region announces deliberate flower and bouquet activations, never hover previews. A `prefers-reduced-motion: reduce` preference disables autonomous bouquet and celestial motion, replaces geometric blooming and its stagger with a brief local light response, and preserves direct pointer and keyboard controls. If WebGL is unavailable or scene setup fails, the interface presents an explanatory status and a still bouquet poster instead of an empty canvas.

@@ -17,6 +17,23 @@ const X_AXIS = new THREE.Vector3(1, 0, 0);
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const GATHER_POINT = new THREE.Vector3(0, -2.04, 0);
 const BLOOM_CORE_SCALE = 0.36;
+const BLOOM_DRAG_SLOP = 7;
+const BLOOM_PREVIEW_STRENGTH = 0.18;
+const BLOOM_CASCADE_STRENGTH = 0.65;
+const BLOOM_RADIAL_SPREAD = 0.035;
+const BLOOM_FLORET_SCALE = 0.02;
+const BLOOM_POINT_SCALE = 0.24;
+const BLOOM_OPEN_MS = 180;
+const BLOOM_HOLD_MS = 80;
+const BLOOM_SETTLE_MS = 360;
+const BLOOM_HOVER_IN_MS = 140;
+const BLOOM_HOVER_OUT_MS = 180;
+const BLOOM_REDUCED_IN_MS = 100;
+const BLOOM_REDUCED_OUT_MS = 180;
+const BLOOM_CASCADE_SPAN_MS = 280;
+const BLOOM_HOVER_RESUME_MS = 80;
+const BLOOM_PICK_INTERVAL_MS = 1000 / 30;
+const BLOOM_LIGHT_INTENSITY = 3.6;
 
 /* Floret counts are unchanged from the flat version, and deliberately so: a
    real Acacia pycnantha head carries forty to eighty florets, so the original
@@ -82,6 +99,33 @@ window.__WATTLE_BOOTED__ = true;
 const query = new URLSearchParams(window.location.search);
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const coarsePointer = window.matchMedia("(pointer: coarse)");
+const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
+
+/* Hover picking runs often enough that its scratch objects cannot be allowed
+   to become garbage. Clicks and hover share this one picker and one result. */
+const bloomPicker = {
+  pointer: new THREE.Vector2(),
+  raycaster: new THREE.Raycaster(),
+  instanceMatrix: new THREE.Matrix4(),
+  worldMatrix: new THREE.Matrix4(),
+  worldPosition: new THREE.Vector3(),
+  worldScale: new THREE.Vector3(),
+  worldQuaternion: new THREE.Quaternion(),
+  hitCenter: new THREE.Vector3(),
+  hitAxis: new THREE.Vector3(),
+  hitMatrix: new THREE.Matrix4(),
+  inverseHitMatrix: new THREE.Matrix4(),
+  localOrigin: new THREE.Vector3(),
+  localEnd: new THREE.Vector3(),
+  localDirection: new THREE.Vector3(),
+  localHit: new THREE.Vector3(),
+  worldHit: new THREE.Vector3(),
+  localRay: new THREE.Ray(),
+  unitSphere: new THREE.Sphere(new THREE.Vector3(), 1),
+  resultPosition: new THREE.Vector3(),
+  resultIndex: -1,
+  resultRadius: 0,
+};
 
 /* The sway the bouquet is authored at. This was the drift slider's default
    position; with the slider gone it is just the number the artwork breathes
@@ -118,6 +162,7 @@ const state = {
   bouquet: null,
   universe: null,
   universeMaterial: null,
+  bloom: null,
   swayGroups: [],
   coreMeshes: [],
   pointsMaterial: null,
@@ -132,10 +177,6 @@ const state = {
   userMoved: false,
   breeze: AUTHORED_DRIFT,
   motionTime: 0,
-  pulse: 0,
-  pulsePeak: 0,
-  pulseCenter: new THREE.Vector3(),
-  pulseRadius: 100,
   raf: 0,
   lastFrame: 0,
   renderedFrames: 0,
@@ -144,6 +185,14 @@ const state = {
   defaultView: null,
   press: null,
   pointerDragged: false,
+  controlsActive: false,
+  hoverPointer: {
+    x: 0,
+    y: 0,
+    pending: false,
+    lastPickAt: -Infinity,
+    resumeAt: 0,
+  },
   selectedBloomIndex: -1,
 };
 
@@ -165,6 +214,7 @@ async function init() {
 
   addLighting(state.scene);
   state.data = generateBouquetData(state.profile, readSeed());
+  state.bloom = createBloomController(state.data);
 
   const built = buildBouquet(state.data);
   state.bouquet = built.root;
@@ -213,6 +263,255 @@ function readSeed() {
   if (!value) return DEFAULT_SEED;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed >>> 0 : DEFAULT_SEED;
+}
+
+function reduceBloomMotion() {
+  return state.reduced || query.get("motion") === "off" || posterMode;
+}
+
+function createBloomController(data) {
+  const count = data.all.blooms.length;
+  const centers = new Float32Array(count * 3);
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  for (const bloom of data.all.blooms) {
+    const offset = bloom.index * 3;
+    centers[offset] = bloom.position.x;
+    centers[offset + 1] = bloom.position.y - GATHER_POINT.y;
+    centers[offset + 2] = bloom.position.z;
+    minY = Math.min(minY, bloom.position.y);
+    maxY = Math.max(maxY, bloom.position.y);
+  }
+
+  return {
+    centers,
+    minY,
+    maxY,
+    hoveredIndex: -1,
+    cascadeActive: false,
+    cascadeEndsAt: 0,
+    activeCount: 0,
+    maxProgress: 0,
+    dirtyHeads: [],
+    renderables: {
+      cores: [],
+      florets: [],
+      filaments: [],
+      tips: [],
+    },
+    heads: data.all.blooms.map((bloom) => ({
+      index: bloom.index,
+      value: 0,
+      appliedValue: 0,
+      from: 0,
+      target: 0,
+      peak: 1,
+      startAt: 0,
+      duration: 0,
+      mode: "idle",
+      easing: "out",
+    })),
+  };
+}
+
+function cubicBezierCoordinate(t, first, second) {
+  const inverse = 1 - t;
+  return 3 * inverse * inverse * t * first
+    + 3 * inverse * t * t * second
+    + t * t * t;
+}
+
+function cubicBezierSlope(t, first, second) {
+  const inverse = 1 - t;
+  return 3 * inverse * inverse * first
+    + 6 * inverse * t * (second - first)
+    + 3 * t * t * (1 - second);
+}
+
+function solveCubicBezier(progress, x1, y1, x2, y2) {
+  const target = THREE.MathUtils.clamp(progress, 0, 1);
+  let parameter = target;
+
+  for (let iteration = 0; iteration < 5; iteration += 1) {
+    const error = cubicBezierCoordinate(parameter, x1, x2) - target;
+    const slope = cubicBezierSlope(parameter, x1, x2);
+    if (Math.abs(error) < 0.00001 || Math.abs(slope) < 0.00001) break;
+    parameter = THREE.MathUtils.clamp(parameter - error / slope, 0, 1);
+  }
+
+  return cubicBezierCoordinate(parameter, y1, y2);
+}
+
+function easeBloom(progress, easing) {
+  return easing === "in-out"
+    ? solveCubicBezier(progress, 0.77, 0, 0.175, 1)
+    : solveCubicBezier(progress, 0.23, 1, 0.32, 1);
+}
+
+function transitionBloomHead(head, target, now, duration, easing, mode) {
+  head.from = head.value;
+  head.target = target;
+  head.startAt = now;
+  head.duration = Math.max(1, duration);
+  head.easing = easing;
+  head.mode = mode;
+}
+
+function beginBloomActivation(head, now, peak, delay = 0) {
+  const effectiveDelay = head.value > 0.001 ? 0 : delay;
+  head.from = head.value;
+  head.target = peak;
+  head.peak = peak;
+  head.startAt = now + effectiveDelay;
+  head.duration = reduceBloomMotion() ? BLOOM_REDUCED_IN_MS : BLOOM_OPEN_MS;
+  head.easing = "out";
+  head.mode = effectiveDelay > 0 ? "scheduled" : "opening";
+}
+
+function transitionHoverHead(head, target, now) {
+  if (["scheduled", "opening", "holding", "settling"].includes(head.mode)) return;
+  const entering = target > head.value;
+  head.peak = Math.max(target, BLOOM_PREVIEW_STRENGTH);
+  transitionBloomHead(
+    head,
+    target,
+    now,
+    entering ? BLOOM_HOVER_IN_MS : BLOOM_HOVER_OUT_MS,
+    "out",
+    target > 0 ? "hovering-in" : "hovering-out",
+  );
+}
+
+function updateBloomHead(head, now) {
+  if (head.mode === "idle" || head.mode === "preview") return false;
+
+  if (head.mode === "scheduled") {
+    if (now < head.startAt) return true;
+    head.mode = "opening";
+  }
+
+  if (head.mode === "holding") {
+    if (now < head.startAt) return true;
+    transitionBloomHead(
+      head,
+      0,
+      now,
+      reduceBloomMotion() ? BLOOM_REDUCED_OUT_MS : BLOOM_SETTLE_MS,
+      reduceBloomMotion() ? "out" : "in-out",
+      "settling",
+    );
+  }
+
+  const progress = THREE.MathUtils.clamp((now - head.startAt) / head.duration, 0, 1);
+  head.value = THREE.MathUtils.lerp(head.from, head.target, easeBloom(progress, head.easing));
+
+  if (progress < 1) return true;
+
+  head.value = head.target;
+  if (head.mode === "opening") {
+    if (reduceBloomMotion() || BLOOM_HOLD_MS === 0) {
+      transitionBloomHead(
+        head,
+        0,
+        now,
+        reduceBloomMotion() ? BLOOM_REDUCED_OUT_MS : BLOOM_SETTLE_MS,
+        reduceBloomMotion() ? "out" : "in-out",
+        "settling",
+      );
+    } else {
+      head.mode = "holding";
+      head.startAt = now + BLOOM_HOLD_MS;
+    }
+    return true;
+  }
+
+  if (head.mode === "settling") {
+    head.mode = "idle";
+    if (state.bloom.hoveredIndex === head.index) {
+      transitionHoverHead(head, BLOOM_PREVIEW_STRENGTH, now);
+      return true;
+    }
+    return false;
+  }
+
+  if (head.mode === "hovering-in") {
+    head.mode = "preview";
+    return false;
+  }
+
+  head.mode = "idle";
+  return false;
+}
+
+function itemBloomProgress(head, phase = 0) {
+  if (head.mode === "preview" || head.mode.startsWith("hovering")) return head.value;
+  const peak = Math.max(0.0001, head.peak);
+  const normalized = THREE.MathUtils.clamp(head.value / peak, 0, 1);
+  const delay = THREE.MathUtils.clamp(phase, 0, 1) * (80 / BLOOM_OPEN_MS);
+  const local = THREE.MathUtils.clamp((normalized - delay) / Math.max(0.0001, 1 - delay), 0, 1);
+  const staggered = local * local * (3 - 2 * local);
+  return staggered * peak;
+}
+
+function updateBloomAnimation(now) {
+  if (!state.bloom) return false;
+  const dirty = state.bloom.dirtyHeads;
+  dirty.length = 0;
+  let activeCount = 0;
+  let maxProgress = 0;
+
+  for (const head of state.bloom.heads) {
+    const was = head.value;
+    const active = updateBloomHead(head, now);
+    if (active) activeCount += 1;
+    maxProgress = Math.max(maxProgress, head.value);
+    if (Math.abs(was - head.value) > 0.00001) dirty.push(head.index);
+  }
+
+  if (dirty.length > 0) applyBloomEffects(dirty);
+
+  state.bloom.activeCount = activeCount;
+  state.bloom.maxProgress = maxProgress;
+  state.bloom.cascadeActive = now < state.bloom.cascadeEndsAt;
+
+  if (query.get("qa") === "1") {
+    ui.stage.dataset.qaBloomActive = String(activeCount);
+    ui.stage.dataset.qaBloomProgress = maxProgress.toFixed(4);
+    ui.stage.dataset.qaBloomCascade = String(state.bloom.cascadeActive);
+    ui.stage.dataset.qaBloomSelected = String(state.selectedBloomIndex);
+  }
+
+  if (state.selectedBloomIndex >= 0) {
+    const selected = state.bloom.heads[state.selectedBloomIndex];
+    state.selectionLight.intensity = selected
+      ? selected.value * (reduceBloomMotion() ? 2.6 : BLOOM_LIGHT_INTENSITY)
+      : 0;
+  } else {
+    state.selectionLight.intensity = 0;
+  }
+
+  return activeCount > 0;
+}
+
+function resetBloomState() {
+  if (!state.bloom) return;
+  state.bloom.hoveredIndex = -1;
+  state.bloom.cascadeActive = false;
+  state.bloom.cascadeEndsAt = 0;
+  ui.stage.dataset.bloomHover = "false";
+  const dirty = [];
+  for (const head of state.bloom.heads) {
+    head.value = 0;
+    head.from = 0;
+    head.target = 0;
+    head.mode = "idle";
+    dirty.push(head.index);
+  }
+  applyBloomEffects(dirty);
+  state.bloom.activeCount = 0;
+  state.bloom.maxProgress = 0;
+  state.selectionLight.intensity = 0;
 }
 
 function createRenderer(profile) {
@@ -588,6 +887,12 @@ function generateBouquetData(profile, seed) {
         radius: lineRadius,
         role,
         exportable,
+        headIndex: bloomOrdinal,
+        bloomPhase: THREE.MathUtils.clamp(
+          end.distanceTo(position) / Math.max(radius, 0.0001),
+          0,
+          1,
+        ),
       }, cluster);
     };
 
@@ -733,6 +1038,9 @@ function generateBouquetData(profile, seed) {
         headForm,
         layer,
         radialT,
+        bloomPhase: archetype === "bud"
+          ? index / Math.max(1, surfaceFloretCount - 1)
+          : radialT,
         petalCount: FLORET_PARTS,
         exportable: true,
       }, cluster);
@@ -757,6 +1065,9 @@ function generateBouquetData(profile, seed) {
           headIndex: bloomOrdinal,
           siteIndex: index,
           partIndex: part,
+          bloomPhase: archetype === "bud"
+            ? index / Math.max(1, surfaceFloretCount - 1)
+            : radialT,
           exportable: true,
         }, cluster);
       }
@@ -835,6 +1146,12 @@ function generateBouquetData(profile, seed) {
         ),
         color: endColor,
         role: "center",
+        headIndex: bloomOrdinal,
+        bloomPhase: THREE.MathUtils.clamp(
+          end.distanceTo(position) / Math.max(radius, 0.0001),
+          0,
+          1,
+        ),
         exportable: index < exportInnerCount,
       }, cluster);
     }
@@ -882,6 +1199,12 @@ function generateBouquetData(profile, seed) {
         ),
         color: choose(TIP_COLORS, random),
         role: "center",
+        headIndex: bloomOrdinal,
+        bloomPhase: THREE.MathUtils.clamp(
+          speckPosition.distanceTo(position) / Math.max(radius, 0.0001),
+          0,
+          1,
+        ),
         exportable: index < exportCenterCount,
       }, cluster);
     }
@@ -1397,6 +1720,20 @@ function createStemInstances(items, geometry, material) {
   return mesh;
 }
 
+function buildHeadRanges(items) {
+  const ranges = Array(state.data.all.blooms.length).fill(null);
+  items.forEach((item, index) => {
+    const headIndex = item.headIndex ?? item.index;
+    if (!Number.isInteger(headIndex) || headIndex < 0) return;
+    if (!ranges[headIndex]) {
+      ranges[headIndex] = { start: index, count: 1 };
+    } else {
+      ranges[headIndex].count = index - ranges[headIndex].start + 1;
+    }
+  });
+  return ranges;
+}
+
 function createLeafInstances(items, geometry, material) {
   const mesh = new THREE.InstancedMesh(geometry, material, items.length);
   mesh.name = "Falcate_Veined_Phyllodes";
@@ -1418,7 +1755,7 @@ function createLeafInstances(items, geometry, material) {
 function createFloretInstances(items, geometry, material) {
   const mesh = new THREE.InstancedMesh(geometry, material, items.length);
   mesh.name = "Five_Part_Floret_Rosettes";
-  mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   mesh.frustumCulled = false;
   const matrix = new THREE.Matrix4();
 
@@ -1429,14 +1766,24 @@ function createFloretInstances(items, geometry, material) {
   });
 
   mesh.instanceMatrix.needsUpdate = true;
-  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  if (mesh.instanceColor) {
+    mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+    mesh.instanceColor.needsUpdate = true;
+  }
+  state.bloom.renderables.florets.push({
+    mesh,
+    items,
+    ranges: buildHeadRanges(items),
+    baseMatrices: mesh.instanceMatrix.array.slice(),
+    baseColors: mesh.instanceColor?.array.slice() ?? null,
+  });
   return mesh;
 }
 
 function createCoreInstances(items, geometry, material) {
   const mesh = new THREE.InstancedMesh(geometry, material, items.length);
   mesh.name = "Biconvex_Rosette_Supports_And_Bud_Cores";
-  mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   mesh.frustumCulled = false;
   const matrix = new THREE.Matrix4();
 
@@ -1447,7 +1794,10 @@ function createCoreInstances(items, geometry, material) {
   });
 
   mesh.instanceMatrix.needsUpdate = true;
-  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  if (mesh.instanceColor) {
+    mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+    mesh.instanceColor.needsUpdate = true;
+  }
   mesh.userData.hitRadii = items.map((item) => item.radius * 1.18);
   mesh.userData.bloomIndices = items.map((item) => item.index);
   mesh.userData.hitShapes = items.map((item) => ({
@@ -1455,6 +1805,13 @@ function createCoreInstances(items, geometry, material) {
     axial: item.radius * 1.16,
     centerOffset: -(item.coreOffset ?? 0),
   }));
+  state.bloom.renderables.cores.push({
+    mesh,
+    items,
+    ranges: buildHeadRanges(items),
+    baseMatrices: mesh.instanceMatrix.array.slice(),
+    baseColors: mesh.instanceColor?.array.slice() ?? null,
+  });
   return mesh;
 }
 
@@ -1483,9 +1840,22 @@ function createFilamentLines(items, material) {
   geometry.setColors(colors);
   geometry.computeBoundingSphere();
   geometry.name = "Curved_Stamen_Lines";
+  const positionBuffer = geometry.attributes.instanceStart.data;
+  const colorBuffer = geometry.attributes.instanceColorStart.data;
+  positionBuffer.setUsage(THREE.DynamicDrawUsage);
+  colorBuffer.setUsage(THREE.DynamicDrawUsage);
   const lines = new LineSegments2(geometry, material);
   lines.name = "Curved_Stamens";
   lines.frustumCulled = false;
+  state.bloom.renderables.filaments.push({
+    lines,
+    items,
+    ranges: buildHeadRanges(items),
+    positionBuffer,
+    colorBuffer,
+    basePositions: positionBuffer.array.slice(),
+    baseColors: colorBuffer.array.slice(),
+  });
   return lines;
 }
 
@@ -1505,11 +1875,22 @@ function createTipPoints(items, material) {
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
   geometry.setAttribute("aSize", new THREE.Float32BufferAttribute(sizes, 1));
+  geometry.attributes.position.setUsage(THREE.DynamicDrawUsage);
+  geometry.attributes.color.setUsage(THREE.DynamicDrawUsage);
+  geometry.attributes.aSize.setUsage(THREE.DynamicDrawUsage);
   geometry.computeBoundingSphere();
   geometry.name = "Pollen_Tip_Points";
   const points = new THREE.Points(geometry, material);
   points.name = "Pollen_Tips";
   points.frustumCulled = false;
+  state.bloom.renderables.tips.push({
+    points,
+    items,
+    ranges: buildHeadRanges(items),
+    basePositions: geometry.attributes.position.array.slice(),
+    baseColors: geometry.attributes.color.array.slice(),
+    baseSizes: geometry.attributes.aSize.array.slice(),
+  });
   return points;
 }
 
@@ -1518,9 +1899,6 @@ function createPointsMaterial() {
     uniforms: {
       uPixelRatio: { value: 1 },
       uPointScale: { value: 1020 },
-      uPulse: { value: 0 },
-      uPulseCenter: { value: new THREE.Vector3() },
-      uPulseRadius: { value: 100 },
     },
     vertexShader: `
       attribute float aSize;
@@ -1528,29 +1906,17 @@ function createPointsMaterial() {
       varying vec3 vColor;
       uniform float uPixelRatio;
       uniform float uPointScale;
-      uniform float uPulse;
-      uniform vec3 uPulseCenter;
-      uniform float uPulseRadius;
-      varying float vPulseWeight;
 
       void main() {
         vColor = color;
-        vec3 worldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
-        float pulseDistance = distance(worldPosition, uPulseCenter);
-        vPulseWeight = 1.0 - smoothstep(uPulseRadius * 0.34, uPulseRadius, pulseDistance);
         vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
         float attenuation = uPointScale / max(0.4, -viewPosition.z);
-        gl_PointSize = max(
-          1.0,
-          aSize * attenuation * uPixelRatio * (1.0 + uPulse * vPulseWeight * 0.34)
-        );
+        gl_PointSize = max(1.0, aSize * attenuation * uPixelRatio);
         gl_Position = projectionMatrix * viewPosition;
       }
     `,
     fragmentShader: `
       varying vec3 vColor;
-      varying float vPulseWeight;
-      uniform float uPulse;
 
       void main() {
         vec2 point = gl_PointCoord * 2.0 - 1.0;
@@ -1563,9 +1929,7 @@ function createPointsMaterial() {
         vec3 lightDirection = normalize(vec3(-0.35, 0.45, 1.0));
         float diffuse = max(0.0, dot(normal, lightDirection));
         float highlight = pow(diffuse, 6.0);
-        vec3 color = vColor * (
-          0.86 + diffuse * 0.18 + highlight * 0.055 + uPulse * vPulseWeight * 0.12
-        );
+        vec3 color = vColor * (0.86 + diffuse * 0.18 + highlight * 0.055);
         gl_FragColor = vec4(color, alpha);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -1577,6 +1941,217 @@ function createPointsMaterial() {
   });
   material.name = "Spherical_Pollen_Tip_Material";
   return material;
+}
+
+function applyBloomEffects(dirtyHeads) {
+  if (!state.bloom || dirtyHeads.length === 0) return;
+  const spatialAllowed = !reduceBloomMotion();
+  const centers = state.bloom.centers;
+
+  for (const renderable of state.bloom.renderables.florets) {
+    const matrixAttribute = renderable.mesh.instanceMatrix;
+    const matrices = matrixAttribute.array;
+    const colorAttribute = renderable.mesh.instanceColor;
+    const colors = colorAttribute?.array;
+    matrixAttribute.clearUpdateRanges();
+    colorAttribute?.clearUpdateRanges();
+    let changed = false;
+
+    for (const headIndex of dirtyHeads) {
+      const range = renderable.ranges[headIndex];
+      if (!range) continue;
+      const head = state.bloom.heads[headIndex];
+      const centerOffset = headIndex * 3;
+      const centerX = centers[centerOffset];
+      const centerY = centers[centerOffset + 1];
+      const centerZ = centers[centerOffset + 2];
+
+      for (let index = range.start; index < range.start + range.count; index += 1) {
+        const effect = itemBloomProgress(head, renderable.items[index].bloomPhase);
+        const spatial = spatialAllowed ? effect : 0;
+        const scale = 1 + BLOOM_FLORET_SCALE * spatial;
+        const matrixOffset = index * 16;
+        const base = renderable.baseMatrices;
+
+        matrices[matrixOffset] = base[matrixOffset] * scale;
+        matrices[matrixOffset + 1] = base[matrixOffset + 1] * scale;
+        matrices[matrixOffset + 2] = base[matrixOffset + 2] * scale;
+        matrices[matrixOffset + 4] = base[matrixOffset + 4] * scale;
+        matrices[matrixOffset + 5] = base[matrixOffset + 5] * scale;
+        matrices[matrixOffset + 6] = base[matrixOffset + 6] * scale;
+        matrices[matrixOffset + 8] = base[matrixOffset + 8] * scale;
+        matrices[matrixOffset + 9] = base[matrixOffset + 9] * scale;
+        matrices[matrixOffset + 10] = base[matrixOffset + 10] * scale;
+        matrices[matrixOffset + 12] = base[matrixOffset + 12]
+          + (base[matrixOffset + 12] - centerX) * BLOOM_RADIAL_SPREAD * spatial;
+        matrices[matrixOffset + 13] = base[matrixOffset + 13]
+          + (base[matrixOffset + 13] - centerY) * BLOOM_RADIAL_SPREAD * spatial;
+        matrices[matrixOffset + 14] = base[matrixOffset + 14]
+          + (base[matrixOffset + 14] - centerZ) * BLOOM_RADIAL_SPREAD * spatial;
+
+        if (colors && renderable.baseColors) {
+          const colorOffset = index * 3;
+          const warmth = 1 + effect * 0.1;
+          colors[colorOffset] = renderable.baseColors[colorOffset] * warmth;
+          colors[colorOffset + 1] = renderable.baseColors[colorOffset + 1] * warmth;
+          colors[colorOffset + 2] = renderable.baseColors[colorOffset + 2] * warmth;
+        }
+      }
+
+      matrixAttribute.addUpdateRange(range.start * 16, range.count * 16);
+      colorAttribute?.addUpdateRange(range.start * 3, range.count * 3);
+      changed = true;
+    }
+
+    if (changed) {
+      matrixAttribute.needsUpdate = true;
+      if (colorAttribute) colorAttribute.needsUpdate = true;
+    }
+  }
+
+  for (const renderable of state.bloom.renderables.cores) {
+    const matrixAttribute = renderable.mesh.instanceMatrix;
+    const matrices = matrixAttribute.array;
+    const colorAttribute = renderable.mesh.instanceColor;
+    const colors = colorAttribute?.array;
+    matrixAttribute.clearUpdateRanges();
+    colorAttribute?.clearUpdateRanges();
+    let changed = false;
+
+    for (const headIndex of dirtyHeads) {
+      const range = renderable.ranges[headIndex];
+      if (!range) continue;
+      const head = state.bloom.heads[headIndex];
+
+      for (let index = range.start; index < range.start + range.count; index += 1) {
+        const effect = head.value;
+        const spatial = spatialAllowed ? effect : 0;
+        const scale = 1 + spatial * 0.006;
+        const matrixOffset = index * 16;
+        const base = renderable.baseMatrices;
+        matrices[matrixOffset] = base[matrixOffset] * scale;
+        matrices[matrixOffset + 1] = base[matrixOffset + 1] * scale;
+        matrices[matrixOffset + 2] = base[matrixOffset + 2] * scale;
+        matrices[matrixOffset + 4] = base[matrixOffset + 4] * scale;
+        matrices[matrixOffset + 5] = base[matrixOffset + 5] * scale;
+        matrices[matrixOffset + 6] = base[matrixOffset + 6] * scale;
+        matrices[matrixOffset + 8] = base[matrixOffset + 8] * scale;
+        matrices[matrixOffset + 9] = base[matrixOffset + 9] * scale;
+        matrices[matrixOffset + 10] = base[matrixOffset + 10] * scale;
+
+        if (colors && renderable.baseColors) {
+          const colorOffset = index * 3;
+          const warmth = 1 + effect * 0.08;
+          colors[colorOffset] = renderable.baseColors[colorOffset] * warmth;
+          colors[colorOffset + 1] = renderable.baseColors[colorOffset + 1] * warmth;
+          colors[colorOffset + 2] = renderable.baseColors[colorOffset + 2] * warmth;
+        }
+      }
+
+      matrixAttribute.addUpdateRange(range.start * 16, range.count * 16);
+      colorAttribute?.addUpdateRange(range.start * 3, range.count * 3);
+      changed = true;
+    }
+
+    if (changed) {
+      matrixAttribute.needsUpdate = true;
+      if (colorAttribute) colorAttribute.needsUpdate = true;
+    }
+  }
+
+  for (const renderable of state.bloom.renderables.filaments) {
+    const positions = renderable.positionBuffer.array;
+    const colors = renderable.colorBuffer.array;
+    renderable.positionBuffer.clearUpdateRanges();
+    renderable.colorBuffer.clearUpdateRanges();
+    let changed = false;
+
+    for (const headIndex of dirtyHeads) {
+      const range = renderable.ranges[headIndex];
+      if (!range) continue;
+      const head = state.bloom.heads[headIndex];
+      const centerOffset = headIndex * 3;
+      const centerX = centers[centerOffset];
+      const centerY = centers[centerOffset + 1];
+      const centerZ = centers[centerOffset + 2];
+
+      for (let index = range.start; index < range.start + range.count; index += 1) {
+        const effect = itemBloomProgress(head, renderable.items[index].bloomPhase);
+        const spatial = spatialAllowed ? effect : 0;
+        const expansion = 1 + BLOOM_RADIAL_SPREAD * spatial;
+        const warmth = 1 + effect * 0.1;
+        const itemOffset = index * 12;
+
+        for (let vertexOffset = 0; vertexOffset < 12; vertexOffset += 3) {
+          const offset = itemOffset + vertexOffset;
+          positions[offset] = centerX + (renderable.basePositions[offset] - centerX) * expansion;
+          positions[offset + 1] = centerY + (renderable.basePositions[offset + 1] - centerY) * expansion;
+          positions[offset + 2] = centerZ + (renderable.basePositions[offset + 2] - centerZ) * expansion;
+          colors[offset] = renderable.baseColors[offset] * warmth;
+          colors[offset + 1] = renderable.baseColors[offset + 1] * warmth;
+          colors[offset + 2] = renderable.baseColors[offset + 2] * warmth;
+        }
+      }
+
+      renderable.positionBuffer.addUpdateRange(range.start * 12, range.count * 12);
+      renderable.colorBuffer.addUpdateRange(range.start * 12, range.count * 12);
+      changed = true;
+    }
+
+    if (changed) {
+      renderable.positionBuffer.needsUpdate = true;
+      renderable.colorBuffer.needsUpdate = true;
+    }
+  }
+
+  for (const renderable of state.bloom.renderables.tips) {
+    const positionAttribute = renderable.points.geometry.attributes.position;
+    const colorAttribute = renderable.points.geometry.attributes.color;
+    const sizeAttribute = renderable.points.geometry.attributes.aSize;
+    const positions = positionAttribute.array;
+    const colors = colorAttribute.array;
+    const sizes = sizeAttribute.array;
+    positionAttribute.clearUpdateRanges();
+    colorAttribute.clearUpdateRanges();
+    sizeAttribute.clearUpdateRanges();
+    let changed = false;
+
+    for (const headIndex of dirtyHeads) {
+      const range = renderable.ranges[headIndex];
+      if (!range) continue;
+      const head = state.bloom.heads[headIndex];
+      const centerOffset = headIndex * 3;
+      const centerX = centers[centerOffset];
+      const centerY = centers[centerOffset + 1];
+      const centerZ = centers[centerOffset + 2];
+
+      for (let index = range.start; index < range.start + range.count; index += 1) {
+        const effect = itemBloomProgress(head, renderable.items[index].bloomPhase);
+        const spatial = spatialAllowed ? effect : 0;
+        const expansion = 1 + BLOOM_RADIAL_SPREAD * spatial;
+        const warmth = 1 + effect * 0.1;
+        const offset = index * 3;
+        positions[offset] = centerX + (renderable.basePositions[offset] - centerX) * expansion;
+        positions[offset + 1] = centerY + (renderable.basePositions[offset + 1] - centerY) * expansion;
+        positions[offset + 2] = centerZ + (renderable.basePositions[offset + 2] - centerZ) * expansion;
+        sizes[index] = renderable.baseSizes[index] * (1 + BLOOM_POINT_SCALE * spatial);
+        colors[offset] = renderable.baseColors[offset] * warmth;
+        colors[offset + 1] = renderable.baseColors[offset + 1] * warmth;
+        colors[offset + 2] = renderable.baseColors[offset + 2] * warmth;
+      }
+
+      positionAttribute.addUpdateRange(range.start * 3, range.count * 3);
+      colorAttribute.addUpdateRange(range.start * 3, range.count * 3);
+      sizeAttribute.addUpdateRange(range.start, range.count);
+      changed = true;
+    }
+
+    if (changed) {
+      positionAttribute.needsUpdate = true;
+      colorAttribute.needsUpdate = true;
+      sizeAttribute.needsUpdate = true;
+    }
+  }
 }
 
 function createTie() {
@@ -1661,16 +2236,24 @@ function composeBloomCoreMatrix(item, target, offset = null) {
 function setupEvents() {
   state.controls.addEventListener("start", () => {
     state.userMoved = true;
+    state.controlsActive = true;
+    clearBloomHover(performance.now());
     invalidate();
   });
   state.controls.addEventListener("change", invalidate);
-  state.controls.addEventListener("end", invalidate);
+  state.controls.addEventListener("end", () => {
+    state.controlsActive = false;
+    state.hoverPointer.resumeAt = performance.now() + BLOOM_HOVER_RESUME_MS;
+    state.hoverPointer.pending = finePointer.matches;
+    invalidate();
+  });
 
   ui.canvas.addEventListener("pointerdown", onPointerDown, { capture: true });
   ui.canvas.addEventListener("pointermove", onPointerMove);
   ui.canvas.addEventListener("pointerup", onPointerUp, { capture: true });
   ui.canvas.addEventListener("pointercancel", clearPress);
   ui.canvas.addEventListener("lostpointercapture", clearPress);
+  ui.canvas.addEventListener("pointerleave", onCanvasPointerLeave);
   ui.canvas.addEventListener("click", onCanvasClick);
 
   ui.stage.addEventListener("keydown", onStageKeydown);
@@ -1691,6 +2274,7 @@ function setupEvents() {
   state.intersectionObserver.observe(ui.stage);
 
   reducedMotion.addEventListener("change", onReducedMotionChange);
+  finePointer.addEventListener("change", onFinePointerChange);
   document.addEventListener("visibilitychange", onVisibilityChange);
   window.addEventListener("beforeunload", dispose, { once: true });
 
@@ -1795,30 +2379,22 @@ function renderFrame(timestamp) {
     updateUniverse(state.motionTime);
   }
 
-  if (state.pulse > 0) {
-    state.pulse = Math.max(0, state.pulse - delta * 1.58);
-    const shaped = Math.sin(Math.min(1, state.pulse) * Math.PI);
-    state.pointsMaterial.uniforms.uPulse.value = shaped * state.pulsePeak;
-    state.selectionLight.intensity = shaped * 4.8;
-    if (state.petalMaterial) {
-      const wholeBouquet = state.pulseRadius > 10;
-      state.petalMaterial.emissiveIntensity = 0.11 + shaped * (wholeBouquet ? 0.08 : 0.018);
-    }
-  } else if (state.pointsMaterial) {
-    state.pointsMaterial.uniforms.uPulse.value = 0;
-    state.selectionLight.intensity = 0;
-    if (state.petalMaterial) state.petalMaterial.emissiveIntensity = 0.11;
-  }
-
   const controlsChanged = state.controls.update();
+  updateHoverPicking(timestamp);
+  const bloomAnimating = updateBloomAnimation(timestamp);
   state.renderer.render(state.scene, state.camera);
   state.renderedFrames += 1;
   if (delta > 0) {
     state.frameTimes.push(delta * 1000);
     if (state.frameTimes.length > 240) state.frameTimes.shift();
   }
+  if (query.get("qa") === "1" && state.frameTimes.length >= 12 && state.renderedFrames % 20 === 0) {
+    const sortedFrameTimes = [...state.frameTimes].sort((a, b) => a - b);
+    const p95Index = Math.max(0, Math.ceil(sortedFrameTimes.length * 0.95) - 1);
+    ui.stage.dataset.qaFrameP95 = sortedFrameTimes[p95Index].toFixed(2);
+  }
 
-  if (autonomous || state.pulse > 0 || controlsChanged) invalidate();
+  if (autonomous || bloomAnimating || state.hoverPointer.pending || controlsChanged) invalidate();
 }
 
 function shouldAnimateAutonomously() {
@@ -1868,6 +2444,8 @@ function stopLoop() {
 function onPointerDown(event) {
   ui.stage.focus({ preventScroll: true });
   state.pointerDragged = false;
+  state.hoverPointer.pending = false;
+  clearBloomHover(performance.now());
   state.press = {
     pointerId: event.pointerId,
     x: event.clientX,
@@ -1878,12 +2456,22 @@ function onPointerDown(event) {
 }
 
 function onPointerMove(event) {
-  if (!state.press || state.press.pointerId !== event.pointerId) return;
-  const distance = Math.hypot(event.clientX - state.press.x, event.clientY - state.press.y);
-  if (distance > 7) {
-    state.press.moved = true;
-    state.pointerDragged = true;
+  state.hoverPointer.x = event.clientX;
+  state.hoverPointer.y = event.clientY;
+
+  if (state.press && state.press.pointerId === event.pointerId) {
+    const distance = Math.hypot(event.clientX - state.press.x, event.clientY - state.press.y);
+    if (distance > BLOOM_DRAG_SLOP) {
+      state.press.moved = true;
+      state.pointerDragged = true;
+      clearBloomHover(performance.now());
+    }
+    return;
   }
+
+  if (!finePointer.matches || state.controlsActive) return;
+  state.hoverPointer.pending = true;
+  invalidate();
 }
 
 function onPointerUp(event) {
@@ -1893,119 +2481,188 @@ function onPointerUp(event) {
 
 function onCanvasClick(event) {
   if (state.pointerDragged) return;
-  highlightBloom(event);
+  if (query.get("qa") === "1") {
+    ui.stage.dataset.qaClickX = event.clientX.toFixed(2);
+    ui.stage.dataset.qaClickY = event.clientY.toFixed(2);
+  }
+  if (!pickBloomAt(event.clientX, event.clientY)) {
+    state.selectedBloomIndex = -1;
+    return;
+  }
+  activateBloomAtIndex(bloomPicker.resultIndex, bloomPicker.resultPosition, true);
 }
 
 function clearPress() {
   state.press = null;
 }
 
-function highlightBloom(event) {
+function onCanvasPointerLeave() {
+  state.hoverPointer.pending = false;
+  clearBloomHover(performance.now());
+}
+
+function onFinePointerChange() {
+  if (!finePointer.matches) {
+    state.hoverPointer.pending = false;
+    clearBloomHover(performance.now());
+  }
+}
+
+function clearBloomHover(now = performance.now()) {
+  if (!state.bloom || state.bloom.hoveredIndex < 0) {
+    ui.stage.dataset.bloomHover = "false";
+    return;
+  }
+  const previous = state.bloom.heads[state.bloom.hoveredIndex];
+  state.bloom.hoveredIndex = -1;
+  ui.stage.dataset.bloomHover = "false";
+  transitionHoverHead(previous, 0, now);
+  invalidate();
+}
+
+function setBloomHover(index, now) {
+  if (!state.bloom || state.bloom.hoveredIndex === index) return;
+  const previousIndex = state.bloom.hoveredIndex;
+  state.bloom.hoveredIndex = index;
+  ui.stage.dataset.bloomHover = index >= 0 ? "true" : "false";
+
+  if (previousIndex >= 0) {
+    transitionHoverHead(state.bloom.heads[previousIndex], 0, now);
+  }
+  if (index >= 0) {
+    transitionHoverHead(state.bloom.heads[index], BLOOM_PREVIEW_STRENGTH, now);
+  }
+  invalidate();
+}
+
+function updateHoverPicking(now) {
+  if (!state.hoverPointer.pending || !finePointer.matches || state.controlsActive || state.press) return;
+  if (now < state.hoverPointer.resumeAt) return;
+  if (now - state.hoverPointer.lastPickAt < BLOOM_PICK_INTERVAL_MS) return;
+
+  state.hoverPointer.pending = false;
+  state.hoverPointer.lastPickAt = now;
+  const found = pickBloomAt(state.hoverPointer.x, state.hoverPointer.y);
+  setBloomHover(found ? bloomPicker.resultIndex : -1, now);
+}
+
+function pickBloomAt(clientX, clientY) {
   const rect = ui.canvas.getBoundingClientRect();
-  const pointer = new THREE.Vector2(
-    (event.clientX - rect.left) / rect.width * 2 - 1,
-    -((event.clientY - rect.top) / rect.height) * 2 + 1,
+  if (rect.width <= 0 || rect.height <= 0) return false;
+  bloomPicker.pointer.set(
+    (clientX - rect.left) / rect.width * 2 - 1,
+    -((clientY - rect.top) / rect.height) * 2 + 1,
   );
-  const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(pointer, state.camera);
-  const instanceMatrix = new THREE.Matrix4();
-  const worldMatrix = new THREE.Matrix4();
-  const worldPosition = new THREE.Vector3();
-  const worldScale = new THREE.Vector3();
-  const worldQuaternion = new THREE.Quaternion();
-  const hitCenter = new THREE.Vector3();
-  const hitAxis = new THREE.Vector3();
-  const hitMatrix = new THREE.Matrix4();
-  const inverseHitMatrix = new THREE.Matrix4();
-  const localOrigin = new THREE.Vector3();
-  const localEnd = new THREE.Vector3();
-  const localDirection = new THREE.Vector3();
-  const localHit = new THREE.Vector3();
-  const worldHit = new THREE.Vector3();
-  const localRay = new THREE.Ray();
-  const unitSphere = new THREE.Sphere(new THREE.Vector3(), 1);
-  let selectedPosition = null;
-  let selectedRadius = 0;
-  let selectedBloomIndex = -1;
+  bloomPicker.raycaster.setFromCamera(bloomPicker.pointer, state.camera);
+  bloomPicker.resultIndex = -1;
+  bloomPicker.resultRadius = 0;
   let selectedDistance = Infinity;
 
   for (const mesh of state.coreMeshes) {
     for (let instanceId = 0; instanceId < mesh.count; instanceId += 1) {
-      mesh.getMatrixAt(instanceId, instanceMatrix);
-      worldMatrix.multiplyMatrices(mesh.matrixWorld, instanceMatrix);
-      worldMatrix.decompose(worldPosition, worldQuaternion, worldScale);
+      mesh.getMatrixAt(instanceId, bloomPicker.instanceMatrix);
+      bloomPicker.worldMatrix.multiplyMatrices(mesh.matrixWorld, bloomPicker.instanceMatrix);
+      bloomPicker.worldMatrix.decompose(
+        bloomPicker.worldPosition,
+        bloomPicker.worldQuaternion,
+        bloomPicker.worldScale,
+      );
       const hitShape = mesh.userData.hitShapes?.[instanceId];
       const hitRadius = hitShape?.radial
         ?? mesh.userData.hitRadii?.[instanceId]
-        ?? worldScale.x * 1.48;
-      hitAxis.copy(Y_AXIS).applyQuaternion(worldQuaternion).normalize();
-      hitCenter.copy(worldPosition).addScaledVector(hitAxis, hitShape?.centerOffset ?? 0);
-      hitMatrix.compose(
-        hitCenter,
-        worldQuaternion,
-        new THREE.Vector3(hitRadius, hitShape?.axial ?? hitRadius, hitRadius),
+        ?? bloomPicker.worldScale.x * 1.48;
+      bloomPicker.hitAxis.copy(Y_AXIS).applyQuaternion(bloomPicker.worldQuaternion).normalize();
+      bloomPicker.hitCenter.copy(bloomPicker.worldPosition).addScaledVector(
+        bloomPicker.hitAxis,
+        hitShape?.centerOffset ?? 0,
       );
-      inverseHitMatrix.copy(hitMatrix).invert();
-      localOrigin.copy(raycaster.ray.origin).applyMatrix4(inverseHitMatrix);
-      localEnd.copy(raycaster.ray.origin).add(raycaster.ray.direction).applyMatrix4(inverseHitMatrix);
-      localDirection.copy(localEnd).sub(localOrigin).normalize();
-      localRay.set(localOrigin, localDirection);
-      if (!localRay.intersectSphere(unitSphere, localHit)) continue;
-      worldHit.copy(localHit).applyMatrix4(hitMatrix);
-      const distanceFromCamera = worldHit.distanceTo(raycaster.ray.origin);
+      bloomPicker.worldScale.set(hitRadius, hitShape?.axial ?? hitRadius, hitRadius);
+      bloomPicker.hitMatrix.compose(
+        bloomPicker.hitCenter,
+        bloomPicker.worldQuaternion,
+        bloomPicker.worldScale,
+      );
+      bloomPicker.inverseHitMatrix.copy(bloomPicker.hitMatrix).invert();
+      bloomPicker.localOrigin.copy(bloomPicker.raycaster.ray.origin)
+        .applyMatrix4(bloomPicker.inverseHitMatrix);
+      bloomPicker.localEnd.copy(bloomPicker.raycaster.ray.origin)
+        .add(bloomPicker.raycaster.ray.direction)
+        .applyMatrix4(bloomPicker.inverseHitMatrix);
+      bloomPicker.localDirection.copy(bloomPicker.localEnd)
+        .sub(bloomPicker.localOrigin)
+        .normalize();
+      bloomPicker.localRay.set(bloomPicker.localOrigin, bloomPicker.localDirection);
+      if (!bloomPicker.localRay.intersectSphere(bloomPicker.unitSphere, bloomPicker.localHit)) continue;
+      bloomPicker.worldHit.copy(bloomPicker.localHit).applyMatrix4(bloomPicker.hitMatrix);
+      const distanceFromCamera = bloomPicker.worldHit.distanceTo(bloomPicker.raycaster.ray.origin);
       if (distanceFromCamera < selectedDistance) {
         selectedDistance = distanceFromCamera;
-        selectedPosition = hitCenter.clone();
-        selectedRadius = hitRadius;
-        selectedBloomIndex = mesh.userData.bloomIndices?.[instanceId] ?? -1;
+        bloomPicker.resultPosition.copy(bloomPicker.hitCenter);
+        bloomPicker.resultRadius = hitRadius;
+        bloomPicker.resultIndex = mesh.userData.bloomIndices?.[instanceId] ?? -1;
       }
     }
   }
 
-  if (!selectedPosition) {
-    state.selectedBloomIndex = -1;
-    triggerBouquetPulse(false);
-    return;
-  }
-
-  state.selectedBloomIndex = selectedBloomIndex;
-  state.selectionLight.position.copy(selectedPosition);
-  triggerPulse(1, selectedPosition, selectedRadius * 1.32);
-  setStatus("Bloom brightened.", 1300);
+  return bloomPicker.resultIndex >= 0;
 }
 
-function triggerBouquetPulse(announce = true) {
-  state.selectedBloomIndex = -1;
-  const center = state.data.bounds.getCenter(new THREE.Vector3());
-  center.z += 0.45;
-  state.selectionLight.position.copy(center);
-  triggerPulse(0.78, center, 100);
-  if (announce) setStatus("Bouquet brightened.", 1300);
+function findBloomWorldPosition(index, target = bloomPicker.resultPosition) {
+  for (const mesh of state.coreMeshes) {
+    const instanceId = mesh.userData.bloomIndices?.indexOf(index) ?? -1;
+    if (instanceId < 0) continue;
+    mesh.getMatrixAt(instanceId, bloomPicker.instanceMatrix);
+    bloomPicker.worldMatrix.multiplyMatrices(mesh.matrixWorld, bloomPicker.instanceMatrix);
+    target.setFromMatrixPosition(bloomPicker.worldMatrix);
+    return true;
+  }
+  return false;
 }
 
-function triggerPulse(peak, center = state.selectionLight.position, radius = 100) {
-  state.pulseCenter.copy(center);
-  state.pulseRadius = radius;
-  state.pointsMaterial.uniforms.uPulseCenter.value.copy(center);
-  state.pointsMaterial.uniforms.uPulseRadius.value = radius;
-  if (state.reduced) {
-    state.pointsMaterial.uniforms.uPulse.value = peak * 0.22;
-    state.selectionLight.intensity = 2.6;
-    if (state.petalMaterial) state.petalMaterial.emissiveIntensity = 0.14;
-    invalidate();
-    window.setTimeout(() => {
-      if (!state.pointsMaterial) return;
-      state.pointsMaterial.uniforms.uPulse.value = 0;
-      state.selectionLight.intensity = 0;
-      if (state.petalMaterial) state.petalMaterial.emissiveIntensity = 0.11;
-      invalidate();
-    }, 220);
-    return;
+function activateBloomAtIndex(index, worldPosition = null, announce = true) {
+  const head = state.bloom?.heads[index];
+  if (!head) return false;
+  const now = performance.now();
+  updateBloomAnimation(now);
+  beginBloomActivation(head, now, 1);
+  state.selectedBloomIndex = index;
+  if (worldPosition) {
+    state.selectionLight.position.copy(worldPosition);
+  } else if (findBloomWorldPosition(index)) {
+    state.selectionLight.position.copy(bloomPicker.resultPosition);
   }
-
-  state.pulse = 1;
-  state.pulsePeak = peak;
+  if (announce) setStatus("Flower bloomed.", 1300);
   invalidate();
+  return true;
+}
+
+function triggerBouquetBloom(announce = true) {
+  if (!state.bloom) return false;
+  const now = performance.now();
+  updateBloomAnimation(now);
+  clearBloomHover(now);
+  state.selectedBloomIndex = -1;
+  const height = Math.max(0.0001, state.bloom.maxY - state.bloom.minY);
+  const cascadeSpan = reduceBloomMotion() ? 0 : BLOOM_CASCADE_SPAN_MS;
+
+  for (const bloom of state.data.all.blooms) {
+    const normalizedY = (bloom.position.y - state.bloom.minY) / height;
+    beginBloomActivation(
+      state.bloom.heads[bloom.index],
+      now,
+      BLOOM_CASCADE_STRENGTH,
+      normalizedY * cascadeSpan,
+    );
+  }
+
+  const openDuration = reduceBloomMotion() ? BLOOM_REDUCED_IN_MS : BLOOM_OPEN_MS;
+  const holdDuration = reduceBloomMotion() ? 0 : BLOOM_HOLD_MS;
+  const settleDuration = reduceBloomMotion() ? BLOOM_REDUCED_OUT_MS : BLOOM_SETTLE_MS;
+  state.bloom.cascadeEndsAt = now + cascadeSpan + openDuration + holdDuration + settleDuration;
+  state.bloom.cascadeActive = true;
+  if (announce) setStatus("Bouquet bloomed from stem to crown.", 1500);
+  invalidate();
+  return true;
 }
 
 function onStageKeydown(event) {
@@ -2045,7 +2702,7 @@ function onStageKeydown(event) {
     case "Enter":
     case " ":
       event.preventDefault();
-      triggerBouquetPulse();
+      triggerBouquetBloom();
       return;
     case "Home":
     case "0":
@@ -2079,7 +2736,7 @@ function onReducedMotionChange() {
   state.reduced = reducedMotion.matches;
   state.controls.enableDamping = !state.reduced;
   if (state.reduced) {
-    state.pulse = 0;
+    resetBloomState();
     resetSwayPose();
     resetUniversePose();
   }
@@ -2203,6 +2860,12 @@ function projectBloomPointForQa(index, uRatio = 0, vRatio = 0, axialRatio = 0) {
 function exposeQaSnapshot() {
   const heroBloomIndex = findQaHeroBloomIndex();
   const phyllodeIndex = findQaPhyllodeIndex();
+  const heroBloomPoint = projectBloomPointForQa(heroBloomIndex);
+  if (heroBloomPoint) {
+    ui.stage.dataset.qaHeroBloomIndex = String(heroBloomIndex);
+    ui.stage.dataset.qaHeroBloomX = heroBloomPoint.x.toFixed(2);
+    ui.stage.dataset.qaHeroBloomY = heroBloomPoint.y.toFixed(2);
+  }
   window.__WATTLE_QA__ = Object.freeze({
     targets: Object.freeze({ heroBloomIndex, phyllodeIndex }),
     focusBloom(index = heroBloomIndex, view = "face") {
@@ -2213,6 +2876,12 @@ function exposeQaSnapshot() {
     },
     projectBloomPoint(index, uRatio = 0, vRatio = 0, axialRatio = 0) {
       return projectBloomPointForQa(index, uRatio, vRatio, axialRatio);
+    },
+    activateBloom(index = heroBloomIndex) {
+      return activateBloomAtIndex(index, null, false);
+    },
+    activateBouquet() {
+      return triggerBouquetBloom(false);
     },
     resetView() {
       resetView(false);
@@ -2271,6 +2940,7 @@ function exposeQaSnapshot() {
         },
         motion: {
           reduced: state.reduced,
+          bloomReduced: reduceBloomMotion(),
           paused: state.motionPaused,
           breeze: state.breeze,
           autonomous: shouldAnimateAutonomously(),
@@ -2287,9 +2957,18 @@ function exposeQaSnapshot() {
         },
         interaction: {
           selectedBloomIndex: state.selectedBloomIndex,
-          pulseActive: state.pulse > 0
-            || (state.pointsMaterial?.uniforms.uPulse.value ?? 0) > 0,
-          pulsePeak: state.pulsePeak,
+          selectedBloomPhase: state.selectedBloomIndex >= 0
+            ? state.bloom.heads[state.selectedBloomIndex]?.mode ?? "idle"
+            : "idle",
+          selectedBloomProgress: state.selectedBloomIndex >= 0
+            ? state.bloom.heads[state.selectedBloomIndex]?.value ?? 0
+            : 0,
+          hoveredBloomIndex: state.bloom.hoveredIndex,
+          activeBloomCount: state.bloom.activeCount,
+          maxBloomProgress: state.bloom.maxProgress,
+          cascadeActive: state.bloom.cascadeActive,
+          pulseActive: state.bloom.activeCount > 0,
+          pulsePeak: state.bloom.maxProgress,
           userMoved: state.userMoved,
         },
         rendererInfo: {
@@ -2355,6 +3034,8 @@ function showFailure(error) {
 
 function dispose() {
   stopLoop();
+  reducedMotion.removeEventListener("change", onReducedMotionChange);
+  finePointer.removeEventListener("change", onFinePointerChange);
   state.resizeObserver?.disconnect();
   state.intersectionObserver?.disconnect();
   state.controls?.dispose();

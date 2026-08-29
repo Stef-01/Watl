@@ -7,8 +7,9 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "check": "node --check server.mjs && node --check script.js",
+    "check": "node --check server.mjs && node --check script.js && node --check tools/qa-smoke.mjs",
     "dev": "node server.mjs",
+    "qa:smoke": "node tools/qa-smoke.mjs",
     "start": "node server.mjs"
   },
   "dependencies": {
