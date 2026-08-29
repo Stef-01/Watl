@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta id="theme-color" name="theme-color" content="#0a0806" />
+    <meta id="theme-color" name="theme-color" content="#03040a" />
     <meta
       name="description"
       content="WATL is a technology design practice creating interfaces, systems, and experimental tools for futures that have not settled into form."
@@ -82,7 +82,7 @@
         role="group"
         aria-label="Background"
       >
-        <span class="ground-switch__name" id="ground-name" aria-hidden="true">Earth</span>
+        <span class="ground-switch__name" id="ground-name" aria-hidden="true">Night sky</span>
         <button
           class="ground-switch__toggle"
           id="ground-toggle"
@@ -146,15 +146,15 @@
          slot ready for licensed artwork from a named artist; see the README. */
       (function () {
         var GROUNDS = [
+          { id: "night", label: "Night sky", theme: "#03040a", swatch: "#7a94d2" },
           { id: "earth", label: "Earth", theme: "#0a0806", swatch: "#c67a36" },
           { id: "ochre", label: "Ochre", theme: "#0d0704", swatch: "#d6742c" },
           { id: "rose", label: "Desert rose", theme: "#0d0509", swatch: "#d1738f" },
           { id: "moss", label: "Eucalypt", theme: "#050806", swatch: "#7fae7a" },
           { id: "dusk", label: "Dusk", theme: "#07060d", swatch: "#9678c4" },
-          { id: "night", label: "Night sky", theme: "#04060d", swatch: "#7a94d2" },
           { id: "wash", label: "Wash", theme: "#0a0709", swatch: "#c98f9c" }
         ];
-        var KEY = "watl.ground";
+        var KEY = "watl.ground.v2";
 
         var root = document.documentElement;
         var toggle = document.getElementById("ground-toggle");
@@ -278,6 +278,13 @@
         });
       })();
     </script>
+
+    <!-- Framer Motion's DOM build, vendored rather than fetched, on the same
+         terms as Three.js. It is loaded deferred and separately from the scene
+         so that a failure in either one cannot take the other down, and so the
+         CSS layer underneath both stays the floor. -->
+    <script defer src="./vendor/motion/motion.js"></script>
+    <script defer src="./interactions.js"></script>
 
     <script type="module" src="./script.js"></script>
     <script>

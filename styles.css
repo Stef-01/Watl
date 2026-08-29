@@ -329,37 +329,35 @@ button {
 }
 
 :root[data-ground="night"] {
-  --night: #04060d;
+  --night: #03040a;
   --strata: 26, 34, 62;
   --ember: 38, 52, 104;
   --dust: 122, 148, 210;
 }
 
-/* Night sky is the one ground that changes the drawing and not just its
-   colour: the strata and the contour field come off, so the stars that were
-   always being rendered behind them have the frame to themselves. */
+/* Night sky is the plainest ground there is, and the one the site opens on.
+   Every drawn thing comes off — strata, datum line, ember, contour field —
+   leaving black, the faintest vignette so the corners do not read as a flat
+   fill, and the stars the 3D scene was always rendering behind all of it.
+   Nothing here is a picture of a sky; it is an absence, and the scene fills
+   it. */
 :root[data-ground="night"] .backdrop {
   background-image:
     radial-gradient(
-      120% 84% at 50% 58%,
-      rgba(var(--dust), 0.085) 0%,
-      rgba(var(--ember), 0.06) 40%,
-      rgba(4, 6, 13, 0) 72%
-    ),
-    linear-gradient(
-      to top,
-      rgba(var(--ember), 0.13) 0%,
-      rgba(4, 6, 13, 0) 30%
-    ),
-    radial-gradient(
-      132% 104% at 50% 46%,
-      rgba(4, 6, 13, 0) 42%,
-      rgba(1, 2, 6, 0.68) 100%
+      140% 110% at 50% 46%,
+      rgba(3, 4, 10, 0) 46%,
+      rgba(0, 0, 2, 0.72) 100%
     );
 }
 
 :root[data-ground="night"] .backdrop::before {
   opacity: 0;
+}
+
+/* Grain is what makes the earth grounds feel like paper; on a sky it just
+   reads as noise, so it is taken almost all the way down. */
+:root[data-ground="night"] .backdrop::after {
+  opacity: 0.02;
 }
 
 /* Wash is the other ground that changes the drawing rather than its colour.
@@ -918,6 +916,34 @@ input:disabled {
   0% { transform: translateX(-120%); }
   50% { transform: translateX(100%); }
   100% { transform: translateX(310%); }
+}
+
+@media (max-width: 620px) {
+  .client-rail {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.9rem;
+  }
+
+  .client-rail__group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.9rem;
+  }
+
+  /* margin-left:auto is what holds the right corner on a wide screen; in a
+     column it would push the link off the shared left edge. */
+  .client--contact {
+    margin-left: 0;
+  }
+
+  .client--contact::after {
+    transform-origin: left center;
+  }
+
+  .client {
+    font-size: clamp(1.02rem, 0.86rem + 0.7vw, 1.35rem);
+  }
 }
 
 @media (max-width: 720px) {
