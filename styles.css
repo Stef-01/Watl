@@ -338,37 +338,35 @@ button {
 }
 
 :root[data-ground="night"] {
-  --night: #04060d;
+  --night: #03040a;
   --strata: 26, 34, 62;
   --ember: 38, 52, 104;
   --dust: 122, 148, 210;
 }
 
-/* Night sky is the one ground that changes the drawing and not just its
-   colour: the strata and the contour field come off, so the stars that were
-   always being rendered behind them have the frame to themselves. */
+/* Night sky is the plainest ground there is, and the one the site opens on.
+   Every drawn thing comes off — strata, datum line, ember, contour field —
+   leaving black, the faintest vignette so the corners do not read as a flat
+   fill, and the stars the 3D scene was always rendering behind all of it.
+   Nothing here is a picture of a sky; it is an absence, and the scene fills
+   it. */
 :root[data-ground="night"] .backdrop {
   background-image:
     radial-gradient(
-      120% 84% at 50% 58%,
-      rgba(var(--dust), 0.085) 0%,
-      rgba(var(--ember), 0.06) 40%,
-      rgba(4, 6, 13, 0) 72%
-    ),
-    linear-gradient(
-      to top,
-      rgba(var(--ember), 0.13) 0%,
-      rgba(4, 6, 13, 0) 30%
-    ),
-    radial-gradient(
-      132% 104% at 50% 46%,
-      rgba(4, 6, 13, 0) 42%,
-      rgba(1, 2, 6, 0.68) 100%
+      140% 110% at 50% 46%,
+      rgba(3, 4, 10, 0) 46%,
+      rgba(0, 0, 2, 0.72) 100%
     );
 }
 
 :root[data-ground="night"] .backdrop::before {
   opacity: 0;
+}
+
+/* Grain is what makes the earth grounds feel like paper; on a sky it just
+   reads as noise, so it is taken almost all the way down. */
+:root[data-ground="night"] .backdrop::after {
+  opacity: 0.02;
 }
 
 /* Wash is the other ground that changes the drawing rather than its colour.
@@ -507,6 +505,150 @@ button {
 .ground-swatch:focus-visible {
   outline: 1px solid var(--gold);
   outline-offset: 3px;
+}
+
+/* ---------- The entrance ----------
+   Nothing on this page used to arrive; it was simply there. Now the lockup
+   composes itself — the identity a letter at a time, then the discipline,
+   then the switch, then the rail — while the bouquet builds behind it.
+
+   The timeline is deliberately not gated on the 3D scene. The interface is
+   text and it should be readable immediately; making it wait on a WebGL build
+   would hold an empty frame on a slow phone, and would hide the page entirely
+   for the eight seconds the no-module floor takes to fire. Only the canvas
+   itself waits for .is-ready.
+
+   Under prefers-reduced-motion the global rule collapses every duration, and
+   because each of these fills backwards and forwards the elements simply
+   start at their resting state. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.85em);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.wordmark span {
+  display: inline-block;
+  animation: rise 820ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(140ms + var(--i) * 70ms);
+}
+
+.hero h1 {
+  animation: settle 900ms ease backwards;
+  animation-delay: 520ms;
+}
+
+.ground-switch {
+  animation: settle 900ms ease backwards;
+  animation-delay: 700ms;
+}
+
+.client-rail .client {
+  animation: rise 900ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.client-rail__group .client:nth-child(1) { animation-delay: 820ms; }
+.client-rail__group .client:nth-child(2) { animation-delay: 920ms; }
+.client--contact { animation-delay: 1020ms; }
+
+/* The canvas is the one thing that does wait, because until the scene reports
+   ready there is nothing in it worth fading up. */
+#wattle-canvas {
+  opacity: 0;
+  transition: opacity 1200ms ease;
+}
+
+.is-ready #wattle-canvas {
+  opacity: 1;
+}
+
+/* Ambient: the light behind the bouquet breathes, slowly enough that you
+   never catch it moving. Start and end frames match, so a single collapsed
+   iteration under reduced motion leaves it exactly at rest. */
+@keyframes breathe {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.72;
+    transform: scale(1.055);
+  }
+}
+
+.stage__light {
+  animation: breathe 19s ease-in-out infinite;
+}
+
+/* Changing ground dissolves rather than cuts. Gradient stacks cannot
+   interpolate, so the backdrop dips through its own darkness and the layers
+   are swapped at the bottom of the dip — the bouquet stays lit throughout, so
+   it reads as the light changing rather than the page redrawing.
+
+   A keyframe rather than a transition on purpose: a transition would have to
+   race a timer that removes the class, and on a slow frame the dip either
+   never lands or reverses halfway. An animation always runs its whole shape,
+   and the swap is timed to its darkest frame. */
+@keyframes ground-dissolve {
+  0% {
+    opacity: 1;
+  }
+  42% {
+    opacity: 0.26;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.backdrop {
+  transition: background-color 900ms ease;
+}
+
+.is-shifting .backdrop {
+  animation: ground-dissolve 640ms ease both;
+}
+
+/* Hovering one name lets the others recede. */
+.client-rail:hover .client:not(:hover) {
+  opacity: 0.42;
+}
+
+.client {
+  transition:
+    color 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 420ms ease;
+}
+
+/* The swatches deal themselves out when the tray opens. */
+@keyframes deal {
+  from {
+    opacity: 0;
+    transform: translateX(0.6rem) scale(0.6);
+  }
+  to {
+    opacity: 0.62;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.ground-switch__swatches:not([hidden]) .ground-swatch {
+  animation: deal 420ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--i) * 45ms);
 }
 
 /* ---------- The client rail ----------
@@ -785,6 +927,34 @@ input:disabled {
   100% { transform: translateX(310%); }
 }
 
+@media (max-width: 620px) {
+  .client-rail {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.9rem;
+  }
+
+  .client-rail__group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.9rem;
+  }
+
+  /* margin-left:auto is what holds the right corner on a wide screen; in a
+     column it would push the link off the shared left edge. */
+  .client--contact {
+    margin-left: 0;
+  }
+
+  .client--contact::after {
+    transform-origin: left center;
+  }
+
+  .client {
+    font-size: clamp(1.02rem, 0.86rem + 0.7vw, 1.35rem);
+  }
+}
+
 @media (max-width: 720px) {
   .hero {
     top: max(1.15rem, env(safe-area-inset-top));
@@ -801,6 +971,7 @@ input:disabled {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
     transition-delay: 0s !important;
   }

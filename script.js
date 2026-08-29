@@ -226,6 +226,7 @@ async function init() {
   state.universe = universe.root;
   state.universeMaterial = universe.material;
   state.scene.add(state.universe, state.bouquet);
+  watchGround();
 
   setupEvents();
   resizeScene(true);
@@ -699,7 +700,7 @@ function buildUniverse(bounds, seed, profile) {
   threads.renderOrder = -21;
 
   root.position.copy(center);
-  root.userData = { starCount: count, threadCount, innerRadius, outerRadius };
+  root.userData = { starCount: count, threadCount, innerRadius, outerRadius, threads };
   root.add(threads, points);
   return { root, material };
 }
@@ -2360,6 +2361,26 @@ function resetView(announce) {
   state.userMoved = false;
   if (announce) setStatus("View reset.", 1200);
   invalidate();
+}
+
+function syncGroundThreads() {
+  const threads = state.universe?.userData?.threads;
+  if (!threads) return;
+  const visible = document.documentElement.dataset.ground !== "night";
+  if (threads.visible === visible) return;
+  threads.visible = visible;
+  invalidate();
+}
+
+/* The ground is set by the inline switch on documentElement, which the module
+   deliberately knows nothing else about; an attribute observer keeps the two
+   in step without either one importing the other. */
+function watchGround() {
+  syncGroundThreads();
+  new MutationObserver(syncGroundThreads).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-ground"],
+  });
 }
 
 function invalidate() {

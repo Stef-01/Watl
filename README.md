@@ -22,14 +22,94 @@ never loads, and `prefers-reduced-motion: reduce` stops it entirely.
 | ADHDme | <https://www.adhdme.au/> |
 | Contact us | `mailto:` — the address is set on the `.client--contact` link in `index.html` |
 
-Clients sit together at the left of the rail; the contact link holds the right
-corner on its own, and keeps it when the rail wraps.
+Clients sit together at the left of the rail and the contact link holds the
+right corner. Below 620px the rail becomes a single left-aligned column —
+three names sharing one gutter edge. It used to wrap into an L, with the
+contact link stranded mid-line under the clients, aligned to nothing.
 
 To add one, copy an `<a class="client">` inside `nav.client-rail` in
 `index.html`. Each glyph is its own `<span>` carrying a `--i` index, which is
 what the wave staggers on, so the letters have to be split by hand — the link
 keeps the real name in `aria-label`, and the glyph container is `aria-hidden`
 so a screen reader never spells it out.
+
+## Motion
+
+The page composes itself rather than simply being there. The identity rises a
+letter at a time, then the discipline, then the ground switch, then each link
+in the rail — about 1.6 seconds end to end.
+
+That timeline is deliberately **not** gated on the 3D scene. The interface is
+text and should be readable immediately; waiting on a WebGL build would hold an
+empty frame on a slow phone, and would hide the page entirely for the eight
+seconds the no-module floor takes to fire. Only the canvas waits for
+`.is-ready`.
+
+Elsewhere:
+
+- **The light behind the bouquet breathes** on a 19-second cycle, slow enough
+  that you never catch it moving.
+- **Hovering one name lets the others recede** to 42%, so the rail has a focus.
+- **The swatches deal out** in sequence when the tray opens.
+- **Changing ground dissolves rather than cuts.** Gradient stacks cannot
+  interpolate, so the backdrop dips to 26% and the layers are swapped at the
+  darkest frame — the bouquet stays lit throughout, so it reads as the light
+  changing rather than the page redrawing.
+
+Two implementation notes worth keeping:
+
+Entrance animations use `animation-fill-mode: backwards`, not `both`. `both`
+keeps the final keyframe applied at animation precedence for the life of the
+page, which would outrank the hover-dim declaration and quietly kill it.
+`backwards` holds the element hidden through its delay and then hands it back
+to the cascade, where every resting value already lives.
+
+The dissolve is a keyframe, not a transition. A transition would have to race
+the timer that removes the class, and on a slow frame the dip either never
+lands or reverses halfway.
+
+`prefers-reduced-motion: reduce` collapses all of it — duration, delay, and
+iteration count — and every animation is written so a single collapsed
+iteration leaves the element exactly at rest.
+
+## Interaction
+
+Framer Motion's DOM build is vendored into `vendor/motion/` on the same terms
+as Three.js — committed, not fetched — and drives a pointer layer in
+`interactions.js`.
+
+- **The links lean toward the cursor** as it passes and spring back when it
+  goes. The lean falls off with distance: a full 18px under the cursor, nothing
+  at the edge of reach.
+- **The light behind the bouquet drifts the other way**, on the softest spring
+  on the page. Fast parallax reads as a bug; slow parallax reads as depth.
+- **Press gives back** — a small spring-loaded scale. This is the one thing a
+  touchscreen keeps, since it is the only feedback a finger gets between
+  tapping a link and the page changing.
+
+Three constraints hold this layer honest:
+
+**It is a layer, never a replacement.** The hover wave, the entrance, the
+dimming and the dissolve all live in `styles.css`. If `interactions.js` or the
+library fails to load, the page loses the springs and nothing else — the two
+scripts are deferred separately from the scene module so no one failure takes
+another down.
+
+**Springs write to `translate` and `scale`, never `transform`.** The CSS owns
+`transform` on every element this touches — `rise` on the links, `breathe` on
+the light — and a running animation outranks an inline style, so sharing that
+property would mean the JS silently losing. The independent properties compose
+with it instead.
+
+**Layout is read once a frame, not once a pointer event.** A pointer fires far
+more often than the screen refreshes, and reading a rect after writing a style
+forces layout each time. The handler records where the cursor is; a
+`requestAnimationFrame` callback does the measuring.
+
+A pointer that cannot hover gets no magnetism or parallax, and
+`prefers-reduced-motion: reduce` gets none of the layer at all. Both are
+watched rather than sampled once, because either can change while the page is
+open.
 
 ## Grounds
 
@@ -43,7 +123,7 @@ and opens a row of swatches on click — seven is too many to cycle through.
 | **Desert rose** | the same drawing in dusk pink |
 | **Eucalypt** | the same drawing in deep leaf green |
 | **Dusk** | the same drawing in deep violet |
-| **Night sky** | strata and contours come off, so the star field the 3D scene already renders has the frame to itself |
+| **Night sky** | the default: everything drawn comes off — strata, datum line, ember, contours, and the scene's signal threads — leaving black, a whisper of vignette, and stars |
 | **Wash** | the geology comes off and soft overlapping blooms take its place — an abstract painting ground, nothing quoted |
 
 The backdrop is drawn entirely from four custom properties — `--night`,
@@ -51,11 +131,19 @@ The backdrop is drawn entirely from four custom properties — `--night`,
 set of those, and every gradient, band and ember re-tints together. Only Night
 sky and Wash change the drawing rather than its colour.
 
+Night sky is what the site opens on. It is an absence rather than a picture of
+a sky: the CSS takes the drawing away and the 3D scene fills what is left. It
+is also the one ground that reaches into the scene — the sparse signal threads
+between stars are right over drawn earth and wrong over a plain sky, so
+`script.js` watches `data-ground` on the root and hides them for this one.
+
 All seven stay dark on purpose: the wordmark, the client names and the field
 copy are all set in light ink, so a pale ground would take their contrast with
 it.
 
-The tray closes on Escape, on a click outside it, and when focus leaves.
+The tray closes on Escape, on a click outside it, and when focus leaves. The
+stored key is `watl.ground.v2`; it was bumped when Night sky became the default
+so the change reached people who already had a choice saved.
 
 The switch is wired inline in `index.html`, not in `script.js`, so it still
 works if the scene module never loads. The choice is remembered in

@@ -12,7 +12,7 @@ if (!Number.isInteger(configuredPort) || configuredPort <= 0 || configuredPort >
 }
 const port = configuredPort;
 const root = realpathSync(process.cwd());
-const publicFiles = new Set(["index.html", "script.js", "styles.css"]);
+const publicFiles = new Set(["index.html", "interactions.js", "script.js", "styles.css"]);
 
 const types = {
   ".avif": "image/avif",
@@ -106,10 +106,9 @@ function isPublicPath(segments) {
   if (segments.length === 1) return publicFiles.has(segments[0]);
   if (segments[0] === "assets") return true;
 
-  // Three.js is vendored, so the only library path the page asks for is this
-  // one. The node_modules rules this replaced — including the special case for
-  // pnpm's hidden store junction — served a tree the page no longer loads.
-  return segments[0] === "vendor" && segments[1] === "three";
+  // Both libraries are vendored rather than fetched, so these are the only
+  // two library paths the page ever asks for.
+  return segments[0] === "vendor" && (segments[1] === "three" || segments[1] === "motion");
 }
 
 function isAllowedCanonicalPath(requestedPath, canonicalPath) {
@@ -129,7 +128,7 @@ function isAllowedCanonicalPath(requestedPath, canonicalPath) {
   }
 
   return canonicalSegments[0] === "vendor"
-    && canonicalSegments[1] === "three"
+    && (canonicalSegments[1] === "three" || canonicalSegments[1] === "motion")
     && !hasHiddenSegment;
 }
 

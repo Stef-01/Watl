@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta id="theme-color" name="theme-color" content="#0a0806" />
+    <meta id="theme-color" name="theme-color" content="#03040a" />
     <meta
       name="description"
       content="WATL is a technology design practice creating interfaces, systems, and experimental tools for futures that have not settled into form."
@@ -72,7 +72,7 @@
       </section>
 
       <header class="hero interface-layer">
-        <p class="wordmark">WATL</p>
+        <p class="wordmark" aria-label="WATL"><span aria-hidden="true" style="--i:0">W</span><span aria-hidden="true" style="--i:1">A</span><span aria-hidden="true" style="--i:2">T</span><span aria-hidden="true" style="--i:3">L</span></p>
         <h1>Design</h1>
       </header>
 
@@ -84,7 +84,7 @@
         role="group"
         aria-label="Background"
       >
-        <span class="ground-switch__name" id="ground-name" aria-hidden="true">Earth</span>
+        <span class="ground-switch__name" id="ground-name" aria-hidden="true">Night sky</span>
         <button
           class="ground-switch__toggle"
           id="ground-toggle"
@@ -148,15 +148,15 @@
          slot ready for licensed artwork from a named artist; see the README. */
       (function () {
         var GROUNDS = [
+          { id: "night", label: "Night sky", theme: "#03040a", swatch: "#7a94d2" },
           { id: "earth", label: "Earth", theme: "#0a0806", swatch: "#c67a36" },
           { id: "ochre", label: "Ochre", theme: "#0d0704", swatch: "#d6742c" },
           { id: "rose", label: "Desert rose", theme: "#0d0509", swatch: "#d1738f" },
           { id: "moss", label: "Eucalypt", theme: "#050806", swatch: "#7fae7a" },
           { id: "dusk", label: "Dusk", theme: "#07060d", swatch: "#9678c4" },
-          { id: "night", label: "Night sky", theme: "#04060d", swatch: "#7a94d2" },
           { id: "wash", label: "Wash", theme: "#0a0709", swatch: "#c98f9c" }
         ];
-        var KEY = "watl.ground";
+        var KEY = "watl.ground.v2";
 
         var root = document.documentElement;
         var toggle = document.getElementById("ground-toggle");
@@ -181,9 +181,32 @@
           return GROUNDS[0].id;
         }
 
-        function apply(id, announce) {
+        var paintTimer = 0;
+        var clearTimer = 0;
+
+        /* The ground itself is swapped at the darkest frame of the dissolve,
+           not at the click — that is what makes it read as a cross-fade rather
+           than a cut with a flicker in front of it. Both timers are cleared on
+           every call, so a fast run of clicks still settles on the last one. */
+        function apply(id, announce, dissolve) {
           var ground = find(id) || GROUNDS[0];
-          root.dataset.ground = ground.id;
+          window.clearTimeout(paintTimer);
+          window.clearTimeout(clearTimer);
+
+          if (dissolve && root.dataset.ground !== ground.id) {
+            root.classList.remove("is-shifting");
+            void root.offsetWidth; /* restart the animation on a repeat click */
+            root.classList.add("is-shifting");
+            paintTimer = window.setTimeout(function () {
+              root.dataset.ground = ground.id;
+            }, 260);
+            clearTimer = window.setTimeout(function () {
+              root.classList.remove("is-shifting");
+            }, 660);
+          } else {
+            root.dataset.ground = ground.id;
+          }
+
           if (name) name.textContent = ground.label;
           if (meta) meta.setAttribute("content", ground.theme);
           if (toggle) {
@@ -220,10 +243,11 @@
             b.dataset.ground = g.id;
             b.className = "ground-swatch";
             b.style.setProperty("--swatch", g.swatch);
+            b.style.setProperty("--i", String(i));
             b.setAttribute("aria-label", g.label);
             b.setAttribute("aria-pressed", "false");
             b.addEventListener("click", function () {
-              apply(this.dataset.ground, true);
+              apply(this.dataset.ground, true, true);
               open(false);
               if (toggle) toggle.focus();
             });
@@ -256,6 +280,13 @@
         });
       })();
     </script>
+
+    <!-- Framer Motion's DOM build, vendored rather than fetched, on the same
+         terms as Three.js. It is loaded deferred and separately from the scene
+         so that a failure in either one cannot take the other down, and so the
+         CSS layer underneath both stays the floor. -->
+    <script defer src="./vendor/motion/motion.js"></script>
+    <script defer src="./interactions.js"></script>
 
     <script type="module" src="./script.js"></script>
     <script>
