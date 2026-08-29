@@ -6,7 +6,7 @@ The ground behind it is warm dark earth, a contour field drawn in elevation, an 
 
 Orbiting the camera reveals spatial parallax. A nearly imperceptible celestial drift, soft twinkle, and sparse connections keep the surrounding field alive without competing with the botanical form. The object is the identity; everything else has been reduced to coordinates.
 
-Mature heads are dense spherical pom-poms, as deep as they are wide. Complete five-part florets and five round anthers per floret are spread over the whole shell by mirrored golden-angle spirals stepped in equal area — even bands of cos(theta) rather than of radius, which is what fills the flanks of a head instead of piling its florets onto a disc. Compact young buds retain their round form. Curved falcate phyllodes taper at both ends and carry five parallel-convergent longitudinal veins. Three.js `0.185.1` is vendored into `vendor/three/` rather than loaded from a CDN, so a fresh clone runs with no install step.
+Mature heads are dense spherical pom-poms, as deep as they are wide. Complete five-part florets and five round anthers per floret are spread over the whole shell by mirrored golden-angle spirals stepped in equal area — even bands of cos(theta) rather than of radius, which is what fills the flanks of a head instead of piling its florets onto a disc. Every head begins collapsed into a compact olive bud and retains enough topology to unfold into that full mature form. Curved falcate phyllodes taper at both ends and carry five parallel-convergent longitudinal veins. Three.js `0.185.1` is vendored into `vendor/three/` rather than loaded from a CDN, so a fresh clone runs with no install step.
 
 ## Clients
 
@@ -197,8 +197,9 @@ bouquet.
 ## Explore the bouquet
 
 - Drag to orbit; use the wheel or a pinch gesture to zoom.
-- With a mouse or trackpad, hover a flower for a restrained bloom preview; click or tap a flower to open that head and lift its pollen before it settles.
-- With the 3D stage focused, use the arrow keys to rotate, `+` / `-` to zoom, `Enter` or `Space` to send a bloom cascade from the bottom of the bouquet to its crown, and `Home` to restore the authored view.
+- With a mouse or trackpad, sweep across the bouquet. A soft screen-space brush opens up to four nearby buds in 135ms offsets, then advances every 90ms while the pointer remains in a dense area. This makes local clusters bloom in a patchy wave instead of firing the whole bouquet at once.
+- Click or tap a bud to open that head directly and permanently from olive bud to golden pom-pom.
+- With the 3D stage focused, use the arrow keys to rotate, `+` / `-` to zoom, `Enter` or `Space` to open every remaining bud immediately, and `Home` to restore the authored view.
 
 The page carries no visible controls. The bouquet is operated directly — by
 pointer, by touch, and by keyboard — and its sway is fixed at the authored
@@ -206,12 +207,26 @@ value (`AUTHORED_DRIFT` in `script.js`). `assets/golden-wattle-bouquet.glb` is
 still in the repo as a standalone copy of the object, but nothing on the page
 links to it.
 
-Blooming is interaction feedback rather than a new navigation layer. Hover
-previews are limited to fine pointers, a drag cancels the pending bloom so an
-orbit never fires one accidentally, and repeated activations continue from the
-head's current state instead of snapping back to rest. Keyboard activation
-uses the same response as pointer activation, distributed across the bouquet.
+Blooming is a persistent botanical state change rather than a scale pulse.
+Each head carries its complete mature topology from the start, but begins in a
+compact olive pose: the receptacle fills the bud, floret clusters break open in
+irregular patches, then their curved filaments and pollen tips extend to the
+authored final silhouette. The full morph lasts 2.7 seconds: the receptacle
+swells through the first 22%, the earliest floret patches finish separating by
+68%, and filaments take over from 48% through the final frame. A strong
+ease-in-out curve keeps those acts connected, while a very low local light only
+marks the selected head instead of washing the bouquet in yellow. The bloom brush is limited to fine pointers, a drag
+cancels it so an orbit never fires a flower accidentally, and an opened flower
+stays open. Keyboard activation commits the remaining buds without motion.
+
+When the final filament reaches its mature pose, a full-width plain black completion banner
+appears over the bouquet with the line “Help your business bloom,” Stefan's
+email, a meeting request, and a dismiss action. Add the real Calendly scheduling
+page to the `data-calendly-url` attribute on `#bloom-finale-calendar` in
+`index.html`; until that public URL is supplied, the second action uses a
+pre-addressed meeting email rather than sending visitors to a guessed or broken
+account.
 
 ## Accessibility and fallbacks
 
-The scene has a keyboard-focusable wrapper, visible focus treatment, concise operating instructions, and a text description of the bouquet and its spatial field. A polite live region announces deliberate flower and bouquet activations, never hover previews. A `prefers-reduced-motion: reduce` preference disables autonomous bouquet and celestial motion, replaces geometric blooming and its stagger with a brief local light response, and preserves direct pointer and keyboard controls. If WebGL is unavailable or scene setup fails, the interface presents an explanatory status and a still bouquet poster instead of an empty canvas.
+The scene has a keyboard-focusable wrapper, visible focus treatment, concise operating instructions, and a text description of the bouquet and its spatial field. A polite live region announces deliberate click, keyboard, and completion states without narrating every pointer-brush step. The completion banner is an inert, labelled dialog until the whole bouquet is open, exposes two ordinary links plus an explicit dismiss button, and does not steal focus from a pointer user. A `prefers-reduced-motion: reduce` preference disables autonomous bouquet and celestial motion, snaps each committed bud directly to its mature silhouette, and reveals the completion message without spatial movement. If WebGL is unavailable or scene setup fails, the interface presents an explanatory status and a still bouquet poster instead of an empty canvas.

@@ -14,6 +14,8 @@
   --faint: rgba(242, 240, 232, 0.14);
   --gold: #f4c323;
   --edge: rgba(242, 240, 232, 0.16);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
@@ -799,6 +801,150 @@ input:disabled {
   opacity: 0.32;
 }
 
+/* ---------- The completed bouquet ----------
+   This is intentionally much larger than the rest of the interface: it is the
+   reward for opening every flower, closer to a game-complete card than a toast.
+   The panel is a single, plain black horizontal band so the fully opened
+   bouquet remains visible above and below the message it earned. */
+.bloom-finale {
+  z-index: 30;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  padding: clamp(1.4rem, 3vw, 2.8rem) max(1.25rem, env(safe-area-inset-right))
+    clamp(1.4rem, 3vw, 2.8rem) max(1.25rem, env(safe-area-inset-left));
+  border-top: 1px solid rgba(242, 240, 232, 0.16);
+  border-bottom: 1px solid rgba(242, 240, 232, 0.16);
+  background: #050505;
+  color: var(--ink);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-50%) scale(0.96);
+  transform-origin: center;
+  transition:
+    opacity 240ms var(--ease-out),
+    transform 360ms var(--ease-out),
+    visibility 0s linear 360ms;
+  pointer-events: none;
+}
+
+.bloom-finale.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) scale(1);
+  transition-delay: 0s;
+  pointer-events: auto;
+}
+
+.bloom-finale.is-instant {
+  transition: none;
+}
+
+.bloom-finale__inner {
+  width: min(78rem, 100%);
+  margin: 0 auto;
+}
+
+.bloom-finale__eyebrow,
+.bloom-finale__copy,
+.bloom-finale__title {
+  margin: 0;
+}
+
+.bloom-finale__eyebrow,
+.bloom-finale__copy,
+.bloom-finale__action,
+.bloom-finale__dismiss {
+  font-family: var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.bloom-finale__eyebrow {
+  color: var(--gold);
+  font-size: clamp(0.58rem, 0.52rem + 0.22vw, 0.72rem);
+  font-weight: 700;
+}
+
+.bloom-finale__title {
+  max-width: 12ch;
+  margin-top: 0.34em;
+  font-size: clamp(3rem, 9.6vw, 8.6rem);
+  font-weight: 600;
+  line-height: 0.82;
+  letter-spacing: -0.068em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.bloom-finale__copy {
+  color: var(--muted);
+  max-width: 56ch;
+  margin-top: clamp(1rem, 2vw, 1.6rem);
+  font-size: clamp(0.64rem, 0.58rem + 0.2vw, 0.78rem);
+  line-height: 1.65;
+}
+
+.bloom-finale__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: clamp(1.2rem, 2.6vw, 2rem);
+}
+
+.bloom-finale__action,
+.bloom-finale__dismiss {
+  display: inline-flex;
+  min-height: 2.9rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--edge);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.bloom-finale__action {
+  gap: 0.8rem;
+  padding: 0.8rem 1rem;
+}
+
+.bloom-finale__action--primary {
+  border-color: rgba(244, 195, 35, 0.66);
+  background: transparent;
+  color: var(--gold);
+}
+
+.bloom-finale__dismiss {
+  min-height: 2.4rem;
+  margin-top: 0.65rem;
+  padding: 0.5rem 0;
+  border-color: transparent;
+  opacity: 0.62;
+}
+
+.bloom-finale__action:focus-visible,
+.bloom-finale__dismiss:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+  transform: translateY(-0.14rem);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .bloom-finale__action:hover,
+  .bloom-finale__dismiss:hover {
+    opacity: 0.72;
+    transform: translateY(-0.14rem);
+  }
+}
+
 .loader,
 .scene-error {
   position: fixed;
@@ -928,6 +1074,25 @@ input:disabled {
 }
 
 @media (max-width: 620px) {
+  .bloom-finale {
+    padding-top: 1.6rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .bloom-finale__title {
+    max-width: 10ch;
+    font-size: clamp(2.7rem, 15vw, 5.4rem);
+  }
+
+  .bloom-finale__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .bloom-finale__action {
+    justify-content: space-between;
+  }
+
   .client-rail {
     flex-direction: column;
     align-items: flex-start;
@@ -974,6 +1139,11 @@ input:disabled {
     animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
     transition-delay: 0s !important;
+  }
+
+  .bloom-finale,
+  .bloom-finale.is-visible {
+    transform: translateY(-50%);
   }
 }
 

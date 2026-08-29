@@ -136,12 +136,38 @@ await check("reduced motion and the deterministic QA surface remain wired", () =
 
 await check("interactive blooming keeps its pointer, keyboard, and motion safeguards", () => {
   assert.match(indexSource, /data-bloom-hover=["']false["']/);
+  assert.match(indexSource, /data-bloom-finale=["']false["']/);
   assert.match(indexSource, /aria-keyshortcuts=["'][^"']*Enter[^"']*Space[^"']*["']/);
   assert.match(stylesSource, /@media\s*\(hover:\s*hover\)\s*and\s*\(pointer:\s*fine\)/);
   assert.match(scriptSource, /function\s+activateBloomAtIndex\s*\(/);
+  assert.match(scriptSource, /function\s+bloomAtHoverArea\s*\(/);
   assert.match(scriptSource, /function\s+triggerBouquetBloom\s*\(/);
   assert.match(scriptSource, /const\s+spatialAllowed\s*=\s*!reduceBloomMotion\(\)/);
   assert.match(scriptSource, /distance\s*>\s*BLOOM_DRAG_SLOP/);
+  assert.match(scriptSource, /\bbudMatrices\b/);
+  assert.match(scriptSource, /\bbudPositions\b/);
+  assert.match(scriptSource, /head\.committedOpen\s*=\s*true/);
+  assert.match(scriptSource, /head\.mode\s*=\s*["']open["']/);
+  assert.match(scriptSource, /BUD_FILAMENT_LENGTH/);
+  assert.match(scriptSource, /BLOOM_BRUSH_STEP_MS/);
+  assert.match(scriptSource, /BLOOM_BRUSH_BATCH_SIZE/);
+  assert.match(scriptSource, /BLOOM_BRUSH_HEAD_STAGGER_MS/);
+  assert.match(scriptSource, /BLOOM_UNFURL_MS\s*=\s*2700/);
+  assert.match(scriptSource, /rawDuration\s*===\s*null/);
+  assert.match(scriptSource, /BLOOM_LIGHT_INTENSITY\s*=\s*0\.72/);
+  assert.doesNotMatch(scriptSource, /BLOOM_RADIAL_SPREAD/);
+});
+
+await check("the all-bloomed business banner stays accessible and actionable", () => {
+  assert.match(indexSource, /id=["']bloom-finale["'][\s\S]*?role=["']dialog["']/);
+  assert.match(indexSource, /Help your business bloom\./i);
+  assert.match(indexSource, /mailto:Stefan\.thottunkal@gmail\.com/i);
+  assert.match(indexSource, /id=["']bloom-finale-calendar["'][\s\S]*?data-calendly-url=/);
+  assert.match(indexSource, /id=["']bloom-finale-dismiss["']/);
+  assert.match(scriptSource, /function\s+showBloomFinale\s*\(/);
+  assert.match(stylesSource, /\.bloom-finale\.is-visible/);
+  assert.match(stylesSource, /\.bloom-finale\s*\{[\s\S]*?background:\s*#050505/);
+  assert.doesNotMatch(stylesSource, /\.bloom-finale[\s\S]{0,500}transition:\s*all/);
 });
 
 const port = await reservePort();
