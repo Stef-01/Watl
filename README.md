@@ -22,8 +22,10 @@ never loads, and `prefers-reduced-motion: reduce` stops it entirely.
 | ADHDme | <https://www.adhdme.au/> |
 | Contact us | `mailto:` — the address is set on the `.client--contact` link in `index.html` |
 
-Clients sit together at the left of the rail; the contact link holds the right
-corner on its own, and keeps it when the rail wraps.
+Clients sit together at the left of the rail and the contact link holds the
+right corner. Below 620px the rail becomes a single left-aligned column —
+three names sharing one gutter edge. It used to wrap into an L, with the
+contact link stranded mid-line under the clients, aligned to nothing.
 
 To add one, copy an `<a class="client">` inside `nav.client-rail` in
 `index.html`. Each glyph is its own `<span>` carrying a `--i` index, which is
@@ -82,7 +84,7 @@ and opens a row of swatches on click — seven is too many to cycle through.
 | **Desert rose** | the same drawing in dusk pink |
 | **Eucalypt** | the same drawing in deep leaf green |
 | **Dusk** | the same drawing in deep violet |
-| **Night sky** | strata and contours come off, so the star field the 3D scene already renders has the frame to itself |
+| **Night sky** | the default: everything drawn comes off — strata, datum line, ember, contours, and the scene's signal threads — leaving black, a whisper of vignette, and stars |
 | **Wash** | the geology comes off and soft overlapping blooms take its place — an abstract painting ground, nothing quoted |
 
 The backdrop is drawn entirely from four custom properties — `--night`,
@@ -90,11 +92,19 @@ The backdrop is drawn entirely from four custom properties — `--night`,
 set of those, and every gradient, band and ember re-tints together. Only Night
 sky and Wash change the drawing rather than its colour.
 
+Night sky is what the site opens on. It is an absence rather than a picture of
+a sky: the CSS takes the drawing away and the 3D scene fills what is left. It
+is also the one ground that reaches into the scene — the sparse signal threads
+between stars are right over drawn earth and wrong over a plain sky, so
+`script.js` watches `data-ground` on the root and hides them for this one.
+
 All seven stay dark on purpose: the wordmark, the client names and the field
 copy are all set in light ink, so a pale ground would take their contrast with
 it.
 
-The tray closes on Escape, on a click outside it, and when focus leaves.
+The tray closes on Escape, on a click outside it, and when focus leaves. The
+stored key is `watl.ground.v2`; it was bumped when Night sky became the default
+so the change reached people who already had a choice saved.
 
 The switch is wired inline in `index.html`, not in `script.js`, so it still
 works if the scene module never loads. The choice is remembered in
