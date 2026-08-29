@@ -279,6 +279,13 @@
       })();
     </script>
 
+    <!-- Framer Motion's DOM build, vendored rather than fetched, on the same
+         terms as Three.js. It is loaded deferred and separately from the scene
+         so that a failure in either one cannot take the other down, and so the
+         CSS layer underneath both stays the floor. -->
+    <script defer src="./vendor/motion/motion.js"></script>
+    <script defer src="./interactions.js"></script>
+
     <script type="module" src="./script.js"></script>
     <script>
       /* A module that fails to resolve reports nothing the page can act on:

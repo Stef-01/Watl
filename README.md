@@ -72,6 +72,45 @@ lands or reverses halfway.
 iteration count — and every animation is written so a single collapsed
 iteration leaves the element exactly at rest.
 
+## Interaction
+
+Framer Motion's DOM build is vendored into `vendor/motion/` on the same terms
+as Three.js — committed, not fetched — and drives a pointer layer in
+`interactions.js`.
+
+- **The links lean toward the cursor** as it passes and spring back when it
+  goes. The lean falls off with distance: a full 18px under the cursor, nothing
+  at the edge of reach.
+- **The light behind the bouquet drifts the other way**, on the softest spring
+  on the page. Fast parallax reads as a bug; slow parallax reads as depth.
+- **Press gives back** — a small spring-loaded scale. This is the one thing a
+  touchscreen keeps, since it is the only feedback a finger gets between
+  tapping a link and the page changing.
+
+Three constraints hold this layer honest:
+
+**It is a layer, never a replacement.** The hover wave, the entrance, the
+dimming and the dissolve all live in `styles.css`. If `interactions.js` or the
+library fails to load, the page loses the springs and nothing else — the two
+scripts are deferred separately from the scene module so no one failure takes
+another down.
+
+**Springs write to `translate` and `scale`, never `transform`.** The CSS owns
+`transform` on every element this touches — `rise` on the links, `breathe` on
+the light — and a running animation outranks an inline style, so sharing that
+property would mean the JS silently losing. The independent properties compose
+with it instead.
+
+**Layout is read once a frame, not once a pointer event.** A pointer fires far
+more often than the screen refreshes, and reading a rect after writing a style
+forces layout each time. The handler records where the cursor is; a
+`requestAnimationFrame` callback does the measuring.
+
+A pointer that cannot hover gets no magnetism or parallax, and
+`prefers-reduced-motion: reduce` gets none of the layer at all. Both are
+watched rather than sampled once, because either can change while the page is
+open.
+
 ## Grounds
 
 A small dot sits top right. It names the current ground when you approach it,
