@@ -97,15 +97,19 @@ function requestWithHost(port, host) {
   });
 }
 
-const [indexSource, scriptSource, stylesSource] = await Promise.all([
+const [indexSource, scriptSource, stylesSource, bloomMotionSource, interactionsSource] = await Promise.all([
   readFile(resolve(root, "index.html"), "utf8"),
   readFile(resolve(root, "script.js"), "utf8"),
   readFile(resolve(root, "styles.css"), "utf8"),
+  readFile(resolve(root, "bloom-motion.js"), "utf8"),
+  readFile(resolve(root, "interactions.js"), "utf8"),
 ]);
 
 await check("JavaScript entry points parse", () => {
   syntaxCheck("server.mjs");
   syntaxCheck("script.js");
+  syntaxCheck("bloom-motion.js");
+  syntaxCheck("tools/bloom-motion.test.mjs");
   syntaxCheck("tools/qa-smoke.mjs");
 });
 
@@ -148,11 +152,26 @@ await check("interactive blooming keeps its pointer, keyboard, and motion safegu
   assert.match(scriptSource, /\bbudPositions\b/);
   assert.match(scriptSource, /head\.committedOpen\s*=\s*true/);
   assert.match(scriptSource, /head\.mode\s*=\s*["']open["']/);
-  assert.match(scriptSource, /BUD_FILAMENT_LENGTH/);
+  assert.match(scriptSource, /function\s+createBudCapsuleGeometry\s*\(/);
+  assert.match(scriptSource, /function\s+createCupInstances\s*\(/);
+  assert.match(scriptSource, /function\s+createCorollaCupGeometry\s*\(/);
+  assert.match(scriptSource, /Persistent_Golden_Corolla_Cups/);
+  assert.match(scriptSource, /\bcapLookup\b/);
+  assert.match(scriptSource, /\bfloretLookup\b/);
+  assert.match(scriptSource, /\bsourceFilamentId\b/);
+  assert.match(scriptSource, /\bmorphTargetInfluences\b/);
+  assert.match(scriptSource, /function\s+setBloomCheckpointForQa\s*\(/);
+  assert.match(scriptSource, /function\s+sampleBloomGeometryForQa\s*\(/);
+  assert.match(scriptSource, /query\.has\(["']qaBloom["']\)/);
+  assert.match(scriptSource, /cores\.visible\s*=\s*false/);
   assert.match(scriptSource, /BLOOM_BRUSH_STEP_MS/);
   assert.match(scriptSource, /BLOOM_BRUSH_BATCH_SIZE/);
   assert.match(scriptSource, /BLOOM_BRUSH_HEAD_STAGGER_MS/);
-  assert.match(scriptSource, /BLOOM_UNFURL_MS\s*=\s*2700/);
+  assert.match(scriptSource, /BLOOM_UNFURL_MS\s*=\s*BLOOM_DURATION_MS/);
+  assert.match(bloomMotionSource, /BLOOM_DURATION_MS\s*=\s*2700/);
+  assert.match(bloomMotionSource, /BLOOM_MAX_SITE_DELAY\s*=\s*0\.22/);
+  assert.match(bloomMotionSource, /function\s+bloomVisibilityHandoff\s*\(/);
+  assert.match(bloomMotionSource, /function\s+bloomEnvelopeTarget\s*\(/);
   assert.match(scriptSource, /rawDuration\s*===\s*null/);
   assert.match(scriptSource, /BLOOM_LIGHT_INTENSITY\s*=\s*0\.72/);
   assert.doesNotMatch(scriptSource, /BLOOM_RADIAL_SPREAD/);
@@ -168,6 +187,21 @@ await check("the all-bloomed business banner stays accessible and actionable", (
   assert.match(stylesSource, /\.bloom-finale\.is-visible/);
   assert.match(stylesSource, /\.bloom-finale\s*\{[\s\S]*?background:\s*#050505/);
   assert.doesNotMatch(stylesSource, /\.bloom-finale[\s\S]{0,500}transition:\s*all/);
+});
+
+await check("the venture rail stays vertical, independently scrollable, and keyboard operable", () => {
+  assert.match(indexSource, /id=["']venture-list["'][\s\S]*?aria-label=["']Ventures[^"']*scroll vertically/);
+  assert.match(indexSource, /id=["']venture-list["'][\s\S]*?tabindex=["']0["']/);
+  assert.match(indexSource, /id=["']venture-current["']/);
+  assert.match(indexSource, /class=["']client client--contact["']/);
+  assert.match(stylesSource, /\.client-rail__panel\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?left:/);
+  assert.match(stylesSource, /\.client-rail__group\s*\{[\s\S]*?flex-direction:\s*column;[\s\S]*?overflow-y:\s*auto;/);
+  assert.match(stylesSource, /scroll-snap-type:\s*y mandatory/);
+  assert.match(stylesSource, /overscroll-behavior-y:\s*contain/);
+  assert.match(stylesSource, /\.client--contact\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?right:/);
+  assert.match(interactionsSource, /function\s+venturePosition\s*\(/);
+  assert.match(interactionsSource, /["']ArrowDown["'][\s\S]*?["']ArrowUp["'][\s\S]*?["']Home["'][\s\S]*?["']End["']/);
+  assert.match(interactionsSource, /!link\.closest\(["']#venture-list["']\)/);
 });
 
 const port = await reservePort();
@@ -197,6 +231,11 @@ try {
     assert.equal(scriptResponse.status, 200);
     assert.match(scriptResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
     assert.match(await scriptResponse.text(), /window\.__WATTLE_BOOTED__/);
+
+    const motionResponse = await fetch(`${baseUrl}/bloom-motion.js?cache-bust=qa`);
+    assert.equal(motionResponse.status, 200);
+    assert.match(motionResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
+    assert.match(await motionResponse.text(), /BLOOM_DURATION_MS\s*=\s*2700/);
 
     const threeResponse = await fetch(`${baseUrl}/vendor/three/three.module.js`, { method: "HEAD" });
     assert.equal(threeResponse.status, 200);

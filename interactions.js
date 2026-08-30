@@ -171,6 +171,81 @@ function pressable(elements) {
   return () => stops.forEach((stop) => typeof stop === "function" && stop());
 }
 
+/**
+ * Keep the tiny rail counter in step with native scrolling. The list itself
+ * remains a real overflow region — trackpad momentum, keyboard scrolling and
+ * accessibility tooling all retain their platform behaviour. This listener
+ * only reports the row nearest the top edge and never drives the scroll.
+ */
+function venturePosition(list) {
+  const items = [...list.querySelectorAll(".client")];
+  const current = document.querySelector("#venture-current");
+  const total = document.querySelector("#venture-total");
+  let queued = 0;
+
+  if (total) total.textContent = String(items.length).padStart(2, "0");
+
+  function update() {
+    queued = 0;
+    let closest = 0;
+    let distance = Infinity;
+
+    items.forEach((item, index) => {
+      const firstOffset = items[0]?.offsetTop || 0;
+      const delta = Math.abs(item.offsetTop - firstOffset - list.scrollTop);
+      if (delta < distance) {
+        distance = delta;
+        closest = index;
+      }
+    });
+
+    if (current) current.textContent = String(closest + 1).padStart(2, "0");
+  }
+
+  function onScroll() {
+    if (!queued) queued = requestAnimationFrame(update);
+  }
+
+  function onKeyDown(event) {
+    const keys = ["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End"];
+    if (!keys.includes(event.key) || event.altKey || event.ctrlKey || event.metaKey) return;
+
+    const firstOffset = items[0]?.offsetTop || 0;
+    let nearest = 0;
+    let distance = Infinity;
+
+    items.forEach((item, index) => {
+      const delta = Math.abs(item.offsetTop - firstOffset - list.scrollTop);
+      if (delta < distance) {
+        nearest = index;
+        distance = delta;
+      }
+    });
+
+    if (event.key === "Home") nearest = 0;
+    else if (event.key === "End") nearest = items.length - 1;
+    else if (event.key === "ArrowDown" || event.key === "PageDown") nearest += 1;
+    else nearest -= 1;
+
+    nearest = Math.max(0, Math.min(items.length - 1, nearest));
+    event.preventDefault();
+    list.scrollTo({
+      top: items[nearest].offsetTop - firstOffset,
+      behavior: reduced.matches ? "auto" : "smooth",
+    });
+  }
+
+  list.addEventListener("scroll", onScroll, { passive: true });
+  list.addEventListener("keydown", onKeyDown);
+  update();
+
+  return () => {
+    list.removeEventListener("scroll", onScroll);
+    list.removeEventListener("keydown", onKeyDown);
+    if (queued) cancelAnimationFrame(queued);
+  };
+}
+
 /** Everything the pointer layer has switched on, so it can be switched off. */
 let teardown = [];
 
@@ -183,6 +258,8 @@ function start() {
   stop();
 
   const links = [...document.querySelectorAll(".client")];
+  const magneticLinks = links.filter((link) => !link.closest("#venture-list"));
+  const ventureList = document.querySelector("#venture-list");
   const toggle = document.querySelector(".ground-switch__toggle");
   const light = document.querySelector(".stage__light");
 
@@ -192,9 +269,14 @@ function start() {
     teardown.push(pressable([...links, ...(toggle ? [toggle] : [])]));
   }
 
+  if (ventureList) teardown.push(venturePosition(ventureList));
+
   if (!enabled()) return;
 
-  teardown.push(magnetise([...links, ...(toggle ? [toggle] : [])]));
+  /* The compact venture list gets only its 0.22rem CSS acknowledgement. A
+     magnetic pull inside a scroll surface makes rows feel loose and noisy;
+     the separate contact action can keep the more expressive spring. */
+  teardown.push(magnetise([...magneticLinks, ...(toggle ? [toggle] : [])]));
   if (light) teardown.push(parallax(light));
 }
 

@@ -626,14 +626,14 @@ button {
 }
 
 /* Hovering one name lets the others recede. */
-.client-rail:hover .client:not(:hover) {
+.client-rail__group:hover .client:not(:hover) {
   opacity: 0.42;
 }
 
 .client {
   transition:
-    color 420ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 420ms ease;
+    color 180ms ease,
+    opacity 180ms ease;
 }
 
 /* The swatches deal themselves out when the tray opens. */
@@ -653,72 +653,109 @@ button {
   animation-delay: calc(var(--i) * 45ms);
 }
 
-/* ---------- The client rail ----------
-   The studio's whole outbound surface, laid along the foot of the screen.
-   It is the only thing on the page that answers a pointer, so it is the only
-   thing allowed to move: each name is split into glyphs that lift in a
-   staggered wave, and the stagger runs on exit too, so the word settles back
-   the way it rose. Everything here is CSS on static spans — if script.js
-   never loads, the rail still works and still animates. */
+/* ---------- The venture rail ----------
+   A small, independent scroll surface on the left. One venture is fully in
+   view and the next is deliberately allowed to peek through the lower fade:
+   the list advertises that it scrolls without adding a loud instruction or a
+   permanent scrollbar. The full-screen footer remains pointer-transparent;
+   only the rail, its links and the separate contact action receive input. */
 .client-rail {
-  right: 0;
-  bottom: 0;
-  left: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1.25rem clamp(1.5rem, 6vw, 5rem);
-  padding: 0 max(1.75rem, env(safe-area-inset-right))
-    calc(1.75rem + env(safe-area-inset-bottom))
-    max(1.75rem, env(safe-area-inset-left));
+  inset: 0;
 }
 
-/* Clients sit together at the left so the contact link can hold the right
-   corner on its own. Both groups wrap as one before either splits. */
-.client-rail__group {
+.client-rail__panel {
+  --venture-row: clamp(4rem, 7.2vh, 5.25rem);
+  position: fixed;
+  top: clamp(8rem, 25vh, 14rem);
+  left: max(1.5rem, env(safe-area-inset-left));
+  width: clamp(10.75rem, 16vw, 14.5rem);
+  pointer-events: auto;
+}
+
+.client-rail__header {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 1.25rem clamp(1.5rem, 4vw, 3rem);
-  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 0.7rem;
+  border-bottom: 1px solid rgba(242, 240, 232, 0.18);
+  color: rgba(242, 240, 232, 0.46);
+  font-family: var(--mono);
+  font-size: 0.57rem;
+  letter-spacing: 0.13em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.client-rail__position {
+  color: rgba(242, 240, 232, 0.3);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.client-rail__group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: calc(var(--venture-row) * 1.55);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+  scroll-snap-type: y mandatory;
+  scroll-padding-block: 0;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 76%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 76%, transparent 100%);
+}
+
+.client-rail__group::-webkit-scrollbar {
+  display: none;
+}
+
+.client-rail__group::after {
+  content: "";
+  flex: 0 0 calc(var(--venture-row) * 0.55);
 }
 
 .client {
   position: relative;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.5em;
-  padding-bottom: 0.5rem;
+  display: grid;
+  flex: 0 0 var(--venture-row);
+  grid-template-columns: 1.8rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: var(--venture-row);
+  padding: 0;
+  border-bottom: 1px solid rgba(242, 240, 232, 0.1);
   color: var(--muted);
   font-family: var(--mono);
-  font-size: clamp(1.05rem, 0.72rem + 1.5vw, 2.1rem);
-  letter-spacing: 0.1em;
+  font-size: clamp(0.78rem, 0.68rem + 0.32vw, 0.96rem);
+  letter-spacing: 0.08em;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
   text-transform: uppercase;
   text-decoration: none;
   white-space: nowrap;
 }
 
-/* A hairline that draws itself under the name, left to right. */
-.client::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 1px;
-  background: var(--gold);
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
+.client__index {
+  color: rgba(242, 240, 232, 0.27);
+  font-size: 0.55rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.client__name {
+  min-width: 0;
+  display: inline-block;
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
 }
 
 .client__name span {
-  display: inline-block;
-  transition:
-    transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
-    color 420ms cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: calc(var(--i) * 26ms);
+  display: inline;
 }
 
 .client__arrow {
@@ -727,32 +764,33 @@ button {
   font-size: 0.62em;
   color: rgba(242, 240, 232, 0.34);
   transition:
-    transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
-    color 420ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform 180ms ease,
+    color 180ms ease;
 }
 
-.client:hover .client__name span,
-.client:active .client__name span,
-.client:focus-visible .client__name span {
-  transform: translateY(-0.34em);
+.client:hover .client__name,
+.client:active .client__name,
+.client:focus-visible .client__name {
+  transform: translateX(0.22rem);
   color: var(--gold);
-}
-
-.client:hover::after,
-.client:active::after,
-.client:focus-visible::after {
-  transform: scaleX(1);
 }
 
 .client:hover .client__arrow,
 .client:active .client__arrow,
 .client:focus-visible .client__arrow {
-  transform: translate(0.3em, -0.3em);
+  transform: translate(0.16em, -0.16em);
   color: var(--gold);
 }
 
 .client--contact {
-  margin-left: auto;
+  position: fixed;
+  right: max(1.75rem, env(safe-area-inset-right));
+  bottom: calc(1.75rem + env(safe-area-inset-bottom));
+  display: inline-flex;
+  width: auto;
+  min-height: 0;
+  padding-bottom: 0.35rem;
+  border-bottom-color: rgba(244, 195, 35, 0.28);
   color: rgba(244, 195, 35, 0.68);
 }
 
@@ -760,13 +798,14 @@ button {
   color: rgba(244, 195, 35, 0.42);
 }
 
-.client--contact::after {
-  transform-origin: right center;
-}
-
 .client:focus-visible {
   outline: 1px solid var(--gold);
-  outline-offset: 0.5rem;
+  outline-offset: 0.25rem;
+}
+
+.client-rail__group:focus-visible {
+  outline: 1px solid rgba(244, 195, 35, 0.72);
+  outline-offset: 0.35rem;
 }
 
 .scene-error button {
@@ -1094,29 +1133,24 @@ input:disabled {
   }
 
   .client-rail {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.9rem;
+    inset: 0;
   }
 
-  .client-rail__group {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.9rem;
+  .client-rail__panel {
+    --venture-row: 3.85rem;
+    top: max(5.25rem, calc(env(safe-area-inset-top) + 4.2rem));
+    left: max(1.15rem, env(safe-area-inset-left));
+    width: min(40vw, 10.5rem);
   }
 
-  /* margin-left:auto is what holds the right corner on a wide screen; in a
-     column it would push the link off the shared left edge. */
   .client--contact {
-    margin-left: 0;
-  }
-
-  .client--contact::after {
-    transform-origin: left center;
+    right: max(1.15rem, env(safe-area-inset-right));
+    bottom: calc(1.15rem + env(safe-area-inset-bottom));
   }
 
   .client {
-    font-size: clamp(1.02rem, 0.86rem + 0.7vw, 1.35rem);
+    grid-template-columns: 1.35rem minmax(0, 1fr) auto;
+    font-size: clamp(0.67rem, 2.8vw, 0.8rem);
   }
 }
 

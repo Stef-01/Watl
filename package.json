@@ -7,9 +7,11 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "check": "node --check server.mjs && node --check script.js && node --check interactions.js && node --check tools/qa-smoke.mjs",
+    "check": "node --check server.mjs && node --check script.js && node --check interactions.js && node --check bloom-motion.js && node --check tools/bloom-motion.test.mjs && node --check tools/qa-smoke.mjs",
     "dev": "node server.mjs",
     "qa:smoke": "node tools/qa-smoke.mjs",
+    "test": "npm run test:bloom-motion && npm run qa:smoke",
+    "test:bloom-motion": "node tools/bloom-motion.test.mjs",
     "start": "node server.mjs"
   },
   "dependencies": {

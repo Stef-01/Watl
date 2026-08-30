@@ -100,16 +100,31 @@
       </div>
 
       <footer class="client-rail interface-layer">
-        <nav class="client-rail__group" aria-label="Clients">
-        <a class="client" href="https://bayhealth.com.au/" aria-label="Bay Health">
-          <span class="client__name" aria-hidden="true"><span style="--i:0">B</span><span style="--i:1">a</span><span style="--i:2">y</span><span style="--i:3">&nbsp;</span><span style="--i:4">H</span><span style="--i:5">e</span><span style="--i:6">a</span><span style="--i:7">l</span><span style="--i:8">t</span><span style="--i:9">h</span></span>
-          <i class="client__arrow" aria-hidden="true">&#8599;</i>
-        </a>
-        <a class="client" href="https://www.adhdme.au/" aria-label="ADHDme">
-          <span class="client__name" aria-hidden="true"><span style="--i:0">A</span><span style="--i:1">D</span><span style="--i:2">H</span><span style="--i:3">D</span><span style="--i:4">m</span><span style="--i:5">e</span></span>
-          <i class="client__arrow" aria-hidden="true">&#8599;</i>
-        </a>
-        </nav>
+        <div class="client-rail__panel">
+          <div class="client-rail__header" aria-hidden="true">
+            <span>Ventures</span>
+            <span class="client-rail__position">
+              <span id="venture-current">01</span>&thinsp;/&thinsp;<span id="venture-total">02</span>
+            </span>
+          </div>
+          <nav
+            class="client-rail__group"
+            id="venture-list"
+            aria-label="Ventures — scroll vertically to explore"
+            tabindex="0"
+          >
+            <a class="client" href="https://bayhealth.com.au/" aria-label="Bay Health">
+              <span class="client__index" aria-hidden="true">01</span>
+              <span class="client__name" aria-hidden="true"><span style="--i:0">B</span><span style="--i:1">a</span><span style="--i:2">y</span><span style="--i:3">&nbsp;</span><span style="--i:4">H</span><span style="--i:5">e</span><span style="--i:6">a</span><span style="--i:7">l</span><span style="--i:8">t</span><span style="--i:9">h</span></span>
+              <i class="client__arrow" aria-hidden="true">&#8599;</i>
+            </a>
+            <a class="client" href="https://www.adhdme.au/" aria-label="ADHDme">
+              <span class="client__index" aria-hidden="true">02</span>
+              <span class="client__name" aria-hidden="true"><span style="--i:0">A</span><span style="--i:1">D</span><span style="--i:2">H</span><span style="--i:3">D</span><span style="--i:4">m</span><span style="--i:5">e</span></span>
+              <i class="client__arrow" aria-hidden="true">&#8599;</i>
+            </a>
+          </nav>
+        </div>
 
         <a class="client client--contact" href="mailto:Stefan.thottunkal@gmail.com" aria-label="Contact us">
           <span class="client__name" aria-hidden="true"><span style="--i:0">C</span><span style="--i:1">o</span><span style="--i:2">n</span><span style="--i:3">t</span><span style="--i:4">a</span><span style="--i:5">c</span><span style="--i:6">t</span><span style="--i:7">&nbsp;</span><span style="--i:8">u</span><span style="--i:9">s</span></span>

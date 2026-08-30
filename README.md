@@ -8,13 +8,14 @@ Orbiting the camera reveals spatial parallax. A nearly imperceptible celestial d
 
 Mature heads are dense spherical pom-poms, as deep as they are wide. Complete five-part florets and five round anthers per floret are spread over the whole shell by mirrored golden-angle spirals stepped in equal area — even bands of cos(theta) rather than of radius, which is what fills the flanks of a head instead of piling its florets onto a disc. Every head begins collapsed into a compact olive bud and retains enough topology to unfold into that full mature form. Curved falcate phyllodes taper at both ends and carry five parallel-convergent longitudinal veins. Three.js `0.185.1` is vendored into `vendor/three/` rather than loaded from a CDN, so a fresh clone runs with no install step.
 
-## Clients
+## Ventures
 
-The clients run along the foot of the screen. Hovering or focusing a name
-lifts it glyph by glyph in a staggered wave, draws a gold hairline under it
-and nudges the arrow; the stagger runs on exit too, so the word settles back
-the way it rose. It is CSS on static spans, so it works even if `script.js`
-never loads, and `prefers-reduced-motion: reduce` stops it entirely.
+The ventures live in a compact vertical rail on the left, separate from the
+contact action. The rail shows one full row and a glimpse of the next, scrolls
+independently from the bouquet, and snaps each venture into place. A quiet
+`01 / 02` position marker follows native trackpad, wheel, touch and keyboard
+scrolling. Hover and focus use only a short horizontal acknowledgement so this
+frequently used list stays restrained.
 
 | Link | Goes to |
 | --- | --- |
@@ -22,12 +23,10 @@ never loads, and `prefers-reduced-motion: reduce` stops it entirely.
 | ADHDme | <https://www.adhdme.au/> |
 | Contact us | `mailto:` — the address is set on the `.client--contact` link in `index.html` |
 
-Clients sit together at the left of the rail and the contact link holds the
-right corner. Below 620px the rail becomes a single left-aligned column —
-three names sharing one gutter edge. It used to wrap into an L, with the
-contact link stranded mid-line under the clients, aligned to nothing.
+The contact link remains in the lower-right corner, outside the scroll region.
+Below 620px the venture rail narrows but keeps its left-side vertical model.
 
-To add one, copy an `<a class="client">` inside `nav.client-rail` in
+To add one, copy an `<a class="client">` inside `nav.client-rail__group` in
 `index.html`. Each glyph is its own `<span>` carrying a `--i` index, which is
 what the wave staggers on, so the letters have to be split by hand — the link
 keeps the real name in `aria-label`, and the glyph container is `aria-hidden`
@@ -180,7 +179,9 @@ npm run dev
 
 Open `http://127.0.0.1:4173`. Keep the local server running instead of opening `index.html` directly, because the viewer uses JavaScript modules. This is a development-only server bound to the loopback interface; set `PORT` to an integer from 1 through 65535 to use another local port.
 
-Run `npm run check` to syntax-check both the server and scene code.
+Run `npm run check` to syntax-check the server, scene, choreography module, and
+test files. Run `npm test` for the dense bloom-math regressions plus the HTTP,
+accessibility, interaction-contract, and asset smoke tests.
 
 `?poster=1` hides every interface layer and, because it is the mode the still
 is exported from, also asks the renderer to preserve its drawing buffer so the
@@ -208,16 +209,33 @@ still in the repo as a standalone copy of the object, but nothing on the page
 links to it.
 
 Blooming is a persistent botanical state change rather than a scale pulse.
-Each head carries its complete mature topology from the start, but begins in a
-compact olive pose: the receptacle fills the bud, floret clusters break open in
-irregular patches, then their curved filaments and pollen tips extend to the
-authored final silhouette. The full morph lasts 2.7 seconds: the receptacle
-swells through the first 22%, the earliest floret patches finish separating by
-68%, and filaments take over from 48% through the final frame. A strong
-ease-in-out curve keeps those acts connected, while a very low local light only
-marks the selected head instead of washing the bouquet in yellow. The bloom brush is limited to fine pointers, a drag
-cancels it so an orbit never fires a flower accidentally, and an opened flower
-stays open. Keyboard activation commits the remaining buds without motion.
+The closed head is made from independent five-lobed olive capsules; the mature
+flower is a separate structure of persistent golden corolla cups, five-part
+petals, attached stamens, a longer outer stamen halo, anthers, and pollen. The
+old visible receptacle sphere is retained only as an invisible interaction
+proxy, so it cannot survive underneath the flower as a green ghost silhouette.
+Bud pores follow their own shrinking capsules and anthers follow the live ends
+of their filaments, eliminating detached dots during the handoff.
+
+The 2.7-second morph has eight explicit acts: wake, ripen, loosen, petal open,
+inner stamen extension, outer stamen extension, pollen, and settle. A
+surface-distance field starts at the pointer-facing side and offsets floret
+sites by up to 22% of the master timeline, producing a coherent wave rather
+than a simultaneous radial pop. Golden cups persist as capsules retire, so the
+visible envelope grows monotonically through the transfer of ownership. A
+strong ease-in-out curve connects the main acts, while a very low local light
+only marks the selected head instead of washing the bouquet in yellow. The
+bloom brush is limited to fine pointers, a drag cancels it so an orbit never
+fires a flower accidentally, and an opened flower stays open. Keyboard
+activation commits the remaining buds without motion.
+
+For deterministic visual QA, add `?qa=1&qaTimeline=0.56&qaIsolate=1` to freeze
+the hero head at an exact normalized checkpoint. `qaView=face`, `profile`,
+`oblique`, or `rear` selects the inspection angle; `qaBloom=<index>` selects a
+specific head. The stage exposes the measured envelope, component visibility,
+surface ownership, dormant-part visibility, and anther-to-filament gap as
+`data-qa-morph-*` attributes. The shared `bloom-motion.js` module is swept at
+10,001 samples across multiple site delays by `npm run test:bloom-motion`.
 
 When the final filament reaches its mature pose, a full-width plain black completion banner
 appears over the bouquet with the line “Help your business bloom,” Stefan's

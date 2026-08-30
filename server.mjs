@@ -12,7 +12,13 @@ if (!Number.isInteger(configuredPort) || configuredPort <= 0 || configuredPort >
 }
 const port = configuredPort;
 const root = realpathSync(process.cwd());
-const publicFiles = new Set(["index.html", "interactions.js", "script.js", "styles.css"]);
+const publicFiles = new Set([
+  "bloom-motion.js",
+  "index.html",
+  "interactions.js",
+  "script.js",
+  "styles.css",
+]);
 
 const types = {
   ".avif": "image/avif",
