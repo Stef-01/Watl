@@ -4203,6 +4203,8 @@ function onFinePointerChange() {
     state.hoverPointer.pending = false;
     clearBloomHover(performance.now());
   }
+  state.cultivationKey = "";
+  syncCultivation();
 }
 
 function clearBloomHover(now = performance.now()) {
@@ -4607,6 +4609,7 @@ function syncCultivation() {
   const open = state.bloom?.openCount ?? 0;
   const bloomProgress = state.bloom?.progress ?? 0;
   const active = state.bloom?.activeCount ?? 0;
+  const usesHover = finePointer.matches;
   let phase = "growth";
   let label = ({
     shoot: "Young shoot",
@@ -4628,10 +4631,16 @@ function syncCultivation() {
     prompt = complete
       ? "The living system is complete"
       : active > 0
-        ? "The branch is responding to you"
+        ? usesHover
+          ? "The branch is responding to you"
+          : "A flower is opening"
         : open > 0
-          ? "Keep moving across closed buds"
-          : "Move across the buds to begin";
+          ? usesHover
+            ? "Keep moving across closed buds"
+            : "Tap another closed bud"
+          : usesHover
+            ? "Move across the buds to begin"
+            : "Tap a bud to begin";
     progress = bloomProgress;
   }
 

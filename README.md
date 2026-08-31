@@ -53,11 +53,15 @@ Elsewhere:
 - **The light behind the tree breathes** on a 19-second cycle, slow enough
   that you never catch it moving.
 - **Hovering one name lets the others recede** to 42%, so the rail has a focus.
-- **The swatches deal out** in sequence when the tray opens.
+- **The ground tray opens and closes from its trigger** as one interruptible
+  180 ms transition. It can reverse midway without restarting a keyframe;
+  keyboard-triggered opens and closes are immediate.
 - **Changing ground dissolves rather than cuts.** Gradient stacks cannot
   interpolate, so the backdrop dips to 26% and the layers are swapped at the
   darkest frame — the tree stays lit throughout, so it reads as the light
-  changing rather than the page redrawing.
+  changing rather than the page redrawing. The dissolve is cancellable and a
+  new selection retargets from the backdrop's live opacity, avoiding flashes
+  under rapid input.
 - **Optional grounds carry slow environmental motion.** A high weather field,
   low horizon reflection and contour plane drift on separate 34–56 second
   transform-only cycles. Night removes and pauses them, preserving the simple
@@ -75,13 +79,16 @@ page, which would outrank the hover-dim declaration and quietly kill it.
 `backwards` holds the element hidden through its delay and then hands it back
 to the cascade, where every resting value already lives.
 
-The dissolve is a keyframe, not a transition. A transition would have to race
-the timer that removes the class, and on a slow frame the dip either never
-lands or reverses halfway.
+The ground dissolve uses the Web Animations API rather than a restarted CSS
+keyframe. This lets a new selection cancel the in-flight motion and begin from
+the exact rendered opacity while the palette swap remains aligned to the
+darkest frame.
 
-`prefers-reduced-motion: reduce` collapses all of it — duration, delay, and
-iteration count — and every animation is written so a single collapsed
-iteration leaves the element exactly at rest.
+`prefers-reduced-motion: reduce` removes position, scale, stagger, ambient
+loops and botanical drift while preserving short opacity and colour feedback.
+The first interface arrival becomes one 160 ms fade, optional grounds remain
+visually rich but still, and the ground swap skips its timed dissolve rather
+than racing a shortened animation.
 
 ## Interaction
 
@@ -105,6 +112,9 @@ interaction floor without downloading it.
   only when the raycaster finds unopened heads. It is immediate feedback, not
   a trailing cursor effect, and it never appears on touch or reduced-motion
   devices.
+- **Lifecycle guidance follows the input method.** Fine pointers are invited
+  to move across buds; coarse pointers are told to tap. Plugging in or removing
+  a pointer updates the visible guidance without rebuilding the scene.
 
 Three constraints hold this layer honest:
 
@@ -167,9 +177,12 @@ copy are all set in light ink, so a pale ground would take their contrast with
 it.
 
 The tray closes on Escape, on a click outside it, and when focus leaves. Its
-horizontal swatches support Left/Right wrapping plus Home/End navigation. The
-stored key is `watl.ground.v2`; it was bumped when Night sky became the default
-so the change reached people who already had a choice saved.
+horizontal swatches support Left/Right wrapping plus Home/End navigation, and
+the adjacent name previews whichever swatch currently has pointer or keyboard
+focus. On small screens they move into a compact black four-column panel below
+the trigger rather than crossing the wordmark. The stored key is
+`watl.ground.v2`; it was bumped when Night sky became the default so the change
+reached people who already had a choice saved.
 
 The switch is wired inline in `index.html`, not in `script.js`, so it still
 works if the scene module never loads. The choice is remembered in

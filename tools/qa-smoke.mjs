@@ -324,6 +324,34 @@ await check("the living-system interface exposes progress and precise bloom feed
   assert.match(stylesSource, /@media\s*\(hover:\s*none\),\s*\(pointer:\s*coarse\)[\s\S]*?\.bloom-cursor/);
 });
 
+await check("state-triggered motion stays interruptible and input aware", () => {
+  assert.match(indexSource, /id=["']ground-swatches["'][\s\S]*?aria-hidden=["']true["'][\s\S]*?data-open=["']false["'][\s\S]*?inert/);
+  assert.match(indexSource, /tray\.dataset\.open\s*=\s*String\(state\)/);
+  assert.match(indexSource, /tray\.inert\s*=\s*!state/);
+  assert.match(indexSource, /event\.detail\s*===\s*0/);
+  assert.match(indexSource, /!reduceMotion\.matches\s*&&[\s\S]*?!document\.hidden\s*&&[\s\S]*?root\.dataset\.ground/);
+  assert.match(indexSource, /groundAnimation\.cancel\(\)/);
+  assert.match(indexSource, /backdrop\.animate\([\s\S]*?opacity:\s*0\.26,\s*offset:\s*0\.42/);
+  assert.match(indexSource, /window\.getComputedStyle\(backdrop\)\.opacity/);
+  assert.match(indexSource, /b\.dataset\.label\s*=\s*g\.label/);
+  assert.doesNotMatch(indexSource, /tray\.hidden/);
+  assert.match(stylesSource, /\.ground-switch__swatches\s*\{[\s\S]*?transform-origin:\s*right center;[\s\S]*?visibility\s+0s linear 180ms/);
+  assert.match(stylesSource, /\.ground-switch__swatches\[data-open=["']true["']\]/);
+  assert.match(stylesSource, /@media\s*\(max-width:\s*620px\)[\s\S]*?\.ground-switch__swatches\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4,\s*1\.75rem\)/);
+  assert.match(stylesSource, /\.ground-swatch\s*\{[\s\S]*?width:\s*1\.75rem;[\s\S]*?touch-action:\s*manipulation/);
+  assert.match(stylesSource, /\.ground-swatch::before\s*\{[\s\S]*?width:\s*11px;[\s\S]*?background:\s*var\(--swatch\)/);
+  assert.doesNotMatch(stylesSource, /@keyframes\s+deal/);
+  assert.doesNotMatch(stylesSource, /@keyframes\s+ground-dissolve/);
+  assert.doesNotMatch(stylesSource, /\.is-shifting\s+\.backdrop/);
+  assert.match(interactionsSource, /list\.scrollTo\(\{[\s\S]*?behavior:\s*["']auto["']/);
+  assert.doesNotMatch(interactionsSource, /behavior:\s*reduced\.matches\s*\?\s*["']auto["']\s*:\s*["']smooth["']/);
+  assert.match(scriptSource, /["']Tap a bud to begin["']/);
+  assert.match(scriptSource, /["']Tap another closed bud["']/);
+  assert.match(scriptSource, /function\s+onFinePointerChange\s*\([\s\S]*?syncCultivation\(\)/);
+  assert.match(stylesSource, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation:\s*settle var\(--duration-fast\)/);
+  assert.doesNotMatch(stylesSource, /animation-duration:\s*0\.01ms/);
+});
+
 const port = await reservePort();
 const child = spawn(process.execPath, ["server.mjs"], {
   cwd: root,

@@ -52,6 +52,7 @@ The first reference was judged at flower-head scale; the second was judged at br
 - Environmental motion: Night remains the explicit first-paint default with only black, vignette and the 3D stars; six optional grounds reuse two transform-only atmosphere planes plus a gently drifting contour field, all paused while hidden or motion-reduced.
 - Interface telemetry: one fixed lower-left meter reports the current shoot/branch/leaf/bud/bloom phase, shows exact growth percentage or open/total heads, and derives its fill from aggregate biological progress without adding a render loop.
 - Fine-pointer feedback: the cursor ring is clamped to the same 20vmin diameter as the 68–104 px bloom-brush radius and changes state only when unopened heads are inside the activation area; touch and reduced-motion paths omit it.
+- Stateful UI motion: the ground picker uses a reversible 180 ms opacity/transform transition from the toggle edge, closes through the same path, and bypasses movement for keyboard input; keyboard client scrolling is immediate. Its visual dots retain quiet 11 px proportions inside 28 px targets, and the mobile tray becomes a black 4-column panel below the trigger instead of crossing the wordmark. Reduced-motion keeps only 160 ms opacity/colour feedback and removes movement, scale, stagger, ambient drift and the timed ground dissolve.
 - Interaction sampling: hover brush radius 90 px in the recorded desktop state; four heads per brush step.
 - Hover-area blooming remains capped at four nearby heads per brush step, independent of total flower count.
 - Mature completion state: 82 open, 0 closed, growth 1.0, bloom timeline 1.0.
@@ -82,7 +83,7 @@ The first reference was judged at flower-head scale; the second was judged at br
   than the previous packed sampler. The render split costs three small cluster
   draw calls in exchange for removing seven of eight dynamic floats per fuzz
   point.
-- All 38 regression checks pass after the refactor.
+- All 39 regression checks pass after the refactor.
 
 ## Final judgement
 

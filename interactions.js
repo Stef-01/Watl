@@ -344,7 +344,9 @@ function clientPosition(list) {
     event.preventDefault();
     list.scrollTo({
       top: items[nearest].offsetTop - firstOffset,
-      behavior: reduced.matches ? "auto" : "smooth",
+      /* Keyboard navigation is a high-frequency precision action. The row
+         changes immediately; pointer and trackpad momentum remain native. */
+      behavior: "auto",
     });
   }
 

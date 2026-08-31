@@ -124,7 +124,10 @@
           id="ground-swatches"
           role="group"
           aria-label="Background choices"
-          hidden
+          aria-hidden="true"
+          data-open="false"
+          data-motion="transition"
+          inert
         ></div>
       </div>
 
@@ -259,6 +262,8 @@
         var name = document.getElementById("ground-name");
         var tray = document.getElementById("ground-swatches");
         var meta = document.getElementById("theme-color");
+        var backdrop = document.querySelector(".backdrop");
+        var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
         function find(id) {
           for (var i = 0; i < GROUNDS.length; i++) {
@@ -277,8 +282,16 @@
           return GROUNDS[0].id;
         }
 
+        function selectedGround() {
+          return find(tray && tray.dataset.activeGround) || find(root.dataset.ground) || GROUNDS[0];
+        }
+
+        function restoreName() {
+          if (name) name.textContent = selectedGround().label;
+        }
+
         var paintTimer = 0;
-        var clearTimer = 0;
+        var groundAnimation = null;
 
         /* Ambient loops are decorative and therefore stop when this document
            is not visible. CSS also removes them entirely for reduced motion. */
@@ -289,25 +302,44 @@
         document.addEventListener("visibilitychange", syncAmbientMotion);
         syncAmbientMotion();
 
-        /* The ground itself is swapped at the darkest frame of the dissolve,
-           not at the click — that is what makes it read as a cross-fade rather
-           than a cut with a flicker in front of it. Both timers are cleared on
-           every call, so a fast run of clicks still settles on the last one. */
+        /* The ground is swapped at the darkest frame of a cancellable WAAPI
+           dissolve. A new choice begins at the backdrop's current opacity,
+           so a fast run of clicks retargets the light instead of restarting a
+           keyframe at full brightness and flashing. */
         function apply(id, announce, dissolve) {
           var ground = find(id) || GROUNDS[0];
+          var currentOpacity = backdrop ? Number(window.getComputedStyle(backdrop).opacity) : 1;
           window.clearTimeout(paintTimer);
-          window.clearTimeout(clearTimer);
+          paintTimer = 0;
 
-          if (dissolve && root.dataset.ground !== ground.id) {
-            root.classList.remove("is-shifting");
-            void root.offsetWidth; /* restart the animation on a repeat click */
-            root.classList.add("is-shifting");
+          if (groundAnimation) {
+            groundAnimation.cancel();
+            groundAnimation = null;
+          }
+
+          if (
+            dissolve &&
+            !reduceMotion.matches &&
+            !document.hidden &&
+            root.dataset.ground !== ground.id &&
+            backdrop &&
+            typeof backdrop.animate === "function"
+          ) {
+            var animation = backdrop.animate(
+              [
+                { opacity: Number.isFinite(currentOpacity) ? currentOpacity : 1 },
+                { opacity: 0.26, offset: 0.42 },
+                { opacity: 1 }
+              ],
+              { duration: 640, easing: "cubic-bezier(0.77, 0, 0.175, 1)" }
+            );
+            groundAnimation = animation;
             paintTimer = window.setTimeout(function () {
               root.dataset.ground = ground.id;
             }, 260);
-            clearTimer = window.setTimeout(function () {
-              root.classList.remove("is-shifting");
-            }, 660);
+            animation.addEventListener("finish", function () {
+              if (groundAnimation === animation) groundAnimation = null;
+            }, { once: true });
           } else {
             root.dataset.ground = ground.id;
           }
@@ -335,10 +367,23 @@
           }
         }
 
-        function open(state) {
+        function isOpen() {
+          return Boolean(toggle && toggle.getAttribute("aria-expanded") === "true");
+        }
+
+        function open(state, instant) {
           if (!tray || !toggle) return;
-          tray.hidden = !state;
+          if (!instant && tray.dataset.motion !== "transition") {
+            tray.dataset.motion = "transition";
+            void tray.offsetWidth; /* arm the transition before changing state */
+          } else {
+            tray.dataset.motion = instant ? "instant" : "transition";
+          }
+          tray.dataset.open = String(state);
+          tray.setAttribute("aria-hidden", String(!state));
+          tray.inert = !state;
           toggle.setAttribute("aria-expanded", String(state));
+          if (!state) restoreName();
         }
 
         if (tray) {
@@ -347,14 +392,26 @@
             var b = document.createElement("button");
             b.type = "button";
             b.dataset.ground = g.id;
+            b.dataset.label = g.label;
             b.className = "ground-swatch";
             b.style.setProperty("--swatch", g.swatch);
-            b.style.setProperty("--i", String(i));
             b.setAttribute("aria-label", g.label);
             b.setAttribute("aria-pressed", "false");
-            b.addEventListener("click", function () {
+            b.addEventListener("pointerenter", function () {
+              if (name) name.textContent = this.dataset.label;
+            });
+            b.addEventListener("pointerleave", function () {
+              if (document.activeElement !== this) restoreName();
+            });
+            b.addEventListener("focus", function () {
+              if (name) name.textContent = this.dataset.label;
+            });
+            b.addEventListener("blur", function (event) {
+              if (!event.relatedTarget || !tray.contains(event.relatedTarget)) restoreName();
+            });
+            b.addEventListener("click", function (event) {
               apply(this.dataset.ground, true, true);
-              open(false);
+              open(false, event.detail === 0);
               if (toggle) toggle.focus();
             });
             tray.append(b);
@@ -381,23 +438,24 @@
         apply(read(), false);
 
         if (toggle) {
-          toggle.addEventListener("click", function () {
-            open(toggle.getAttribute("aria-expanded") !== "true");
+          toggle.addEventListener("click", function (event) {
+            open(!isOpen(), event.detail === 0);
           });
         }
 
         /* A click anywhere else, or Escape, puts the tray away. The canvas
            swallows pointerdown before it reaches document in some paths, so
            both events are listened for. */
-        ["pointerdown", "focusin"].forEach(function (type) {
-          document.addEventListener(type, function (event) {
-            if (tray && !tray.hidden && !event.target.closest(".ground-switch")) open(false);
-          });
+        document.addEventListener("pointerdown", function (event) {
+          if (isOpen() && !event.target.closest(".ground-switch")) open(false, false);
+        });
+        document.addEventListener("focusin", function (event) {
+          if (isOpen() && !event.target.closest(".ground-switch")) open(false, true);
         });
 
         document.addEventListener("keydown", function (event) {
-          if (event.key === "Escape" && tray && !tray.hidden) {
-            open(false);
+          if (event.key === "Escape" && isOpen()) {
+            open(false, true);
             if (toggle) toggle.focus();
           }
         });
