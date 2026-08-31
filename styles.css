@@ -456,6 +456,10 @@ button {
   opacity: 0 !important;
 }
 
+.stage:not([data-bloom-finale="false"]) .bloom-cursor__ring {
+  opacity: 0 !important;
+}
+
 .hero {
   top: max(1.5rem, env(safe-area-inset-top));
   left: max(1.5rem, env(safe-area-inset-left));
@@ -1082,7 +1086,7 @@ button {
   overflow-y: auto;
   overscroll-behavior-y: contain;
   scrollbar-width: thin;
-  scrollbar-color: rgba(var(--gold-rgb), 0.34) transparent;
+  scrollbar-color: transparent transparent;
   scroll-snap-type: y mandatory;
   scroll-padding-block: 0;
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 90%, transparent 100%);
@@ -1098,8 +1102,18 @@ button {
 }
 
 .client-rail__group::-webkit-scrollbar-thumb {
-  background: rgba(var(--gold-rgb), 0.34);
+  background: transparent;
   border-radius: 1px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .client-rail__group:hover {
+    scrollbar-color: rgba(var(--gold-rgb), 0.34) transparent;
+  }
+
+  .client-rail__group:hover::-webkit-scrollbar-thumb {
+    background: rgba(var(--gold-rgb), 0.34);
+  }
 }
 
 .client-rail__group::after {
@@ -1248,6 +1262,11 @@ button {
 .client-rail__group:focus-visible {
   outline: 1px solid rgba(var(--gold-rgb), 0.72);
   outline-offset: 0.35rem;
+  scrollbar-color: rgba(var(--gold-rgb), 0.34) transparent;
+}
+
+.client-rail__group:focus-visible::-webkit-scrollbar-thumb {
+  background: rgba(var(--gold-rgb), 0.34);
 }
 
 .scene-error button {
@@ -1307,30 +1326,42 @@ input:disabled {
   outline: none;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-50%) scale(0.96);
-  transform-origin: center;
+  clip-path: inset(50% 0 50% 0);
+  transform: translateY(-50%);
   transition:
-    opacity 240ms var(--ease-out),
-    transform 360ms var(--ease-out),
-    visibility 0s linear 360ms;
+    opacity 180ms var(--ease-out),
+    clip-path 480ms var(--ease-out),
+    visibility 0s linear 480ms;
   pointer-events: none;
 }
 
 .bloom-finale.is-visible {
   opacity: 1;
   visibility: visible;
-  transform: translateY(-50%) scale(1);
+  clip-path: inset(0 0 0 0);
   transition-delay: 0s;
   pointer-events: auto;
 }
 
-.bloom-finale.is-instant {
+.bloom-finale.is-instant,
+.bloom-finale.is-instant .bloom-finale__inner {
   transition: none;
 }
 
 .bloom-finale__inner {
   width: min(78rem, 100%);
   margin: 0 auto;
+  opacity: 0;
+  transform: translateY(1.25rem);
+  transition:
+    opacity 240ms ease,
+    transform 420ms var(--ease-out);
+}
+
+.bloom-finale.is-visible .bloom-finale__inner {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 100ms;
 }
 
 .bloom-finale__copy,
@@ -1685,6 +1716,7 @@ input:disabled {
 
   .bloom-finale,
   .bloom-finale.is-visible {
+    clip-path: inset(0 0 0 0);
     transform: translateY(-50%);
   }
 
@@ -1695,6 +1727,13 @@ input:disabled {
   }
 
   .bloom-finale.is-visible {
+    transition-delay: 0s;
+  }
+
+  .bloom-finale__inner,
+  .bloom-finale.is-visible .bloom-finale__inner {
+    transform: none;
+    transition: opacity var(--duration-fast) ease;
     transition-delay: 0s;
   }
 

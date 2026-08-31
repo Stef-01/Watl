@@ -347,15 +347,19 @@ specific head. The stage exposes the measured envelope, component visibility,
 surface ownership, dormant-part visibility, and anther-to-filament gap as
 `data-qa-morph-*` attributes. The shared `bloom-motion.js` module is swept at
 10,001 samples across multiple site delays by `npm run test:bloom-motion`.
+Use `?qa=1&qaGrowth=1&qaFinale=animate` to play the completion reveal without
+manually opening every head.
 
 When the final filament reaches its mature pose, a full-width plain black completion banner
 appears over the tree with the line “Help your business bloom,” Stefan's
-email, a meeting request, and a dismiss action. Add the real Calendly scheduling
-page to the `data-calendly-url` attribute on `#bloom-finale-calendar` in
-`index.html`; until that public URL is supplied, the second action uses a
-pre-addressed meeting email rather than sending visitors to a guessed or broken
-account.
+email, a meeting request, and a dismiss action. The band opens from its centre
+edge over 480 ms while the content makes one delayed 420 ms lift; both paths
+retarget cleanly when dismissed. Keyboard activation and reduced motion use the
+same final composition instantly. Add the real Calendly scheduling page to the
+`data-calendly-url` attribute on `#bloom-finale-calendar` in `index.html`; until
+that public URL is supplied, the second action uses a pre-addressed meeting email
+rather than sending visitors to a guessed or broken account.
 
 ## Accessibility and fallbacks
 
-The scene has a keyboard-focusable wrapper, visible focus treatment, concise operating instructions, and a text description of the tree and its spatial field. A polite live region announces maturity, deliberate click, keyboard, and completion states without narrating every pointer-brush step. The completion banner is an inert, labelled dialog until the whole tree is open, exposes two ordinary links plus an explicit dismiss button, and does not steal focus from a pointer user. A `prefers-reduced-motion: reduce` preference skips spatial tree growth, disables autonomous tree and celestial motion, snaps each committed bud directly to its mature silhouette, and reveals the completion message without spatial movement. If WebGL is unavailable or scene setup fails, the interface presents an explanatory status and a still mature-tree poster instead of an empty canvas.
+The scene has a keyboard-focusable wrapper, visible focus treatment, concise operating instructions, and a text description of the tree and its spatial field. A polite live region announces maturity, deliberate click, keyboard, and completion states without narrating every pointer-brush step. The completion banner is an inert, labelled dialog until the whole tree is open, exposes two ordinary links plus an explicit dismiss button, and does not steal focus from a pointer user; keyboard completion moves focus into the dialog and returns it visibly to the scene. Pointer dismissal returns focus without painting a keyboard ring. A `prefers-reduced-motion: reduce` preference skips spatial tree growth, disables autonomous tree and celestial motion, snaps each committed bud directly to its mature silhouette, and reveals the completion message without spatial movement. If WebGL is unavailable or scene setup fails, the interface presents an explanatory status and a still mature-tree poster instead of an empty canvas.

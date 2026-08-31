@@ -267,8 +267,20 @@ await check("the all-bloomed business banner stays accessible and actionable", (
   assert.match(indexSource, /id=["']bloom-finale["'][\s\S]*?tabindex=["']-1["']/);
   assert.match(scriptSource, /function\s+showBloomFinale\s*\(/);
   assert.match(scriptSource, /ui\.finale\.classList\.add\(["']is-visible["']\);[\s\S]*?ui\.finale\.focus\(\{\s*preventScroll:\s*true\s*\}\)/);
+  assert.match(scriptSource, /query\.get\(["']qaFinale["']\)\s*===\s*["']animate["'][\s\S]*?triggerBouquetBloom\(false,\s*true\)/);
+  assert.match(scriptSource, /function\s+triggerBouquetBloom\(announce\s*=\s*true,\s*animateFinale\s*=\s*false\)/);
+  assert.match(scriptSource, /function\s+dismissBloomFinale\(animate\s*=\s*true,\s*pointerOrigin\s*=\s*false\)/);
+  assert.match(scriptSource, /dismissBloomFinale\(pointerOrigin\s*&&\s*!reduceBloomMotion\(\),\s*pointerOrigin\)/);
+  assert.match(scriptSource, /if\s*\(pointerOrigin\)\s*ui\.stage\.dataset\.pointerFocus\s*=\s*["']true["']/);
   assert.match(stylesSource, /\.bloom-finale\.is-visible/);
   assert.match(stylesSource, /\.bloom-finale\s*\{[\s\S]*?background:\s*#050505/);
+  assert.match(stylesSource, /\.bloom-finale\s*\{[\s\S]*?clip-path:\s*inset\(50%\s+0\s+50%\s+0\)[\s\S]*?clip-path\s+480ms\s+var\(--ease-out\)/);
+  assert.match(stylesSource, /\.bloom-finale\.is-visible\s*\{[\s\S]*?clip-path:\s*inset\(0\s+0\s+0\s+0\)/);
+  assert.match(stylesSource, /\.bloom-finale__inner\s*\{[\s\S]*?transform:\s*translateY\(1\.25rem\)[\s\S]*?transform\s+420ms\s+var\(--ease-out\)/);
+  assert.match(stylesSource, /\.bloom-finale\.is-visible\s+\.bloom-finale__inner\s*\{[\s\S]*?transition-delay:\s*100ms/);
+  assert.match(stylesSource, /\.bloom-finale\.is-instant,[\s\S]*?\.bloom-finale\.is-instant\s+\.bloom-finale__inner\s*\{[\s\S]*?transition:\s*none/);
+  assert.match(stylesSource, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.bloom-finale\.is-visible\s*\{[\s\S]*?clip-path:\s*inset\(0\s+0\s+0\s+0\)/);
+  assert.match(stylesSource, /\.stage:not\(\[data-bloom-finale=["']false["']\]\)\s+\.bloom-cursor__ring\s*\{[\s\S]*?opacity:\s*0\s*!important/);
   assert.doesNotMatch(stylesSource, /\.bloom-finale[\s\S]{0,500}transition:\s*all/);
 });
 
@@ -281,6 +293,9 @@ await check("the client rail stays vertical, independently scrollable, and keybo
   assert.match(stylesSource, /\.client-rail__group\s*\{[\s\S]*?flex-direction:\s*column;[\s\S]*?overflow-y:\s*auto;/);
   assert.match(stylesSource, /scroll-snap-type:\s*y mandatory/);
   assert.match(stylesSource, /overscroll-behavior-y:\s*contain/);
+  assert.match(stylesSource, /\.client-rail__group\s*\{[\s\S]*?scrollbar-color:\s*transparent transparent/);
+  assert.match(stylesSource, /@media\s*\(hover:\s*hover\)\s*and\s*\(pointer:\s*fine\)[\s\S]*?\.client-rail__group:hover\s*\{[\s\S]*?scrollbar-color:\s*rgba\(var\(--gold-rgb\),\s*0\.34\) transparent/);
+  assert.match(stylesSource, /\.client-rail__group:focus-visible::-webkit-scrollbar-thumb\s*\{[\s\S]*?background:\s*rgba\(var\(--gold-rgb\),\s*0\.34\)/);
   assert.match(stylesSource, /\.client--contact\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?right:/);
   assert.match(interactionsSource, /function\s+clientPosition\s*\(/);
   assert.match(interactionsSource, /["']ArrowDown["'][\s\S]*?["']ArrowUp["'][\s\S]*?["']Home["'][\s\S]*?["']End["']/);

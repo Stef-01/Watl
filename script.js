@@ -348,6 +348,9 @@ async function init() {
     : "A young Golden Wattle shoot is extending into a flowering branch.");
   performance.mark("wattle-scene-ready");
   exposeQaSnapshot();
+  if (qaMode && query.get("qaFinale") === "animate") {
+    triggerBouquetBloom(false, true);
+  }
   invalidate();
 }
 
@@ -3862,9 +3865,12 @@ function setupEvents() {
   ui.stage.addEventListener("keydown", onStageKeydown);
   ui.stage.addEventListener("blur", () => ui.stage.removeAttribute("data-pointer-focus"));
   ui.retry.addEventListener("click", () => window.location.reload());
-  ui.finaleDismiss.addEventListener("click", dismissBloomFinale);
+  ui.finaleDismiss.addEventListener("click", (event) => {
+    const pointerOrigin = event.detail !== 0;
+    dismissBloomFinale(pointerOrigin && !reduceBloomMotion(), pointerOrigin);
+  });
   ui.finale.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") dismissBloomFinale();
+    if (event.key === "Escape") dismissBloomFinale(false, false);
   });
 
   state.resizeObserver = new ResizeObserver(() => resizeScene(false));
@@ -4469,7 +4475,7 @@ function activateBloomAtIndex(
   return true;
 }
 
-function triggerBouquetBloom(announce = true) {
+function triggerBouquetBloom(announce = true, animateFinale = false) {
   if (!state.bloom) return false;
   if (!state.growth?.complete) return completeTreeGrowth(announce);
   const remaining = state.bloom.heads.filter((head) => !head.committedOpen);
@@ -4502,7 +4508,7 @@ function triggerBouquetBloom(announce = true) {
   state.selectionLight.intensity = 0;
   syncCultivation();
   if (announce) setStatus("All remaining buds opened.", 1500);
-  showBloomFinale(false);
+  showBloomFinale(animateFinale && !reduceBloomMotion(), !animateFinale);
   invalidate();
   return true;
 }
@@ -4711,7 +4717,7 @@ function syncCalendlyBookingLink() {
   }
 }
 
-function showBloomFinale(animate = true) {
+function showBloomFinale(animate = true, moveFocus = false) {
   if (!ui.finale || state.finaleShown || state.finaleDismissed) return false;
   state.finaleShown = true;
   ui.finale.inert = false;
@@ -4720,7 +4726,7 @@ function showBloomFinale(animate = true) {
 
   const reveal = () => {
     ui.finale.classList.add("is-visible");
-    ui.finale.focus({ preventScroll: true });
+    if (moveFocus) ui.finale.focus({ preventScroll: true });
   };
   if (animate) {
     window.requestAnimationFrame(reveal);
@@ -4733,15 +4739,24 @@ function showBloomFinale(animate = true) {
   return true;
 }
 
-function dismissBloomFinale() {
+function dismissBloomFinale(animate = true, pointerOrigin = false) {
   if (!ui.finale || !state.finaleShown || state.finaleDismissed) return false;
   const restoreStageFocus = ui.finale.contains(document.activeElement);
+  const instant = !animate || reduceBloomMotion();
+  if (instant) ui.finale.classList.add("is-instant");
   state.finaleDismissed = true;
   ui.finale.classList.remove("is-visible");
   ui.finale.setAttribute("aria-hidden", "true");
   ui.finale.inert = true;
   ui.stage.dataset.bloomFinale = "dismissed";
-  if (restoreStageFocus) ui.stage.focus({ preventScroll: true });
+  if (restoreStageFocus) {
+    if (pointerOrigin) ui.stage.dataset.pointerFocus = "true";
+    else ui.stage.removeAttribute("data-pointer-focus");
+    ui.stage.focus({ preventScroll: true });
+  }
+  if (instant) {
+    window.requestAnimationFrame(() => ui.finale.classList.remove("is-instant"));
+  }
   setStatus("All flowers are open.");
   return true;
 }
