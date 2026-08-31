@@ -19,7 +19,9 @@ const publicFiles = new Set([
   "wattle-lsystem.js",
   "index.html",
   "interactions.js",
+  "robots.txt",
   "script.js",
+  "sitemap.xml",
   "styles.css",
 ]);
 
@@ -41,11 +43,13 @@ const types = {
   ".mjs": "text/javascript; charset=utf-8",
   ".png": "image/png",
   ".svg": "image/svg+xml; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
   ".usdz": "model/vnd.usdz+zip",
   ".wasm": "application/wasm",
   ".webp": "image/webp",
   ".woff": "font/woff",
   ".woff2": "font/woff2",
+  ".xml": "application/xml; charset=utf-8",
 };
 
 const sharedHeaders = {

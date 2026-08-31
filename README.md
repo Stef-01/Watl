@@ -34,6 +34,25 @@ what the wave staggers on, so the letters have to be split by hand — the link
 keeps the real name in `aria-label`, and the glyph container is `aria-hidden`
 so a screen reader never spells it out.
 
+## Search and sharing
+
+The production origin is `https://watl-three.vercel.app/`. The document keeps
+its canonical URL, title, description, Open Graph metadata, Twitter card and
+JSON-LD graph aligned to that one origin. The graph describes the site, WATL,
+Stefan, the page and its primary Golden Wattle image as linked entities instead
+of five unrelated schema fragments. The visible hero also states the actual
+practice areas, so crawlers and people receive the same proposition.
+
+`robots.txt` allows the public experience and advertises the root
+`sitemap.xml`. The sitemap contains only the canonical homepage because query
+parameters such as `qa`, `quality`, `motion`, and `poster` are render modes of
+the same experience, not indexable pages. Update the sitemap's `<lastmod>` and
+the WebPage `dateModified` together whenever the public content changes
+substantially. The 1440 × 900 WebP fallback doubles as the social card, keeping
+link previews fast without adding another large asset. A `keywords` meta tag is
+deliberately omitted; the title, visible copy, links, semantics and structured
+data carry the page's meaning.
+
 ## Motion
 
 The page composes itself rather than simply being there. The identity rises a

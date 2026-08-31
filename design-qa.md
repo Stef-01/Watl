@@ -54,6 +54,7 @@ The first reference was judged at flower-head scale; the second was judged at br
 - Fine-pointer feedback: the cursor ring is clamped to the same 20vmin diameter as the 68–104 px bloom-brush radius and changes state only when unopened heads are inside the activation area; touch and reduced-motion paths omit it.
 - Stateful UI motion: the ground picker uses a reversible 180 ms opacity/transform transition from the toggle edge, closes through the same path, and bypasses movement for keyboard input; keyboard client scrolling is immediate. Its visual dots retain quiet 11 px proportions inside 28 px targets, and the mobile tray becomes a black 4-column panel below the trigger instead of crossing the wordmark. Reduced-motion keeps only 160 ms opacity/colour feedback and removes movement, scale, stagger, ambient drift and the timed ground dissolve.
 - Motion physics: the continuously sampled lifecycle line now renders the exact current growth/bloom transform with no 260 ms trailing interpolation; the indeterminate loader is linear, and direct press acknowledgement across grounds, client links and finale actions shares one 120 ms ease-out token.
+- Search identity: the canonical production origin, descriptive title, visible practice summary, index controls, Open Graph/Twitter card, linked WebSite/Organization/Person/WebPage/ImageObject graph, robots policy and one-URL sitemap now describe one consistent WATL entity without duplicating QA render modes.
 - Direct-manipulation focus: interface chrome fades to 34% only after a canvas press crosses the existing 7 px drag threshold, never on a bud click; the bloom brush hides during orbiting and every end/cancel/blur path restores the interface. The client counter and a 16%-width gold baseline preview scroll, hover and keyboard focus without animating the high-frequency counter text.
 - Completion motion: the rare full-bloom state replaces a generic whole-panel scale with a 480 ms centre-out clip reveal and one 420 ms content lift delayed by 100 ms. Pointer dismissal reverses the path and restores canvas focus without a keyboard ring; keyboard and reduced-motion entry/exit are immediate. The now-actionless bloom brush stays hidden both while the finale is visible and after dismissal.
 - Scroll chrome: the client rail remains natively scrollable, but its thumb is transparent at rest and appears only for fine-pointer hover or keyboard focus; the counter, current-row marker and lower mask carry discovery on touch without painting a persistent gold bar over the list.
@@ -87,7 +88,7 @@ The first reference was judged at flower-head scale; the second was judged at br
   than the previous packed sampler. The render split costs three small cluster
   draw calls in exchange for removing seven of eight dynamic floats per fuzz
   point.
-- All 40 regression checks pass after the refactor.
+- All 41 regression checks pass after the refactor.
 
 ## Final judgement
 

@@ -471,7 +471,9 @@ button {
 }
 
 .wordmark,
-.hero h1,
+.hero h1 {
+  margin: 0;
+}
 
 .wordmark {
   font-family: var(--mono);
@@ -481,12 +483,23 @@ button {
 }
 
 .hero h1 {
+  display: grid;
+  gap: 0.28rem;
   font-family: var(--mono);
   font-size: 0.62rem;
   font-weight: 400;
   letter-spacing: 0.12em;
+  line-height: 1.35;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+.hero__summary {
+  max-width: 34ch;
+  color: rgba(242, 240, 232, 0.34);
+  font-size: 0.52rem;
+  letter-spacing: 0.075em;
+  line-height: 1.55;
 }
 
 /* Lifecycle telemetry makes the long growth-to-bloom interaction legible

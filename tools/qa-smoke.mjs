@@ -106,6 +106,8 @@ const [
   treeGrowthSource,
   wattleLsystemSource,
   interactionsSource,
+  robotsSource,
+  sitemapSource,
 ] = await Promise.all([
   readFile(resolve(root, "index.html"), "utf8"),
   readFile(resolve(root, "script.js"), "utf8"),
@@ -115,6 +117,8 @@ const [
   readFile(resolve(root, "tree-growth.js"), "utf8"),
   readFile(resolve(root, "wattle-lsystem.js"), "utf8"),
   readFile(resolve(root, "interactions.js"), "utf8"),
+  readFile(resolve(root, "robots.txt"), "utf8"),
+  readFile(resolve(root, "sitemap.xml"), "utf8"),
 ]);
 
 await check("JavaScript entry points parse", () => {
@@ -141,7 +145,34 @@ await check("the scene keeps its keyboard and screen-reader contract", () => {
 await check("the page imports only the vendored Three.js runtime", () => {
   assert.match(indexSource, /["']three["']\s*:\s*["']\.\/vendor\/three\/three\.module\.js["']/);
   assert.match(indexSource, /["']three\/addons\/["']\s*:\s*["']\.\/vendor\/three\/addons\/["']/);
-  assert.doesNotMatch(indexSource, /https?:\/\/[^"']*(?:three|unpkg|jsdelivr)/i);
+  assert.doesNotMatch(indexSource, /(?:unpkg\.com|cdn\.jsdelivr\.net|esm\.sh|cdnjs\.cloudflare\.com)/i);
+});
+
+await check("the public shell exposes a coherent search and social identity", () => {
+  const canonicalUrl = "https://watl-three.vercel.app/";
+  assert.match(indexSource, /<title>WATL — Technology Design &amp; Digital Product Studio<\/title>/);
+  assert.match(indexSource, /name=["']description["'][\s\S]*?Stefan Thottunkal's technology design studio/);
+  assert.match(indexSource, /name=["']robots["'][^>]*content=["']index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1["']/);
+  assert.match(indexSource, new RegExp(`<link rel=["']canonical["'] href=["']${canonicalUrl}["']`));
+  assert.match(indexSource, /property=["']og:title["']/);
+  assert.match(indexSource, /property=["']og:image["'][^>]*wattle-golden-poster\.webp/);
+  assert.match(indexSource, /name=["']twitter:card["'][^>]*summary_large_image/);
+  assert.match(indexSource, /class=["']hero__summary["']>Digital products · Interfaces · Generative systems<\/span>/);
+  assert.doesNotMatch(indexSource, /name=["']keywords["']/i);
+
+  const jsonLdMatch = indexSource.match(/<script type=["']application\/ld\+json["']>([\s\S]*?)<\/script>/);
+  assert(jsonLdMatch, "JSON-LD graph is missing");
+  const structuredData = JSON.parse(jsonLdMatch[1]);
+  const graph = structuredData["@graph"];
+  assert(Array.isArray(graph));
+  assert.equal(graph.find((entry) => entry["@type"] === "WebSite")?.url, canonicalUrl);
+  assert.equal(graph.find((entry) => entry["@type"] === "Organization")?.url, canonicalUrl);
+  assert.equal(graph.find((entry) => entry["@type"] === "WebPage")?.url, canonicalUrl);
+  assert.equal(graph.find((entry) => entry["@type"] === "ImageObject")?.width, 1440);
+
+  assert.match(robotsSource, /^User-agent: \*\nAllow: \/\n\nSitemap: https:\/\/watl-three\.vercel\.app\/sitemap\.xml\n$/);
+  assert.match(sitemapSource, /<loc>https:\/\/watl-three\.vercel\.app\/<\/loc>/);
+  assert.match(sitemapSource, /<lastmod>2026-08-31<\/lastmod>/);
 });
 
 await check("reduced motion and the deterministic QA surface remain wired", () => {
@@ -326,7 +357,7 @@ await check("the living-system interface exposes progress and precise bloom feed
   assert.match(indexSource, /id=["']cultivation-value["']/);
   assert.match(indexSource, /id=["']cultivation-fill["']/);
   assert.match(indexSource, /id=["']bloom-cursor["'][^>]*aria-hidden=["']true["']/);
-  assert.match(indexSource, /<h1>Technology design<\/h1>/);
+  assert.match(indexSource, /<h1>[\s\S]*?<span>Technology design<\/span>[\s\S]*?class=["']hero__summary["']/);
   assert.match(indexSource, /class=["']client__arrow["'][\s\S]*?<path\s+d=["']M2\.5 9\.5 9\.5 2\.5M4 2\.5h5\.5V8["']/);
   assert.doesNotMatch(indexSource, /&#8599;/);
   assert.match(scriptSource, /function\s+syncCultivation\s*\(/);
@@ -438,6 +469,16 @@ try {
     assert.equal(lsystemResponse.status, 200);
     assert.match(lsystemResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
     assert.match(await lsystemResponse.text(), /deriveWattleSentence/);
+
+    const robotsResponse = await fetch(`${baseUrl}/robots.txt`);
+    assert.equal(robotsResponse.status, 200);
+    assert.match(robotsResponse.headers.get("content-type") ?? "", /^text\/plain\b/);
+    assert.match(await robotsResponse.text(), /Sitemap: https:\/\/watl-three\.vercel\.app\/sitemap\.xml/);
+
+    const sitemapResponse = await fetch(`${baseUrl}/sitemap.xml`);
+    assert.equal(sitemapResponse.status, 200);
+    assert.match(sitemapResponse.headers.get("content-type") ?? "", /^application\/xml\b/);
+    assert.match(await sitemapResponse.text(), /<loc>https:\/\/watl-three\.vercel\.app\/<\/loc>/);
 
     const threeResponse = await fetch(`${baseUrl}/vendor/three/three.module.js`, { method: "HEAD" });
     assert.equal(threeResponse.status, 200);
