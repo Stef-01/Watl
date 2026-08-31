@@ -10,6 +10,7 @@
 
 export const WATTLE_GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 export const WATTLE_BUD_BIRTH = 0.72;
+export const WATTLE_FLOWER_SCALE = 1.5;
 
 const TAU = Math.PI * 2;
 const WORLD_UP = Object.freeze([0, 1, 0]);
@@ -379,8 +380,13 @@ export function interpretWattleSentence(sentence, quality = "high") {
       buds.push({
         position: headPosition,
         direction: pedicelDirection,
-        radius: 0.168 + (module.vigor ?? 0.55) * 0.045
-          + unitRandom(childSeed(headSeed, 5)) * 0.018,
+        /* Scale the entire authored head envelope—not an isolated mesh—so the
+           closed bud, opening cup, florets and mature pom-pom remain one
+           continuous 50%-larger biological form throughout the bloom. */
+        radius: WATTLE_FLOWER_SCALE * (
+          0.168 + (module.vigor ?? 0.55) * 0.045
+          + unitRandom(childSeed(headSeed, 5)) * 0.018
+        ),
         order: module.order,
         racemeId,
         racemePosition: t,

@@ -44,7 +44,7 @@ The first reference was judged at flower-head scale; the second was judged at br
 ## Final technical measurements
 
 - Procedural morphology: 82 flower heads, 21 racemes, no single-head racemes, four botanical branch orders.
-- Flower scale: mature radius increased approximately 8%, with longer raceme axes and pedicels maintaining visible separation between neighbouring pom-poms.
+- Flower scale: the complete bud-to-pom-pom radius is 50% larger than the previous release; every growth stage shares the same multiplier, so no phase pops or changes proportion during the transition.
 - Branch finish: deterministic internode curvature, calmer lateral inclination, and a 0.84 stem-tip taper aligned to the primary continuation ratio remove ruler-straight axes and swollen joints.
 - Interaction sampling: hover brush radius 90 px in the recorded desktop state; four heads per brush step.
 - Hover-area blooming remains capped at four nearby heads per brush step, independent of total flower count.

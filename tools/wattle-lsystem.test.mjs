@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import {
   WATTLE_BUD_BIRTH,
+  WATTLE_FLOWER_SCALE,
   WATTLE_GOLDEN_ANGLE,
   deriveWattleSentence,
   generateWattleArchitecture,
@@ -120,7 +121,8 @@ test("globular heads hang in multi-head axillary racemes", () => {
   const headsByOrder = Map.groupBy(branch.buds, (bud) => bud.order);
   assert.equal(headsByOrder.size, 4);
   assert([...headsByOrder.values()].every((heads) => heads.length >= 17));
-  assert(branch.buds.every((bud) => bud.radius > 0.175 && bud.radius < 0.232));
+  assert.equal(WATTLE_FLOWER_SCALE, 1.5);
+  assert(branch.buds.every((bud) => bud.radius > 0.2625 && bud.radius < 0.348));
 });
 
 let failures = 0;

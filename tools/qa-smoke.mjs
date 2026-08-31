@@ -239,7 +239,8 @@ await check("the tree grows through maturity before exposing interactive buds", 
   assert.match(scriptSource, /Branch_Lateral_Axis_Segments/);
   assert.match(scriptSource, /new\s+THREE\.CylinderGeometry\(\s*0\.84,\s*1,/);
   assert.match(wattleLsystemSource, /maxBuds:\s*84/);
-  assert.match(wattleLsystemSource, /radius:\s*0\.168\s*\+\s*\(module\.vigor/);
+  assert.match(wattleLsystemSource, /WATTLE_FLOWER_SCALE\s*=\s*1\.5/);
+  assert.match(wattleLsystemSource, /radius:\s*WATTLE_FLOWER_SCALE\s*\*/);
   assert.doesNotMatch(scriptSource, /root\.add\(createTie\(\)\)/);
   assert.match(treeGrowthSource, /TREE_GROWTH_DURATION_MS\s*=\s*8400/);
   assert.match(treeGrowthSource, /TREE_BUD_MATURITY_START\s*=\s*0\.72/);
