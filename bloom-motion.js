@@ -188,6 +188,36 @@ export function siteBloomProgress(timeline, normalizedDelay = 0, target = {}) {
   return target;
 }
 
+/**
+ * Compute only the two late-stage channels needed by the dense pom-pom fuzz.
+ * The full stage sampler remains the source of truth for petals and filaments;
+ * this narrower path avoids solving five unrelated easing curves for every
+ * one of the tens of thousands of peripheral pollen sprites each frame.
+ */
+export function pollenBloomProgress(timeline, normalizedDelay = 0, target = {}) {
+  const siteTimeline = delayedSiteTimeline(timeline, normalizedDelay);
+  const petal = windowProgress(siteTimeline, BLOOM_STAGE_WINDOWS.petal);
+  const outerFilamentRaw = windowProgress(
+    siteTimeline,
+    BLOOM_STAGE_WINDOWS.outerFilament,
+  );
+  const outerFilament = gatedProgress(
+    outerFilamentRaw,
+    petal,
+    OUTER_FILAMENT_PETAL_GATE,
+  );
+  const pollenRaw = windowProgress(siteTimeline, BLOOM_STAGE_WINDOWS.pollen);
+  const pollen = gatedProgress(
+    pollenRaw,
+    outerFilament,
+    POLLEN_FILAMENT_GATE,
+  );
+
+  target.progress = pollen;
+  target.visibility = pollenVisibility(pollen, outerFilament);
+  return target;
+}
+
 export function siteBloomProgressAtTime(
   elapsedMs,
   normalizedDelay = 0,

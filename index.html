@@ -57,7 +57,10 @@
           class="stage__fallback"
           id="scene-fallback"
           data-testid="scene-fallback"
-          src="./assets/wattle-golden-poster.png"
+          data-src="./assets/wattle-golden-poster.webp"
+          width="1440"
+          height="900"
+          decoding="async"
           alt="A mature Golden Wattle branch with a slight diagonal lean, long narrow green phyllodes, and dense strings of spherical yellow flower heads."
           hidden
         />
@@ -337,11 +340,9 @@
       })();
     </script>
 
-    <!-- Framer Motion's DOM build, vendored rather than fetched, on the same
-         terms as Three.js. It is loaded deferred and separately from the scene
-         so that a failure in either one cannot take the other down, and so the
-         CSS layer underneath both stays the floor. -->
-    <script defer src="./vendor/motion/motion.js"></script>
+    <!-- The interaction layer requests the vendored Motion runtime only when
+         a fine pointer can use its springs. Touch and reduced-motion visitors
+         keep the complete CSS interaction floor without downloading it. -->
     <script defer src="./interactions.js"></script>
 
     <script type="module" src="./script.js"></script>
@@ -365,7 +366,11 @@
           document.body.classList.add("has-error", "is-ready");
           stage.setAttribute("aria-busy", "false");
           stage.dataset.state = "error";
-          document.getElementById("scene-fallback").hidden = false;
+          var fallback = document.getElementById("scene-fallback");
+          if (fallback) {
+            if (!fallback.hasAttribute("src")) fallback.src = fallback.getAttribute("data-src");
+            fallback.hidden = false;
+          }
           document.getElementById("scene-error").hidden = false;
 
           var instructions = document.getElementById("scene-instructions");

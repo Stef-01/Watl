@@ -24,7 +24,9 @@
  *   than once, because the preference can change while the page is open.
  */
 
-const Motion = window.Motion;
+let Motion = window.Motion;
+let motionLoad = null;
+const MOTION_SRC = "./vendor/motion/motion.js";
 
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
 const fine = window.matchMedia("(hover: hover) and (pointer: fine)");
@@ -55,16 +57,38 @@ function translator(element) {
   const { motionValue, animate } = Motion;
   const x = motionValue(0);
   const y = motionValue(0);
+  let queued = 0;
+  let lastX = Number.NaN;
+  let lastY = Number.NaN;
+  let xAnimation = null;
+  let yAnimation = null;
 
-  const write = () => {
+  const flush = () => {
+    queued = 0;
     element.style.translate = `${x.get().toFixed(2)}px ${y.get().toFixed(2)}px`;
   };
-  x.on("change", write);
-  y.on("change", write);
+  const schedule = () => {
+    if (!queued) queued = requestAnimationFrame(flush);
+  };
+  const stopX = x.on("change", schedule);
+  const stopY = y.on("change", schedule);
 
-  return (toX, toY, options) => {
-    animate(x, toX, options);
-    animate(y, toY, options);
+  return {
+    to(toX, toY, options) {
+      if (Math.abs(toX - lastX) < 0.02 && Math.abs(toY - lastY) < 0.02) return;
+      lastX = toX;
+      lastY = toY;
+      xAnimation = animate(x, toX, options);
+      yAnimation = animate(y, toY, options);
+    },
+    destroy() {
+      xAnimation?.stop?.();
+      yAnimation?.stop?.();
+      stopX?.();
+      stopY?.();
+      if (queued) cancelAnimationFrame(queued);
+      element.style.removeProperty("translate");
+    },
   };
 }
 
@@ -74,8 +98,10 @@ function translator(element) {
  * the line it belongs to — it acknowledges the cursor rather than chasing it.
  */
 function magnetise(elements) {
-  const magnets = elements.map((element) => ({ element, to: translator(element) }));
-  let pointer = null;
+  const magnets = elements.map((element) => ({ element, motion: translator(element) }));
+  let pointerX = 0;
+  let pointerY = 0;
+  let hasPointer = false;
   let queued = 0;
 
   /* Every box is read inside one rAF callback rather than in the pointermove
@@ -87,17 +113,17 @@ function magnetise(elements) {
      a stale rect behind. */
   function frame() {
     queued = 0;
-    if (!pointer) return;
+    if (!hasPointer) return;
 
     for (const magnet of magnets) {
       const box = magnet.element.getBoundingClientRect();
-      const dx = pointer.x - (box.left + box.width / 2);
-      const dy = pointer.y - (box.top + box.height / 2);
+      const dx = pointerX - (box.left + box.width / 2);
+      const dy = pointerY - (box.top + box.height / 2);
       const distance = Math.hypot(dx, dy);
       const reach = REACH + Math.max(box.width, box.height) / 2;
 
       if (distance > reach) {
-        magnet.to(0, 0, MAGNET);
+        magnet.motion.to(0, 0, MAGNET);
         continue;
       }
 
@@ -107,18 +133,20 @@ function magnetise(elements) {
          leap outward and then snap back at the threshold. */
       const strength = 1 - distance / reach;
       const step = (MAX_PULL * strength) / (distance || 1);
-      magnet.to(dx * step, dy * step, MAGNET);
+      magnet.motion.to(dx * step, dy * step, MAGNET);
     }
   }
 
   function onMove(event) {
-    pointer = { x: event.clientX, y: event.clientY };
+    pointerX = event.clientX;
+    pointerY = event.clientY;
+    hasPointer = true;
     if (!queued) queued = requestAnimationFrame(frame);
   }
 
   function release() {
-    pointer = null;
-    for (const magnet of magnets) magnet.to(0, 0, MAGNET);
+    hasPointer = false;
+    for (const magnet of magnets) magnet.motion.to(0, 0, MAGNET);
   }
 
   window.addEventListener("pointermove", onMove, { passive: true });
@@ -130,7 +158,7 @@ function magnetise(elements) {
     window.removeEventListener("pointerleave", release);
     window.removeEventListener("blur", release);
     if (queued) cancelAnimationFrame(queued);
-    release();
+    magnets.forEach((magnet) => magnet.motion.destroy());
   };
 }
 
@@ -140,24 +168,35 @@ function magnetise(elements) {
  * reads as a bug, slow parallax reads as depth.
  */
 function parallax(light) {
-  const to = translator(light);
+  const motion = translator(light);
+  let pointerX = 0;
+  let pointerY = 0;
+  let queued = 0;
+
+  function frame() {
+    queued = 0;
+    const x = (pointerX / window.innerWidth - 0.5) * -2;
+    const y = (pointerY / window.innerHeight - 0.5) * -2;
+    motion.to(x * window.innerWidth * DRIFT_RANGE, y * window.innerHeight * DRIFT_RANGE, DRIFT);
+  }
 
   function onMove(event) {
-    const x = (event.clientX / window.innerWidth - 0.5) * -2;
-    const y = (event.clientY / window.innerHeight - 0.5) * -2;
-    to(x * window.innerWidth * DRIFT_RANGE, y * window.innerHeight * DRIFT_RANGE, DRIFT);
+    pointerX = event.clientX;
+    pointerY = event.clientY;
+    if (!queued) queued = requestAnimationFrame(frame);
   }
 
   window.addEventListener("pointermove", onMove, { passive: true });
   return () => {
     window.removeEventListener("pointermove", onMove);
-    to(0, 0, DRIFT);
+    if (queued) cancelAnimationFrame(queued);
+    motion.destroy();
   };
 }
 
 /**
- * Press gives back. This one is worth keeping on touch — it is the only
- * feedback a finger gets between tapping a link and the page changing.
+ * Press gives back on the spring-enabled pointer layer. Touch keeps the CSS
+ * active state, so it has immediate feedback without loading this runtime.
  */
 function pressable(elements) {
   if (!Motion.press) return () => {};
@@ -189,9 +228,9 @@ function clientPosition(list) {
     queued = 0;
     let closest = 0;
     let distance = Infinity;
+    const firstOffset = items[0]?.offsetTop || 0;
 
     items.forEach((item, index) => {
-      const firstOffset = items[0]?.offsetTop || 0;
       const delta = Math.abs(item.offsetTop - firstOffset - list.scrollTop);
       if (delta < distance) {
         distance = delta;
@@ -263,15 +302,11 @@ function start() {
   const toggle = document.querySelector(".ground-switch__toggle");
   const light = document.querySelector(".stage__light");
 
-  /* Press is the one thing a touchscreen keeps, so it is set up before the
-     hover-only gate. */
-  if (Motion) {
-    teardown.push(pressable([...links, ...(toggle ? [toggle] : [])]));
-  }
-
   if (clientList) teardown.push(clientPosition(clientList));
 
   if (!enabled()) return;
+
+  teardown.push(pressable([...links, ...(toggle ? [toggle] : [])]));
 
   /* The compact client list gets only its 0.22rem CSS acknowledgement. A
      magnetic pull inside a scroll surface makes rows feel loose and noisy;
@@ -280,14 +315,36 @@ function start() {
   if (light) teardown.push(parallax(light));
 }
 
-if (Motion) {
-  start();
-  /* Both preferences can change while the page is open — a system theme
-     switch, or a mouse plugged into a tablet — so the layer is rebuilt rather
-     than assumed. */
-  reduced.addEventListener("change", start);
-  fine.addEventListener("change", start);
-} else {
-  /* No library, no interaction layer. The CSS floor is already doing its job,
-     so there is nothing to fall back to and nothing to report. */
+function loadMotion() {
+  if (Motion) return Promise.resolve(Motion);
+  if (motionLoad) return motionLoad;
+  motionLoad = new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = MOTION_SRC;
+    script.async = true;
+    script.onload = () => {
+      Motion = window.Motion;
+      resolve(Motion);
+    };
+    script.onerror = () => resolve(null);
+    document.head.append(script);
+  });
+  return motionLoad;
 }
+
+function syncMotionLayer() {
+  start();
+  if (!Motion && fine.matches && !reduced.matches) {
+    void loadMotion().then((loaded) => {
+      if (loaded && fine.matches && !reduced.matches) start();
+    });
+  }
+}
+
+syncMotionLayer();
+/* Both preferences can change while the page is open — a system motion
+   preference, or a mouse plugged into a tablet — so the layer is rebuilt
+   rather than assumed. The 137 kB spring runtime is requested only when a
+   fine pointer can use it. */
+reduced.addEventListener("change", syncMotionLayer);
+fine.addEventListener("change", syncMotionLayer);

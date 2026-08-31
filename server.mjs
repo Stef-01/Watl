@@ -152,11 +152,25 @@ async function locateFile(segments) {
 }
 
 function streamFile(request, response, filePath, fileStat) {
+  const extension = extname(filePath).toLowerCase();
+  const documentResponse = extension === ".html";
+  const etag = `W/"${fileStat.size.toString(16)}-${Math.trunc(fileStat.mtimeMs).toString(16)}"`;
   const headers = {
     ...sharedHeaders,
+    "Cache-Control": documentResponse ? "no-store" : "public, max-age=0, must-revalidate",
     "Content-Length": fileStat.size,
-    "Content-Type": types[extname(filePath).toLowerCase()] || "application/octet-stream",
+    "Content-Type": types[extension] || "application/octet-stream",
+    ETag: etag,
+    "Last-Modified": fileStat.mtime.toUTCString(),
   };
+
+  if (!documentResponse && request.headers["if-none-match"] === etag) {
+    const notModifiedHeaders = { ...headers };
+    delete notModifiedHeaders["Content-Length"];
+    response.writeHead(304, notModifiedHeaders);
+    response.end();
+    return;
+  }
 
   if (request.method === "HEAD") {
     response.writeHead(200, headers);

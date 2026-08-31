@@ -76,15 +76,17 @@ iteration leaves the element exactly at rest.
 
 Framer Motion's DOM build is vendored into `vendor/motion/` on the same terms
 as Three.js — committed, not fetched — and drives a pointer layer in
-`interactions.js`.
+`interactions.js`. The 137 kB runtime is requested lazily only when a fine
+pointer can use the springs; touch and reduced-motion visitors retain the CSS
+interaction floor without downloading it.
 
 - **The separate contact action leans toward the cursor** and springs back;
   client rows deliberately keep only their restrained CSS acknowledgement.
 - **The light behind the tree drifts the other way**, on the softest spring
   on the page. Fast parallax reads as a bug; slow parallax reads as depth.
-- **Press gives back** — a small spring-loaded scale. This is the one thing a
-  touchscreen keeps, since it is the only feedback a finger gets between
-  tapping a link and the page changing.
+- **Press gives back** — a small spring-loaded scale on fine-pointer devices;
+  touch keeps the immediate CSS active state without paying for the spring
+  runtime.
 
 Three constraints hold this layer honest:
 
@@ -186,11 +188,44 @@ accessibility, interaction-contract, and asset smoke tests.
 `?poster=1` hides every interface layer and, because it is the mode the still
 is exported from, also asks the renderer to preserve its drawing buffer so the
 canvas can be read back. The WebGL-failure still lives at
-`assets/wattle-golden-poster.png`; it is captured from the same mature procedural
+`assets/wattle-golden-poster.webp`; it is captured from the same mature procedural
 branch and therefore preserves the narrow phyllodes, strung spherical flowers, dark
 ground, and right-weighted composition when WebGL is unavailable.
 
 `python tools/generate-ground.py` rebuilds the contour field behind the tree.
+
+## Performance model
+
+The scene is event-driven: it stops requesting frames while it is off-screen,
+hidden, motion-reduced, or visually settled. High quality remains uncapped for
+smooth desktop bloom choreography. The constrained-device profile keeps the
+same time-based stages at a stable 30 fps and a 1.12 DPR ceiling, avoiding
+thermal load without slowing the botanical sequence.
+
+Bloom geometry is grouped by flower head. An interaction updates only the
+affected typed-array ranges; Three.js merges adjacent ranges before sending
+them to WebGL, so hovering four heads no longer re-uploads the other 68. Each
+head's pointer-facing site delays are cached for its activation, and the hot
+filament path writes directly into its typed arrays without per-frame arrays.
+QA mode exposes the scheduled transfer as `data-qa-bloom-upload-*` and in the
+snapshot's `frameMetrics.bloomUpload` object.
+
+The dense pom-pom fuzz has its own packed render path. Its closed and open
+positions, sizes, and colour shades stay in static GPU attributes; the CPU now
+updates only bloom progress and visibility while the vertex shader performs
+the morph. That reduces dynamic fuzz transfer from eight floats to two per
+particle (75%) without removing a single point. A pollen-only choreography
+sampler remains numerically identical to the full stage model while skipping
+the five stage curves this late layer does not use, and the temporary source
+and origin vectors are released after packing. QA exposes the packed count and
+both per-point transfer costs in `snapshot().lod`.
+
+The WebGL failure poster is a 28 kB WebP and has no eager `src`. It is requested
+only if scene initialization fails. The optional Motion layer is likewise
+lazy on pointer capability, keeping the initial network focused on the scene.
+The local server keeps HTML uncached but gives scripts, styles, vendor modules,
+and assets ETag revalidation, so a refresh can return `304` instead of sending
+the two-megabyte Three.js runtime again.
 
 ## Branch growth and flowering
 

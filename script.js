@@ -10,6 +10,7 @@ import {
   BLOOM_MAX_SITE_DELAY,
   bloomEnvelopeTarget,
   bloomVisibilityHandoff,
+  pollenBloomProgress,
   siteBloomProgress,
 } from "./bloom-motion.js";
 import {
@@ -114,6 +115,7 @@ const HIGH_PROFILE = Object.freeze({
   exportCenterSpecks: 4,
   pompomFuzzPerBloom: 900,
   dprCap: 1.4,
+  frameIntervalMs: 0,
 });
 
 const LOW_PROFILE = Object.freeze({
@@ -130,6 +132,7 @@ const LOW_PROFILE = Object.freeze({
   exportCenterSpecks: 3,
   pompomFuzzPerBloom: 360,
   dprCap: 1.12,
+  frameIntervalMs: 1000 / 30,
 });
 
 /* Read by the watchdog in index.html. If the imports above fail this line is
@@ -137,6 +140,7 @@ const LOW_PROFILE = Object.freeze({
 window.__WATTLE_BOOTED__ = true;
 
 const query = new URLSearchParams(window.location.search);
+const qaMode = query.get("qa") === "1";
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const coarsePointer = window.matchMedia("(pointer: coarse)");
 const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
@@ -181,6 +185,7 @@ const bloomBrush = {
 const bloomMorphScratch = {
   stages: {},
   visibility: {},
+  pollen: {},
 };
 
 /* The sway the bouquet is authored at. This was the drift slider's default
@@ -225,13 +230,14 @@ const state = {
   swayGroups: [],
   coreMeshes: [],
   pointsMaterial: null,
+  fuzzMaterial: null,
   pompomMassMaterial: null,
   petalMaterial: null,
   selectionLight: null,
   resizeObserver: null,
   intersectionObserver: null,
   reduced: reducedMotion.matches,
-  qaMotionOff: query.get("qa") === "1" || query.get("motion") === "off" || query.get("poster") === "1",
+  qaMotionOff: qaMode || query.get("motion") === "off" || query.get("poster") === "1",
   motionPaused: false,
   inViewport: true,
   userMoved: false,
@@ -239,6 +245,7 @@ const state = {
   motionTime: 0,
   raf: 0,
   lastFrame: 0,
+  lastRenderedAt: 0,
   renderedFrames: 0,
   frameTimes: [],
   statusTimer: 0,
@@ -285,6 +292,7 @@ async function init() {
   state.swayGroups = built.swayGroups;
   state.coreMeshes = built.coreMeshes;
   state.pointsMaterial = built.pointsMaterial;
+  state.fuzzMaterial = built.fuzzMaterial;
   state.pompomMassMaterial = built.pompomMassMaterial;
   state.petalMaterial = built.petalMaterial;
   state.growth.trunks = built.growthTrunks;
@@ -330,7 +338,8 @@ function chooseProfile(width) {
 
   const memory = Number(navigator.deviceMemory || 8);
   const cores = Number(navigator.hardwareConcurrency || 8);
-  const constrained = coarsePointer.matches || width < 680 || memory <= 4 || cores <= 4;
+  const saveData = Boolean(navigator.connection?.saveData);
+  const constrained = saveData || coarsePointer.matches || width < 680 || memory <= 4 || cores <= 4;
   return constrained ? LOW_PROFILE : HIGH_PROFILE;
 }
 
@@ -398,12 +407,18 @@ function applyTreeGrowth(progress, force = false) {
   if (state.growth.materials?.tipGrowth) {
     state.growth.materials.tipGrowth.value = Math.max(0.025, stages.buds);
   }
+  if (state.growth.materials?.fuzzGrowth) {
+    state.growth.materials.fuzzGrowth.value = Math.max(0.025, stages.buds);
+  }
 
   for (const leaf of state.growth.leaves) leaf.visible = state.growth.progress > 0.12;
   for (const renderable of state.bloom?.renderables.caps ?? []) {
     renderable.mesh.visible = stages.buds > 0.001;
   }
   for (const renderable of state.bloom?.renderables.tips ?? []) {
+    renderable.points.visible = stages.buds > 0.001;
+  }
+  for (const renderable of state.bloom?.renderables.fuzz ?? []) {
     renderable.points.visible = stages.buds > 0.001;
   }
 
@@ -420,7 +435,7 @@ function applyTreeGrowth(progress, force = false) {
   ui.stage.dataset.treeGrowth = state.growth.progress.toFixed(4);
   ui.stage.dataset.treeStage = stageName;
   ui.stage.dataset.treeMature = String(state.growth.complete);
-  if (query.get("qa") === "1") {
+  if (qaMode) {
     ui.stage.dataset.qaTreeGrowth = state.growth.progress.toFixed(4);
     ui.stage.dataset.qaTreeStage = stageName;
     ui.stage.dataset.qaTreeMature = String(state.growth.complete);
@@ -492,6 +507,12 @@ function createBloomController(data) {
     maxProgress: 0,
     maxTimeline: 0,
     dirtyHeads: [],
+    uploadStats: {
+      dirtyHeadCount: 0,
+      rangeCount: 0,
+      bytes: 0,
+      peakBytes: 0,
+    },
     renderables: {
       masses: [],
       caps: [],
@@ -499,6 +520,7 @@ function createBloomController(data) {
       florets: [],
       filaments: [],
       tips: [],
+      fuzz: [],
     },
     capLookup: new Map(),
     floretLookup: new Map(),
@@ -516,6 +538,7 @@ function createBloomController(data) {
       easing: "in-out",
       committedOpen: false,
       originNormal: bloom.faceNormal.clone(),
+      delayRevision: 0,
     })),
   };
 }
@@ -640,7 +663,7 @@ function updateBloomAnimation(now) {
   state.bloom.maxTimeline = maxTimeline;
   state.bloom.cascadeActive = now < state.bloom.cascadeEndsAt;
 
-  if (query.get("qa") === "1") {
+  if (qaMode) {
     ui.stage.dataset.qaBloomActive = String(activeCount);
     ui.stage.dataset.qaBloomProgress = maxProgress.toFixed(4);
     ui.stage.dataset.qaBloomTimeline = maxTimeline.toFixed(4);
@@ -1805,6 +1828,7 @@ function buildBouquet(data) {
   lineMaterial.name = "Recessed_Stamen_Filament_Material";
   enableLineVisibility(lineMaterial);
   const pointsMaterial = createPointsMaterial();
+  const fuzzMaterial = createPompomFuzzMaterial();
   const swayGroups = [];
   const coreMeshes = [];
 
@@ -1855,11 +1879,18 @@ function buildBouquet(data) {
     const cups = createCupInstances(bucket.florets, cupGeometry, cupMaterial);
     const florets = createFloretInstances(bucket.florets, floretGeometry, petalMaterial);
     const filaments = createFilamentLines(bucket.filaments, lineMaterial);
-    const tips = createTipPoints(bucket.tips, pointsMaterial);
+    const regularTips = [];
+    const fuzzTips = [];
+    for (const item of bucket.tips) {
+      if (item.role === "pompom-fuzz") fuzzTips.push(item);
+      else regularTips.push(item);
+    }
+    const tips = createTipPoints(regularTips, pointsMaterial);
+    const fuzz = createPompomFuzzPoints(fuzzTips, fuzzMaterial);
 
     const canopy = new THREE.Group();
     canopy.name = "Growing_Wattle_Canopy";
-    canopy.add(stems, leaves, cores, pompomMass, caps, cups, florets, filaments, tips);
+    canopy.add(stems, leaves, cores, pompomMass, caps, cups, florets, filaments, tips, fuzz);
     const saplingFrame = new THREE.Group();
     saplingFrame.name = "Growing_Sapling_Frame";
     saplingFrame.add(trunk, saplingLeaves);
@@ -1877,6 +1908,7 @@ function buildBouquet(data) {
     swayGroups,
     coreMeshes,
     pointsMaterial,
+    fuzzMaterial,
     pompomMassMaterial,
     petalMaterial,
     growthTrunks,
@@ -1893,6 +1925,8 @@ function buildBouquet(data) {
       budGrowth,
       pointsMaterial,
       tipGrowth: pointsMaterial.uniforms.uGrowthScale,
+      fuzzMaterial,
+      fuzzGrowth: fuzzMaterial.uniforms.uGrowthScale,
     },
   };
 }
@@ -2978,6 +3012,151 @@ function createTipPoints(items, material) {
   return points;
 }
 
+function createPompomFuzzPoints(items, material) {
+  const count = items.length;
+  const positions = new Float32Array(count * 3);
+  const origins = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  const seeds = new Float32Array(count);
+  const shades = new Float32Array(count);
+  const progressAttribute = new THREE.Float32BufferAttribute(new Float32Array(count), 1);
+  const visibilityAttribute = new THREE.Float32BufferAttribute(new Float32Array(count), 1);
+  const color = new THREE.Color();
+
+  for (let index = 0; index < count; index += 1) {
+    const item = items[index];
+    const offset = index * 3;
+    const position = item.position.clone().sub(GATHER_POINT);
+    const origin = (item.origin ?? item.position).clone().sub(GATHER_POINT);
+    const seed = item.bloomNoise
+      ?? item.bloomOrder
+      ?? ((item.headIndex ?? 0) * 0.61803398875) % 1;
+    color.set(item.color);
+
+    positions[offset] = position.x;
+    positions[offset + 1] = position.y;
+    positions[offset + 2] = position.z;
+    origins[offset] = origin.x;
+    origins[offset + 1] = origin.y;
+    origins[offset + 2] = origin.z;
+    colors[offset] = color.r;
+    colors[offset + 1] = color.g;
+    colors[offset + 2] = color.b;
+    sizes[index] = item.size;
+    seeds[index] = seed;
+    shades[index] = 0.88 + seed * 0.12;
+
+    /* Fuzz has no directional site normal, so its spatial delay is always its
+       deterministic noise value. Cache that immutable answer once and release
+       the two Vector3 instances now duplicated in GPU buffers. */
+    item.siteDelay = THREE.MathUtils.clamp(seed, 0, 1);
+    item.fixedSiteDelay = true;
+    item.position = null;
+    item.origin = null;
+  }
+
+  progressAttribute.setUsage(THREE.DynamicDrawUsage);
+  visibilityAttribute.setUsage(THREE.DynamicDrawUsage);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("aOrigin", new THREE.Float32BufferAttribute(origins, 3));
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute("aSize", new THREE.Float32BufferAttribute(sizes, 1));
+  geometry.setAttribute("aSeed", new THREE.Float32BufferAttribute(seeds, 1));
+  geometry.setAttribute("aShade", new THREE.Float32BufferAttribute(shades, 1));
+  geometry.setAttribute("aProgress", progressAttribute);
+  geometry.setAttribute("aVisibility", visibilityAttribute);
+  geometry.computeBoundingSphere();
+  geometry.name = "GPU_Morphed_Pompom_Fuzz_Points";
+
+  const points = new THREE.Points(geometry, material);
+  points.name = "GPU_Morphed_Pompom_Fuzz";
+  points.frustumCulled = false;
+  state.bloom.renderables.fuzz.push({
+    points,
+    items,
+    ranges: buildHeadRanges(items),
+    progressAttribute,
+    visibilityAttribute,
+  });
+  return points;
+}
+
+function createPompomFuzzMaterial() {
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      uPixelRatio: { value: 1 },
+      uPointScale: { value: 920 },
+      uGrowthScale: { value: 1 },
+    },
+    vertexShader: `
+      attribute vec3 aOrigin;
+      attribute float aSize;
+      attribute float aSeed;
+      attribute float aShade;
+      attribute float aProgress;
+      attribute float aVisibility;
+      attribute vec3 color;
+      varying vec3 vColor;
+      varying float vVisibility;
+      varying float vSeed;
+      uniform float uPixelRatio;
+      uniform float uPointScale;
+      uniform float uGrowthScale;
+
+      void main() {
+        float progress = clamp(aProgress, 0.0, 1.0);
+        vColor = color * mix(aShade, 1.0, progress);
+        vVisibility = aVisibility;
+        vSeed = aSeed;
+        vec3 morphedPosition = mix(aOrigin, position, progress);
+        vec4 viewPosition = modelViewMatrix * vec4(morphedPosition, 1.0);
+        float attenuation = uPointScale / max(0.4, -viewPosition.z);
+        float pointScale = mix(${BUD_TIP_SCALE.toFixed(2)}, 1.0, progress);
+        gl_PointSize = max(1.0, aSize * pointScale * attenuation * uPixelRatio * uGrowthScale);
+        gl_Position = projectionMatrix * viewPosition;
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vColor;
+      varying float vVisibility;
+      varying float vSeed;
+      uniform float uGrowthScale;
+
+      void main() {
+        if (vVisibility <= 0.001) discard;
+        vec2 point = gl_PointCoord * 2.0 - 1.0;
+        float angle = atan(point.y, point.x);
+        float edgeVariation = 1.0
+          + sin(angle * 7.0 + vSeed * 31.0) * 0.026
+          + sin(angle * 13.0 - vSeed * 19.0) * 0.014;
+        float radius = length(point) / edgeVariation;
+        if (radius > 1.0) discard;
+        float edgeWidth = max(fwidth(radius) * 1.5, 0.018);
+        float alpha = 1.0 - smoothstep(1.0 - edgeWidth, 1.0, radius);
+        float sphereDepth = sqrt(max(0.0, 1.0 - radius * radius));
+        vec3 normal = normalize(vec3(point.x, -point.y, sphereDepth));
+        vec3 lightDirection = normalize(vec3(-0.42, 0.52, 1.0));
+        float diffuse = max(0.0, dot(normal, lightDirection));
+        float highlight = pow(diffuse, 9.0);
+        float fibril = 0.975 + 0.025 * sin(angle * 17.0 + vSeed * 43.0)
+          * smoothstep(0.32, 0.92, radius);
+        vec3 color = vColor * (0.88 + diffuse * 0.2 + highlight * 0.035) * fibril;
+        float growthVisibility = smoothstep(0.18, 0.45, uGrowthScale);
+        gl_FragColor = vec4(color, alpha * vVisibility * growthVisibility);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+    transparent: true,
+    depthTest: true,
+    depthWrite: true,
+  });
+  material.name = "GPU_Morphed_Pompom_Fuzz_Material";
+  return material;
+}
+
 function createPointsMaterial() {
   const material = new THREE.ShaderMaterial({
     uniforms: {
@@ -3050,15 +3229,25 @@ function createPointsMaterial() {
 }
 
 function bloomSiteDelay(head, item) {
+  if (item.fixedSiteDelay) return item.siteDelay;
+  if (item.siteDelayRevision === head.delayRevision) return item.siteDelay;
   let normal = item.normal;
   if (!normal && Number.isInteger(item.siteIndex)) {
     const lookup = state.bloom.floretLookup.get(item.siteKey);
     normal = lookup?.renderable.items[lookup.index].normal;
   }
   const noise = THREE.MathUtils.clamp(item.bloomNoise ?? item.bloomOrder ?? 0.5, 0, 1);
-  if (!normal || !head.originNormal) return noise;
-  const geodesic = Math.acos(THREE.MathUtils.clamp(normal.dot(head.originNormal), -1, 1)) / Math.PI;
-  return THREE.MathUtils.clamp(geodesic * 0.65 + noise * 0.35, 0, 1);
+  const delay = !normal || !head.originNormal
+    ? noise
+    : THREE.MathUtils.clamp(
+      Math.acos(THREE.MathUtils.clamp(normal.dot(head.originNormal), -1, 1)) / Math.PI * 0.65
+        + noise * 0.35,
+      0,
+      1,
+    );
+  item.siteDelay = delay;
+  item.siteDelayRevision = head.delayRevision;
+  return delay;
 }
 
 function bloomStagesFor(head, item, spatialAllowed) {
@@ -3093,11 +3282,21 @@ function bloomRenderableVisible(headIndex) {
 function applyBloomEffects(dirtyHeads) {
   if (!state.bloom || dirtyHeads.length === 0) return;
   const spatialAllowed = !reduceBloomMotion();
-  const fullBloomUpload = dirtyHeads.length > 1;
-  const uploadWholeAttribute = (attribute) => {
-    if (!fullBloomUpload || !attribute) return;
-    attribute.clearUpdateRanges();
-    attribute.addUpdateRange(0, attribute.array.length);
+  const uploadStats = state.bloom.uploadStats;
+  uploadStats.dirtyHeadCount = dirtyHeads.length;
+  uploadStats.rangeCount = 0;
+  uploadStats.bytes = 0;
+  const pendingRanges = new Map();
+  const queueRange = (attribute, start, count) => {
+    if (!attribute || count <= 0) return;
+    const end = start + count;
+    const pending = pendingRanges.get(attribute);
+    if (pending) {
+      pending.start = Math.min(pending.start, start);
+      pending.end = Math.max(pending.end, end);
+    } else {
+      pendingRanges.set(attribute, { start, end });
+    }
   };
 
   for (const renderable of state.bloom.renderables.masses) {
@@ -3118,11 +3317,10 @@ function applyBloomEffects(dirtyHeads) {
         );
         visibility[index] = qaVisible ? openMass * 0.92 : 0;
       }
-      renderable.visibilityAttribute.addUpdateRange(range.start, range.count);
+      queueRange(renderable.visibilityAttribute, range.start, range.count);
       changed = true;
     }
     if (changed) {
-      uploadWholeAttribute(renderable.visibilityAttribute);
       renderable.visibilityAttribute.needsUpdate = true;
     }
   }
@@ -3171,15 +3369,12 @@ function applyBloomEffects(dirtyHeads) {
         }
         visibility[index] = qaVisible && handoff.capsule > 0.025 ? 1 : 0;
       }
-      matrixAttribute.addUpdateRange(range.start * 16, range.count * 16);
-      colorAttribute?.addUpdateRange(range.start * 3, range.count * 3);
-      renderable.visibilityAttribute.addUpdateRange(range.start, range.count);
+      queueRange(matrixAttribute, range.start * 16, range.count * 16);
+      queueRange(colorAttribute, range.start * 3, range.count * 3);
+      queueRange(renderable.visibilityAttribute, range.start, range.count);
       changed = true;
     }
     if (changed) {
-      uploadWholeAttribute(matrixAttribute);
-      uploadWholeAttribute(colorAttribute);
-      uploadWholeAttribute(renderable.visibilityAttribute);
       matrixAttribute.needsUpdate = true;
       if (colorAttribute) colorAttribute.needsUpdate = true;
       renderable.visibilityAttribute.needsUpdate = true;
@@ -3228,15 +3423,12 @@ function applyBloomEffects(dirtyHeads) {
         }
         visibility[index] = qaVisible && Math.max(handoff.cup, stages.petal) > 0.015 ? 1 : 0;
       }
-      matrixAttribute.addUpdateRange(range.start * 16, range.count * 16);
-      colorAttribute?.addUpdateRange(range.start * 3, range.count * 3);
-      renderable.visibilityAttribute.addUpdateRange(range.start, range.count);
+      queueRange(matrixAttribute, range.start * 16, range.count * 16);
+      queueRange(colorAttribute, range.start * 3, range.count * 3);
+      queueRange(renderable.visibilityAttribute, range.start, range.count);
       changed = true;
     }
     if (changed) {
-      uploadWholeAttribute(matrixAttribute);
-      uploadWholeAttribute(colorAttribute);
-      uploadWholeAttribute(renderable.visibilityAttribute);
       matrixAttribute.needsUpdate = true;
       if (colorAttribute) colorAttribute.needsUpdate = true;
       renderable.visibilityAttribute.needsUpdate = true;
@@ -3288,15 +3480,12 @@ function applyBloomEffects(dirtyHeads) {
         renderable.mesh.setMorphAt(index, renderable.morphDriver);
         visibility[index] = qaVisible && Math.max(handoff.cup, handoff.petal) > 0.015 ? 1 : 0;
       }
-      matrixAttribute.addUpdateRange(range.start * 16, range.count * 16);
-      colorAttribute?.addUpdateRange(range.start * 3, range.count * 3);
-      renderable.visibilityAttribute.addUpdateRange(range.start, range.count);
+      queueRange(matrixAttribute, range.start * 16, range.count * 16);
+      queueRange(colorAttribute, range.start * 3, range.count * 3);
+      queueRange(renderable.visibilityAttribute, range.start, range.count);
       changed = true;
     }
     if (changed) {
-      uploadWholeAttribute(matrixAttribute);
-      uploadWholeAttribute(colorAttribute);
-      uploadWholeAttribute(renderable.visibilityAttribute);
       matrixAttribute.needsUpdate = true;
       if (colorAttribute) colorAttribute.needsUpdate = true;
       if (renderable.mesh.morphTexture) renderable.mesh.morphTexture.needsUpdate = true;
@@ -3367,12 +3556,18 @@ function applyBloomEffects(dirtyHeads) {
         const endX = rootX + (renderable.openPositions[itemOffset + 9] - openStartX) * extension;
         const endY = rootY + (renderable.openPositions[itemOffset + 10] - openStartY) * extension;
         const endZ = rootZ + (renderable.openPositions[itemOffset + 11] - openStartZ) * extension;
-        positions.set([
-          rootX, rootY, rootZ,
-          bendX, bendY, bendZ,
-          bendX, bendY, bendZ,
-          endX, endY, endZ,
-        ], itemOffset);
+        positions[itemOffset] = rootX;
+        positions[itemOffset + 1] = rootY;
+        positions[itemOffset + 2] = rootZ;
+        positions[itemOffset + 3] = bendX;
+        positions[itemOffset + 4] = bendY;
+        positions[itemOffset + 5] = bendZ;
+        positions[itemOffset + 6] = bendX;
+        positions[itemOffset + 7] = bendY;
+        positions[itemOffset + 8] = bendZ;
+        positions[itemOffset + 9] = endX;
+        positions[itemOffset + 10] = endY;
+        positions[itemOffset + 11] = endZ;
         for (let vertexOffset = 0; vertexOffset < 12; vertexOffset += 1) {
           const offset = itemOffset + vertexOffset;
           colors[offset] = THREE.MathUtils.lerp(
@@ -3385,18 +3580,50 @@ function applyBloomEffects(dirtyHeads) {
         visibility[index * 2] = lineVisibility;
         visibility[index * 2 + 1] = lineVisibility;
       }
-      renderable.positionBuffer.addUpdateRange(range.start * 12, range.count * 12);
-      renderable.colorBuffer.addUpdateRange(range.start * 12, range.count * 12);
-      renderable.visibilityAttribute.addUpdateRange(range.start * 2, range.count * 2);
+      queueRange(renderable.positionBuffer, range.start * 12, range.count * 12);
+      queueRange(renderable.colorBuffer, range.start * 12, range.count * 12);
+      queueRange(renderable.visibilityAttribute, range.start * 2, range.count * 2);
       changed = true;
     }
     if (changed) {
-      uploadWholeAttribute(renderable.positionBuffer);
-      uploadWholeAttribute(renderable.colorBuffer);
-      uploadWholeAttribute(renderable.visibilityAttribute);
       renderable.positionBuffer.needsUpdate = true;
       renderable.colorBuffer.needsUpdate = true;
       renderable.visibilityAttribute.needsUpdate = true;
+    }
+  }
+
+  for (const renderable of state.bloom.renderables.fuzz) {
+    const progressAttribute = renderable.progressAttribute;
+    const visibilityAttribute = renderable.visibilityAttribute;
+    const progressValues = progressAttribute.array;
+    const visibilityValues = visibilityAttribute.array;
+    progressAttribute.clearUpdateRanges();
+    visibilityAttribute.clearUpdateRanges();
+    let changed = false;
+
+    for (const headIndex of dirtyHeads) {
+      const range = renderable.ranges[headIndex];
+      if (!range) continue;
+      const head = state.bloom.heads[headIndex];
+      const timeline = spatialAllowed ? head.timeline : Number(head.committedOpen);
+      const qaVisible = bloomRenderableVisible(headIndex);
+      for (let index = range.start; index < range.start + range.count; index += 1) {
+        const item = renderable.items[index];
+        const pollen = pollenBloomProgress(
+          timeline,
+          bloomSiteDelay(head, item),
+          bloomMorphScratch.pollen,
+        );
+        progressValues[index] = pollen.progress;
+        visibilityValues[index] = qaVisible ? pollen.visibility : 0;
+      }
+      queueRange(progressAttribute, range.start, range.count);
+      queueRange(visibilityAttribute, range.start, range.count);
+      changed = true;
+    }
+    if (changed) {
+      progressAttribute.needsUpdate = true;
+      visibilityAttribute.needsUpdate = true;
     }
   }
 
@@ -3492,22 +3719,31 @@ function applyBloomEffects(dirtyHeads) {
           );
         visibility[index] = qaVisible ? itemVisibility : 0;
       }
-      positionAttribute.addUpdateRange(range.start * 3, range.count * 3);
-      colorAttribute.addUpdateRange(range.start * 3, range.count * 3);
-      sizeAttribute.addUpdateRange(range.start, range.count);
-      visibilityAttribute.addUpdateRange(range.start, range.count);
+      queueRange(positionAttribute, range.start * 3, range.count * 3);
+      queueRange(colorAttribute, range.start * 3, range.count * 3);
+      queueRange(sizeAttribute, range.start, range.count);
+      queueRange(visibilityAttribute, range.start, range.count);
       changed = true;
     }
     if (changed) {
-      uploadWholeAttribute(positionAttribute);
-      uploadWholeAttribute(colorAttribute);
-      uploadWholeAttribute(sizeAttribute);
-      uploadWholeAttribute(visibilityAttribute);
       positionAttribute.needsUpdate = true;
       colorAttribute.needsUpdate = true;
       sizeAttribute.needsUpdate = true;
       visibilityAttribute.needsUpdate = true;
     }
+  }
+
+  for (const [attribute, range] of pendingRanges) {
+    const count = range.end - range.start;
+    attribute.addUpdateRange(range.start, count);
+    uploadStats.rangeCount += 1;
+    uploadStats.bytes += count * attribute.array.BYTES_PER_ELEMENT;
+  }
+  uploadStats.peakBytes = Math.max(uploadStats.peakBytes, uploadStats.bytes);
+  if (qaMode) {
+    ui.stage.dataset.qaBloomUploadBytes = String(uploadStats.bytes);
+    ui.stage.dataset.qaBloomUploadRanges = String(uploadStats.rangeCount);
+    ui.stage.dataset.qaBloomUploadDirtyHeads = String(uploadStats.dirtyHeadCount);
   }
 }
 
@@ -3634,6 +3870,7 @@ function resizeScene(forceFit) {
   state.camera.aspect = width / height;
   state.camera.updateProjectionMatrix();
   if (state.pointsMaterial) state.pointsMaterial.uniforms.uPixelRatio.value = pixelRatio;
+  if (state.fuzzMaterial) state.fuzzMaterial.uniforms.uPixelRatio.value = pixelRatio;
   if (state.pompomMassMaterial) state.pompomMassMaterial.uniforms.uPixelRatio.value = pixelRatio;
   if (state.universeMaterial) state.universeMaterial.uniforms.uPixelRatio.value = pixelRatio;
 
@@ -3736,6 +3973,16 @@ function invalidate() {
 
 function renderFrame(timestamp) {
   state.raf = 0;
+  const frameInterval = state.profile?.frameIntervalMs ?? 0;
+  if (
+    frameInterval > 0
+    && state.lastRenderedAt > 0
+    && timestamp - state.lastRenderedAt < frameInterval - 1
+  ) {
+    invalidate();
+    return;
+  }
+  state.lastRenderedAt = timestamp;
   const delta = state.lastFrame ? Math.min(0.05, (timestamp - state.lastFrame) / 1000) : 0;
   state.lastFrame = timestamp;
 
@@ -3752,11 +3999,11 @@ function renderFrame(timestamp) {
   const bloomAnimating = updateBloomAnimation(timestamp);
   state.renderer.render(state.scene, state.camera);
   state.renderedFrames += 1;
-  if (delta > 0) {
+  if (qaMode && delta > 0) {
     state.frameTimes.push(delta * 1000);
     if (state.frameTimes.length > 240) state.frameTimes.shift();
   }
-  if (query.get("qa") === "1" && state.frameTimes.length >= 12 && state.renderedFrames % 20 === 0) {
+  if (qaMode && state.frameTimes.length >= 12 && state.renderedFrames % 20 === 0) {
     const sortedFrameTimes = [...state.frameTimes].sort((a, b) => a - b);
     const p50Index = Math.max(0, Math.ceil(sortedFrameTimes.length * 0.5) - 1);
     const p95Index = Math.max(0, Math.ceil(sortedFrameTimes.length * 0.95) - 1);
@@ -3810,6 +4057,7 @@ function stopLoop() {
   if (state.raf) window.cancelAnimationFrame(state.raf);
   state.raf = 0;
   state.lastFrame = 0;
+  state.lastRenderedAt = 0;
 }
 
 function onPointerDown(event) {
@@ -4116,9 +4364,10 @@ function activateBloomAtIndex(
   }
   const now = performance.now();
   updateBloomAnimation(now);
-  beginBloomActivation(head, now, delay);
   const fallbackNormal = state.data.all.blooms[index]?.faceNormal;
   head.originNormal.copy(originNormal ?? fallbackNormal ?? Y_AXIS).normalize();
+  head.delayRevision += 1;
+  beginBloomActivation(head, now, delay);
   state.selectedBloomIndex = index;
   if (worldPosition) {
     state.selectionLight.position.copy(worldPosition);
@@ -4629,6 +4878,32 @@ function sampleBloomGeometryForQa(index = findQaHeroBloomIndex()) {
     }
   }
 
+  for (const renderable of state.bloom.renderables.fuzz) {
+    const range = renderable.ranges[index];
+    if (!range) continue;
+    const positions = renderable.points.geometry.attributes.position.array;
+    const origins = renderable.points.geometry.attributes.aOrigin.array;
+    const sizes = renderable.points.geometry.attributes.aSize.array;
+    const progressValues = renderable.progressAttribute.array;
+    const pointVisibility = renderable.visibilityAttribute.array;
+    for (let point = range.start; point < range.start + range.count; point += 1) {
+      if (pointVisibility[point] <= 0.001) continue;
+      visible.pollen += 1;
+      const offset = point * 3;
+      const progress = progressValues[point];
+      const x = THREE.MathUtils.lerp(origins[offset], positions[offset], progress);
+      const y = THREE.MathUtils.lerp(origins[offset + 1], positions[offset + 1], progress);
+      const z = THREE.MathUtils.lerp(origins[offset + 2], positions[offset + 2], progress);
+      const size = sizes[point] * THREE.MathUtils.lerp(BUD_TIP_SCALE, 1, progress);
+      const reach = Math.hypot(
+        x - center.x,
+        y - center.y,
+        z - center.z,
+      ) + size * 0.5;
+      envelope.pollen = Math.max(envelope.pollen, reach);
+    }
+  }
+
   const actualEnvelope = Math.max(...Object.values(envelope));
   const normalizedComponents = Object.fromEntries(
     Object.entries(envelope).map(([name, value]) => [name, value / bloom.radius]),
@@ -4824,12 +5099,19 @@ function exposeQaSnapshot() {
         lod: {
           profile: state.profile.id,
           dprCap: state.profile.dprCap,
+          frameIntervalMs: state.profile.frameIntervalMs,
           actualPixelRatio: state.renderer.getPixelRatio(),
           floretCount: state.data.all.florets.length,
           floretPetalCount: state.data.metrics.florets.petalInstances,
           veinSegmentCount: state.data.metrics.phyllodes.veinSegments,
           curveSegmentCount: state.data.all.filaments.length * 2,
           displayPoints: state.data.all.tips.length,
+          gpuMorphedFuzzPoints: state.bloom.renderables.fuzz.reduce(
+            (count, renderable) => count + renderable.items.length,
+            0,
+          ),
+          fuzzDynamicBytesPerPoint: Float32Array.BYTES_PER_ELEMENT * 2,
+          legacyFuzzDynamicBytesPerPoint: Float32Array.BYTES_PER_ELEMENT * 8,
         },
         interaction: {
           selectedBloomIndex: state.selectedBloomIndex,
@@ -4871,6 +5153,7 @@ function exposeQaSnapshot() {
         frameMetrics: {
           renderedFrames: state.renderedFrames,
           p95FrameMs: sortedTimes[p95Index] || 0,
+          bloomUpload: { ...state.bloom.uploadStats },
         },
       };
     },
@@ -4903,6 +5186,13 @@ function bouquetWithinFrustum() {
   return corners.every((corner) => frustum.containsPoint(corner));
 }
 
+function revealFallback() {
+  if (!ui.fallback.hasAttribute("src")) {
+    ui.fallback.src = ui.fallback.dataset.src;
+  }
+  ui.fallback.hidden = false;
+}
+
 function showFailure(error) {
   console.error("Wattle 3D initialization failed", error);
   if (query.get("qa") === "1") {
@@ -4914,7 +5204,7 @@ function showFailure(error) {
   ui.body.classList.add("has-error", "is-ready");
   ui.stage.setAttribute("aria-busy", "false");
   ui.stage.dataset.state = "error";
-  ui.fallback.hidden = false;
+  revealFallback();
   ui.error.hidden = false;
   /* This lives in the markup only as a status target; guard it so the failure
      path can never itself fail on a missing node. */

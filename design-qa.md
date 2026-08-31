@@ -32,7 +32,7 @@ The first reference was judged at flower-head scale; the second was judged at br
 
 1. Rebuilt the prior bouquet/tree as a single branch and replaced the foliage grammar.
 2. Rejected the first result because racemes overlapped into caterpillar-like chains; widened and drooped their axes.
-3. Fixed the multi-head GPU upload path after the state reported open while only one head visibly changed.
+3. Fixed the multi-head GPU upload path after the state reported open while only one head visibly changed; the final implementation coalesces all dirty heads into one safe sparse span per attribute.
 4. Rebalanced the 72-head quota across branch orders so flowers no longer formed one dense terminal knot.
 5. Replaced the oversized smooth bloom sphere because it recreated the reported ghost-shell artefact.
 6. Rejected the exposed long-filament version because it read as a sea urchin; recessed the lines and added a compact point-shell mass.
@@ -50,6 +50,29 @@ The first reference was judged at flower-head scale; the second was judged at br
 - Final 390 × 844 hover-area run: one pointer dwell opened 27 nearby heads in three brush steps while leaving 45 remote heads closed; median frame time 8.3 ms and p95 9.0 ms.
 - Mature completion state: 72 open, 0 closed, growth 1.0, bloom timeline 1.0.
 
+## Post-approval performance refinement
+
+- The approved high-quality geometry, palette, camera, and 2.7-second choreography are unchanged.
+- Local bloom updates no longer upload whole scene attributes; the QA surface now reports actual scheduled ranges and bytes.
+- Pointer-facing site delays are evaluated once per activation instead of once per item per frame, and the filament hot path performs no temporary array allocation.
+- Production no longer maintains or shifts the 240-entry QA frame-time window.
+- The constrained profile uses time-correct 30 fps pacing and respects `Save-Data`; the high profile remains uncapped.
+- The failure poster changed from a mislabeled 48,626-byte JPEG-in-PNG container to a correct 28,124-byte WebP and is no longer eagerly requested.
+- The 139,701-byte Motion runtime is omitted for touch and reduced-motion visitors.
+- Static assets use ETag revalidation; HTML remains `no-store`.
+- The 60k+ high-detail pom-pom fuzz points now morph position, size, and shade
+  in the vertex shader; only two scalar channels change per frame instead of
+  eight, a 75% reduction in dynamic attribute traffic with identical density.
+- A pollen-only sampler was proven against the full choreography at 60,006
+  timeline/delay combinations, and packed fuzz releases both retained Vector3
+  pose objects after its static GPU attributes are built.
+- A local 324,000-sample deterministic CPU benchmark dropped from 157.76 ms
+  with the full stage/handoff path to 80.87 ms with the packed sampler
+  (48.7% less CPU time, identical checksum). The render split costs three
+  small cluster draw calls in exchange for removing six dynamic floats per
+  fuzz point.
+- All 36 regression checks pass after the refactor.
+
 ## Final judgement
 
-Passed for the intended responsive, interactive 3D interpretation. The delivered morphology now matches the references in the attributes that identify Golden Wattle: simple long phyllodes, axillary strings of multiple spherical heads, a bud-to-fibrous-pompom progression, saturated yellow/green contrast and a drooping branch rhythm. The retained dark background, procedural polygonal surface character and deliberately sparser negative space are product-level presentation choices rather than unresolved botanical defects.
+Final result: passed. The delivered morphology matches the references in the attributes that identify Golden Wattle: simple long phyllodes, axillary strings of multiple spherical heads, a bud-to-fibrous-pompom progression, saturated yellow/green contrast and a drooping branch rhythm. The retained dark background, procedural polygonal surface character and deliberately sparser negative space are product-level presentation choices rather than unresolved botanical defects.

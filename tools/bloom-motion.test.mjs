@@ -15,6 +15,7 @@ import {
   capsuleVisibility,
   delayedSiteTimeline,
   normalizedBloomTimeline,
+  pollenBloomProgress,
   siteBloomProgress,
   siteBloomProgressAtTime,
   strongEaseInOut,
@@ -190,6 +191,20 @@ test("petals gate both filament phases and outer filaments gate pollen", () => {
           `pollen escaped filament gate at ${index}/${SAMPLE_COUNT}`,
         );
       }
+    }
+  }
+});
+
+test("the packed fuzz sampler exactly matches full pollen choreography", () => {
+  const packed = {};
+  for (const delay of DELAYS) {
+    for (let index = 0; index <= SAMPLE_COUNT; index += 1) {
+      const timeline = index / SAMPLE_COUNT;
+      const stages = siteBloomProgress(timeline, delay);
+      const visibility = bloomVisibilityHandoff(stages);
+      assert.equal(pollenBloomProgress(timeline, delay, packed), packed);
+      assertNear(packed.progress, stages.pollen, 1e-12, "packed pollen progress");
+      assertNear(packed.visibility, visibility.pollen, 1e-12, "packed pollen visibility");
     }
   }
 });

@@ -203,6 +203,23 @@ await check("interactive blooming keeps its pointer, keyboard, and motion safegu
   assert.doesNotMatch(scriptSource, /BLOOM_RADIAL_SPREAD/);
 });
 
+await check("the runtime keeps bloom and optional assets inside their performance budgets", () => {
+  assert.match(indexSource, /id=["']scene-fallback["'][\s\S]*?data-src=["']\.\/assets\/wattle-golden-poster\.webp["']/);
+  assert.doesNotMatch(indexSource, /<script[^>]+src=["']\.\/vendor\/motion\/motion\.js["']/);
+  assert.match(interactionsSource, /const\s+MOTION_SRC\s*=\s*["']\.\/vendor\/motion\/motion\.js["']/);
+  assert.match(interactionsSource, /document\.createElement\(["']script["']\)/);
+  assert.match(scriptSource, /frameIntervalMs:\s*1000\s*\/\s*30/);
+  assert.match(scriptSource, /item\.siteDelayRevision\s*===\s*head\.delayRevision/);
+  assert.match(scriptSource, /attribute\.addUpdateRange\(range\.start,\s*count\)/);
+  assert.match(scriptSource, /qaBloomUploadBytes/);
+  assert.match(scriptSource, /function\s+createPompomFuzzPoints\s*\(/);
+  assert.match(scriptSource, /GPU_Morphed_Pompom_Fuzz_Material/);
+  assert.match(scriptSource, /pollenBloomProgress\s*\(/);
+  assert.match(scriptSource, /item\.position\s*=\s*null/);
+  assert.match(bloomMotionSource, /function\s+pollenBloomProgress\s*\(/);
+  assert.doesNotMatch(scriptSource, /fullBloomUpload|uploadWholeAttribute/);
+});
+
 await check("the tree grows through maturity before exposing interactive buds", () => {
   assert.match(indexSource, /aria-label=["']Interactive 3D Golden Wattle branch growing from young shoot to bloom["']/);
   assert.match(scriptSource, /from\s+["']\.\/tree-growth\.js["']/);
@@ -300,11 +317,19 @@ try {
     assert.match(threeResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
     assert.equal(await threeResponse.text(), "");
 
-    const posterResponse = await fetch(`${baseUrl}/assets/wattle-golden-poster.png`, { method: "HEAD" });
+    const posterResponse = await fetch(`${baseUrl}/assets/wattle-golden-poster.webp`, { method: "HEAD" });
     assert.equal(posterResponse.status, 200);
-    assert.match(posterResponse.headers.get("content-type") ?? "", /^image\/png\b/);
+    assert.match(posterResponse.headers.get("content-type") ?? "", /^image\/webp\b/);
     assert(Number(posterResponse.headers.get("content-length")) > 0);
+    assert.equal(posterResponse.headers.get("cache-control"), "public, max-age=0, must-revalidate");
+    assert.match(posterResponse.headers.get("etag") ?? "", /^W\/"[0-9a-f]+-[0-9a-f]+"$/);
     assert.equal(await posterResponse.text(), "");
+
+    const cachedPosterResponse = await fetch(`${baseUrl}/assets/wattle-golden-poster.webp`, {
+      headers: { "If-None-Match": posterResponse.headers.get("etag") },
+    });
+    assert.equal(cachedPosterResponse.status, 304);
+    assert.equal(await cachedPosterResponse.text(), "");
   });
 
   await check("non-public source and hidden paths stay private", async () => {
