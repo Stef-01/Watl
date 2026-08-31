@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta id="theme-color" name="theme-color" content="#03040a" />
+    <meta id="theme-color" name="theme-color" content="#090909" />
     <meta
       name="description"
       content="WATL is a technology design practice creating interfaces, systems, and experimental tools for futures that have not settled into form."
@@ -41,9 +41,12 @@
         data-testid="wattle-stage"
         data-bloom-hover="false"
         data-bloom-finale="false"
+        data-tree-growth="0"
+        data-tree-stage="shoot"
+        data-tree-mature="false"
         tabindex="0"
         role="group"
-        aria-label="Interactive 3D golden wattle bouquet"
+        aria-label="Interactive 3D Golden Wattle branch growing from young shoot to bloom"
         aria-describedby="scene-description scene-pointer-instructions keyboard-instructions"
         aria-keyshortcuts="Enter Space ArrowUp ArrowDown ArrowLeft ArrowRight + - Home"
         aria-busy="true"
@@ -54,20 +57,20 @@
           class="stage__fallback"
           id="scene-fallback"
           data-testid="scene-fallback"
-          src="./assets/wattle-bouquet-poster.png"
-          alt="A whole hand-tied bouquet of golden wattle with dense symmetrical yellow pom-pom flower heads suspended in a dark field of distant light."
+          src="./assets/wattle-golden-poster.png"
+          alt="A mature Golden Wattle branch with a slight diagonal lean, long narrow green phyllodes, and dense strings of spherical yellow flower heads."
           hidden
         />
         <div class="stage__light" aria-hidden="true"></div>
 
         <div class="loader" id="scene-loading" data-testid="scene-loading" aria-hidden="true">
-          <p>Building the 3D bouquet</p>
+          <p>Growing the 3D wattle branch</p>
           <span class="loader__track"><span></span></span>
         </div>
 
         <div class="scene-error" id="scene-error" data-testid="scene-error" hidden>
-          <p class="scene-error__title">The 3D bouquet could not open.</p>
-          <p class="scene-error__copy">A still bouquet is shown instead.</p>
+          <p class="scene-error__title">The 3D branch could not open.</p>
+          <p class="scene-error__copy">A still Golden Wattle is shown instead.</p>
           <button id="retry-button" type="button">Reload</button>
         </div>
       </section>
@@ -102,15 +105,15 @@
       <footer class="client-rail interface-layer">
         <div class="client-rail__panel">
           <div class="client-rail__header" aria-hidden="true">
-            <span>Ventures</span>
+            <span>Clients</span>
             <span class="client-rail__position">
-              <span id="venture-current">01</span>&thinsp;/&thinsp;<span id="venture-total">02</span>
+              <span id="client-current">01</span>&thinsp;/&thinsp;<span id="client-total">02</span>
             </span>
           </div>
           <nav
             class="client-rail__group"
-            id="venture-list"
-            aria-label="Ventures — scroll vertically to explore"
+            id="client-list"
+            aria-label="Clients — scroll vertically to explore"
             tabindex="0"
           >
             <a class="client" href="https://bayhealth.com.au/" aria-label="Bay Health">
@@ -170,18 +173,18 @@
       </section>
 
       <p class="sr-only" id="scene-description">
-        WATL is a technology design practice represented here by a hand-tied bouquet of golden wattle suspended within a deep, slowly moving field of light and spatial signals. Compact olive buds can be opened into dense yellow pom-pom heads as their five-part florets separate and their stamens extend. Stars occupy several real depths, so turning the object also changes the surrounding space.
+        WATL is represented by a living Golden Wattle branch. It begins as a young shoot near the lower edge, rises with a slight diagonal lean, extends slender lateral twigs, and unfolds long narrow green phyllodes. Compact olive buds hang in multi-head axillary strings on fine stems. Those heads can be opened into dense spherical yellow pom-poms as their five-part florets separate and hundreds of fine stamens extend. Stars occupy several real depths, so turning the branch also changes the surrounding space.
       </p>
       <p class="sr-only" id="keyboard-instructions">
-        Use the arrow keys to rotate the bouquet, plus and minus to zoom, Enter or Space to open every remaining bud, and Home to reset the view.
+        Use the arrow keys to rotate the branch, plus and minus to zoom, Enter or Space to finish its growth and then open every remaining bud, and Home to reset the view.
       </p>
       <p class="sr-only" id="scene-pointer-instructions">
-        With a mouse or trackpad, move across the bouquet to open nearby buds in the area beneath your pointer. Click or tap a bud to open it directly; opened flowers stay open. Drag to orbit, and scroll or pinch to zoom.
+        The branch first rises from a young shoot, grows lateral twigs, and unfolds long lanceolate phyllodes. Strings of buds then appear along the mature branchlets. After maturity, move across it to open nearby buds beneath your pointer. Click or tap a bud to open it directly; opened flowers stay open. Drag to orbit, and scroll or pinch to zoom.
       </p>
-      <p class="sr-only" id="stage-status" role="status" aria-live="polite" aria-atomic="true">Building the 3D bouquet.</p>
+      <p class="sr-only" id="stage-status" role="status" aria-live="polite" aria-atomic="true">Growing the 3D Golden Wattle branch.</p>
 
       <noscript>
-        <p class="noscript-message">JavaScript is required to explore the interactive 3D bouquet.</p>
+        <p class="noscript-message">JavaScript is required to explore the interactive 3D Golden Wattle branch.</p>
       </noscript>
     </main>
 
@@ -201,8 +204,8 @@
          slot ready for licensed artwork from a named artist; see the README. */
       (function () {
         var GROUNDS = [
-          { id: "night", label: "Night sky", theme: "#03040a", swatch: "#7a94d2" },
-          { id: "earth", label: "Earth", theme: "#0a0806", swatch: "#c67a36" },
+          { id: "night", label: "Night sky", theme: "#090909", swatch: "#7a94d2" },
+          { id: "earth", label: "Earth", theme: "#090909", swatch: "#978453" },
           { id: "ochre", label: "Ochre", theme: "#0d0704", swatch: "#d6742c" },
           { id: "rose", label: "Desert rose", theme: "#0d0509", swatch: "#d1738f" },
           { id: "moss", label: "Eucalypt", theme: "#050806", swatch: "#7fae7a" },
@@ -367,11 +370,11 @@
 
           var instructions = document.getElementById("scene-instructions");
           if (instructions) {
-            instructions.textContent = "A still view of the complete golden wattle bouquet.";
+            instructions.textContent = "A still view of a mature Golden Wattle branch.";
           }
           var status = document.getElementById("stage-status");
           if (status) {
-            status.textContent = "The interactive 3D bouquet could not open. A still bouquet is shown.";
+            status.textContent = "The interactive 3D branch could not open. A still Golden Wattle branch is shown.";
           }
 
           /* setupEvents() never ran either, so the reload button is inert

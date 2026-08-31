@@ -177,10 +177,10 @@ function pressable(elements) {
  * accessibility tooling all retain their platform behaviour. This listener
  * only reports the row nearest the top edge and never drives the scroll.
  */
-function venturePosition(list) {
+function clientPosition(list) {
   const items = [...list.querySelectorAll(".client")];
-  const current = document.querySelector("#venture-current");
-  const total = document.querySelector("#venture-total");
+  const current = document.querySelector("#client-current");
+  const total = document.querySelector("#client-total");
   let queued = 0;
 
   if (total) total.textContent = String(items.length).padStart(2, "0");
@@ -258,8 +258,8 @@ function start() {
   stop();
 
   const links = [...document.querySelectorAll(".client")];
-  const magneticLinks = links.filter((link) => !link.closest("#venture-list"));
-  const ventureList = document.querySelector("#venture-list");
+  const magneticLinks = links.filter((link) => !link.closest("#client-list"));
+  const clientList = document.querySelector("#client-list");
   const toggle = document.querySelector(".ground-switch__toggle");
   const light = document.querySelector(".stage__light");
 
@@ -269,11 +269,11 @@ function start() {
     teardown.push(pressable([...links, ...(toggle ? [toggle] : [])]));
   }
 
-  if (ventureList) teardown.push(venturePosition(ventureList));
+  if (clientList) teardown.push(clientPosition(clientList));
 
   if (!enabled()) return;
 
-  /* The compact venture list gets only its 0.22rem CSS acknowledgement. A
+  /* The compact client list gets only its 0.22rem CSS acknowledgement. A
      magnetic pull inside a scroll surface makes rows feel loose and noisy;
      the separate contact action can keep the more expressive spring. */
   teardown.push(magnetise([...magneticLinks, ...(toggle ? [toggle] : [])]));

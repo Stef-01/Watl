@@ -1,18 +1,18 @@
 # WATL / Technology Design
 
-WATL is a technology design practice creating interfaces, systems, and experimental tools for futures that have not settled into form. Its homepage is an extreme-minimal field object: a procedural Three.js portrait of a complete hand-tied golden wattle bouquet (*Acacia pycnantha*) suspended inside a deterministic universe of warm light and faint, unresolved signals.
+WATL is a technology design practice creating interfaces, systems, and experimental tools for futures that have not settled into form. Its homepage is an extreme-minimal field object: a procedural living Golden Wattle branch growing inside a deterministic universe of warm light and faint, unresolved signals.
 
-The ground behind it is warm dark earth, a contour field drawn in elevation, an ember low in the frame and grain over all of it — geological and cartographic vocabulary, borrowing nothing from Aboriginal visual language, which encodes particular Country and story and is not a free pattern library.
+The ground behind it is neutral charcoal with a restrained earth undertone, a contour field drawn in elevation, an ember low in the frame and grain over all of it — geological and cartographic vocabulary, borrowing nothing from Aboriginal visual language, which encodes particular Country and story and is not a free pattern library.
 
 Orbiting the camera reveals spatial parallax. A nearly imperceptible celestial drift, soft twinkle, and sparse connections keep the surrounding field alive without competing with the botanical form. The object is the identity; everything else has been reduced to coordinates.
 
-Mature heads are dense spherical pom-poms, as deep as they are wide. Complete five-part florets and five round anthers per floret are spread over the whole shell by mirrored golden-angle spirals stepped in equal area — even bands of cos(theta) rather than of radius, which is what fills the flanks of a head instead of piling its florets onto a disc. Every head begins collapsed into a compact olive bud and retains enough topology to unfold into that full mature form. Curved falcate phyllodes taper at both ends and carry five parallel-convergent longitudinal veins. Three.js `0.185.1` is vendored into `vendor/three/` rather than loaded from a CDN, so a fresh clone runs with no install step.
+The object has one tapered, mostly upright axis with a restrained diagonal lean and thinner secondary twigs emerging in developmental order. Long narrow lanceolate phyllodes alternate around those twigs. Mature axils carry drooping racemes of three to six globular heads on fine radial pedicels. Each head blooms from an olive bead-cluster into a compact yellow pom-pom: five-part florets remain recessed beneath representative stamen bundles, a dense equal-area particle shell, and a fibrous procedural undercoat. Three.js `0.185.1` is vendored into `vendor/three/` rather than loaded from a CDN, so a fresh clone runs with no install step.
 
-## Ventures
+## Clients
 
-The ventures live in a compact vertical rail on the left, separate from the
-contact action. The rail shows one full row and a glimpse of the next, scrolls
-independently from the bouquet, and snaps each venture into place. A quiet
+The clients live in a compact vertical rail on the left, separate from the
+contact action. The rail shows almost two rows at once, scrolls
+independently from the tree, and snaps each client into place. A quiet
 `01 / 02` position marker follows native trackpad, wheel, touch and keyboard
 scrolling. Hover and focus use only a short horizontal acknowledgement so this
 frequently used list stays restrained.
@@ -24,7 +24,7 @@ frequently used list stays restrained.
 | Contact us | `mailto:` — the address is set on the `.client--contact` link in `index.html` |
 
 The contact link remains in the lower-right corner, outside the scroll region.
-Below 620px the venture rail narrows but keeps its left-side vertical model.
+Below 620px the client rail narrows but keeps its left-side vertical model.
 
 To add one, copy an `<a class="client">` inside `nav.client-rail__group` in
 `index.html`. Each glyph is its own `<span>` carrying a `--i` index, which is
@@ -46,13 +46,14 @@ seconds the no-module floor takes to fire. Only the canvas waits for
 
 Elsewhere:
 
-- **The light behind the bouquet breathes** on a 19-second cycle, slow enough
+- **The branch extends from a young shoot to maturity** over 8.4 seconds on first load.
+- **The light behind the tree breathes** on a 19-second cycle, slow enough
   that you never catch it moving.
 - **Hovering one name lets the others recede** to 42%, so the rail has a focus.
 - **The swatches deal out** in sequence when the tray opens.
 - **Changing ground dissolves rather than cuts.** Gradient stacks cannot
   interpolate, so the backdrop dips to 26% and the layers are swapped at the
-  darkest frame — the bouquet stays lit throughout, so it reads as the light
+  darkest frame — the tree stays lit throughout, so it reads as the light
   changing rather than the page redrawing.
 
 Two implementation notes worth keeping:
@@ -77,10 +78,9 @@ Framer Motion's DOM build is vendored into `vendor/motion/` on the same terms
 as Three.js — committed, not fetched — and drives a pointer layer in
 `interactions.js`.
 
-- **The links lean toward the cursor** as it passes and spring back when it
-  goes. The lean falls off with distance: a full 18px under the cursor, nothing
-  at the edge of reach.
-- **The light behind the bouquet drifts the other way**, on the softest spring
+- **The separate contact action leans toward the cursor** and springs back;
+  client rows deliberately keep only their restrained CSS acknowledgement.
+- **The light behind the tree drifts the other way**, on the softest spring
   on the page. Fast parallax reads as a bug; slow parallax reads as depth.
 - **Press gives back** — a small spring-loaded scale. This is the one thing a
   touchscreen keeps, since it is the only feedback a finger gets between
@@ -185,24 +185,47 @@ accessibility, interaction-contract, and asset smoke tests.
 
 `?poster=1` hides every interface layer and, because it is the mode the still
 is exported from, also asks the renderer to preserve its drawing buffer so the
-canvas can be read back. That is how `assets/wattle-bouquet-poster.png` is
-made: load `?poster=1` at a square viewport, take `canvas.toDataURL()`, then
-trim and centre on the botanical mass. The result is transparent on purpose —
-no ground is baked into it, so it composites onto the live earth at any aspect
-ratio. Regenerate it whenever the artwork changes, or the still shown to
-visitors without WebGL will quietly disagree with the site.
+canvas can be read back. The WebGL-failure still lives at
+`assets/wattle-golden-poster.png`; it is captured from the same mature procedural
+branch and therefore preserves the narrow phyllodes, strung spherical flowers, dark
+ground, and right-weighted composition when WebGL is unavailable.
 
-`python tools/generate-ground.py` rebuilds the contour field behind the
-bouquet.
+`python tools/generate-ground.py` rebuilds the contour field behind the tree.
 
-## Explore the bouquet
+## Branch growth and flowering
+
+The first-load growth is an 8.4-second explanatory sequence driven by a seeded,
+parametric stochastic L-system. Parallel apex rewriting establishes the branch
+hierarchy; a bracketed 3D turtle interprets the modules; golden-angle roll
+distributes lateral axes around the primary branch; and every segment and phyllode carries
+its own developmental window. A visible shoot rises from its lower cut end with a slight lean,
+parent axes precede child twigs, lanceolate phyllodes unfurl locally, and axillary flower racemes begin only at
+72% maturity. Hover and click bloom picking remain
+locked until growth reaches 100%, so flowers cannot exist on an immature tree.
+The stage math lives in `tree-growth.js`; the grammar and turtle interpreter
+live in `wattle-lsystem.js`. They are swept by `npm run test:tree-growth` and
+`npm run test:wattle-lsystem`. `?qa=1&qaGrowth=0.68` freezes any normalized growth
+checkpoint for deterministic inspection. Reduced-motion, poster, and ordinary
+QA modes render the mature branch immediately.
+
+The architecture is informed by Prusinkiewicz and Lindenmayer's
+[The Algorithmic Beauty of Plants](https://algorithmicbotany.org/papers/#abop),
+especially its treatment of parallel rewriting, bracketed turtle state,
+parametric tree models, phyllotaxis, and interpolation between developmental
+states. The separation between grammar, seeded parameter generation, and
+turtle interpretation also draws on SimonDev's MIT-licensed
+[LSystems_JavaScript](https://github.com/simondevyoutube/LSystems_JavaScript)
+demonstration, adapted here from 2D canvas drawing to a testable 3D botanical
+architecture with per-module growth windows.
+
+## Explore the branch
 
 - Drag to orbit; use the wheel or a pinch gesture to zoom.
-- With a mouse or trackpad, sweep across the bouquet. A soft screen-space brush opens up to four nearby buds in 135ms offsets, then advances every 90ms while the pointer remains in a dense area. This makes local clusters bloom in a patchy wave instead of firing the whole bouquet at once.
+- With a mouse or trackpad, sweep across the mature branch. A soft screen-space brush opens up to four nearby buds in 135ms offsets, then advances every 90ms while the pointer remains in a dense area. This makes local clusters bloom in a patchy wave instead of firing the whole branch at once.
 - Click or tap a bud to open that head directly and permanently from olive bud to golden pom-pom.
-- With the 3D stage focused, use the arrow keys to rotate, `+` / `-` to zoom, `Enter` or `Space` to open every remaining bud immediately, and `Home` to restore the authored view.
+- With the 3D stage focused, use the arrow keys to rotate, `+` / `-` to zoom, `Enter` or `Space` to finish growth first and then open every remaining bud, and `Home` to restore the authored view.
 
-The page carries no visible controls. The bouquet is operated directly — by
+The page carries no visible controls. The branch is operated directly — by
 pointer, by touch, and by keyboard — and its sway is fixed at the authored
 value (`AUTHORED_DRIFT` in `script.js`). `assets/golden-wattle-bouquet.glb` is
 still in the repo as a standalone copy of the object, but nothing on the page
@@ -224,7 +247,7 @@ sites by up to 22% of the master timeline, producing a coherent wave rather
 than a simultaneous radial pop. Golden cups persist as capsules retire, so the
 visible envelope grows monotonically through the transfer of ownership. A
 strong ease-in-out curve connects the main acts, while a very low local light
-only marks the selected head instead of washing the bouquet in yellow. The
+only marks the selected head instead of washing the tree in yellow. The
 bloom brush is limited to fine pointers, a drag cancels it so an orbit never
 fires a flower accidentally, and an opened flower stays open. Keyboard
 activation commits the remaining buds without motion.
@@ -238,7 +261,7 @@ surface ownership, dormant-part visibility, and anther-to-filament gap as
 10,001 samples across multiple site delays by `npm run test:bloom-motion`.
 
 When the final filament reaches its mature pose, a full-width plain black completion banner
-appears over the bouquet with the line “Help your business bloom,” Stefan's
+appears over the tree with the line “Help your business bloom,” Stefan's
 email, a meeting request, and a dismiss action. Add the real Calendly scheduling
 page to the `data-calendly-url` attribute on `#bloom-finale-calendar` in
 `index.html`; until that public URL is supplied, the second action uses a
@@ -247,4 +270,4 @@ account.
 
 ## Accessibility and fallbacks
 
-The scene has a keyboard-focusable wrapper, visible focus treatment, concise operating instructions, and a text description of the bouquet and its spatial field. A polite live region announces deliberate click, keyboard, and completion states without narrating every pointer-brush step. The completion banner is an inert, labelled dialog until the whole bouquet is open, exposes two ordinary links plus an explicit dismiss button, and does not steal focus from a pointer user. A `prefers-reduced-motion: reduce` preference disables autonomous bouquet and celestial motion, snaps each committed bud directly to its mature silhouette, and reveals the completion message without spatial movement. If WebGL is unavailable or scene setup fails, the interface presents an explanatory status and a still bouquet poster instead of an empty canvas.
+The scene has a keyboard-focusable wrapper, visible focus treatment, concise operating instructions, and a text description of the tree and its spatial field. A polite live region announces maturity, deliberate click, keyboard, and completion states without narrating every pointer-brush step. The completion banner is an inert, labelled dialog until the whole tree is open, exposes two ordinary links plus an explicit dismiss button, and does not steal focus from a pointer user. A `prefers-reduced-motion: reduce` preference skips spatial tree growth, disables autonomous tree and celestial motion, snaps each committed bud directly to its mature silhouette, and reveals the completion message without spatial movement. If WebGL is unavailable or scene setup fails, the interface presents an explanatory status and a still mature-tree poster instead of an empty canvas.

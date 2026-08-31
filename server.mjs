@@ -14,6 +14,8 @@ const port = configuredPort;
 const root = realpathSync(process.cwd());
 const publicFiles = new Set([
   "bloom-motion.js",
+  "tree-growth.js",
+  "wattle-lsystem.js",
   "index.html",
   "interactions.js",
   "script.js",
@@ -253,5 +255,5 @@ server.on("error", (error) => {
 });
 
 server.listen(port, hostname, () => {
-  console.log(`Golden wattle bouquet: http://${hostname}:${port}`);
+  console.log(`Golden wattle tree: http://${hostname}:${port}`);
 });

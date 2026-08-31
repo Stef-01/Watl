@@ -97,11 +97,21 @@ function requestWithHost(port, host) {
   });
 }
 
-const [indexSource, scriptSource, stylesSource, bloomMotionSource, interactionsSource] = await Promise.all([
+const [
+  indexSource,
+  scriptSource,
+  stylesSource,
+  bloomMotionSource,
+  treeGrowthSource,
+  wattleLsystemSource,
+  interactionsSource,
+] = await Promise.all([
   readFile(resolve(root, "index.html"), "utf8"),
   readFile(resolve(root, "script.js"), "utf8"),
   readFile(resolve(root, "styles.css"), "utf8"),
   readFile(resolve(root, "bloom-motion.js"), "utf8"),
+  readFile(resolve(root, "tree-growth.js"), "utf8"),
+  readFile(resolve(root, "wattle-lsystem.js"), "utf8"),
   readFile(resolve(root, "interactions.js"), "utf8"),
 ]);
 
@@ -109,7 +119,11 @@ await check("JavaScript entry points parse", () => {
   syntaxCheck("server.mjs");
   syntaxCheck("script.js");
   syntaxCheck("bloom-motion.js");
+  syntaxCheck("tree-growth.js");
+  syntaxCheck("wattle-lsystem.js");
   syntaxCheck("tools/bloom-motion.test.mjs");
+  syntaxCheck("tools/tree-growth.test.mjs");
+  syntaxCheck("tools/wattle-lsystem.test.mjs");
   syntaxCheck("tools/qa-smoke.mjs");
 });
 
@@ -138,6 +152,16 @@ await check("reduced motion and the deterministic QA surface remain wired", () =
   assert.match(scriptSource, /query\.get\(["']qaFail["']\)/);
 });
 
+await check("botanical materials preserve the reference color hierarchy", () => {
+  assert.match(scriptSource, /const\s+BARK_COLORS\s*=\s*\[0x5f5637,\s*0x716341,\s*0x82724c,\s*0x94835c\]/);
+  assert.match(scriptSource, /const\s+LEAF_COLORS\s*=\s*\[0x36532c,\s*0x456438,\s*0x557647,\s*0x69895a\]/);
+  assert.match(scriptSource, /Narrow_Lanceolate_Golden_Wattle_Phyllode/);
+  assert.match(scriptSource, /watl-lanceolate-phyllode-growth-v3/);
+  assert.match(scriptSource, /stemGeometry\.setAttribute\(\s*["']color["']/);
+  assert.match(scriptSource, /const\s+stemMaterial\s*=\s*new\s+THREE\.MeshStandardMaterial\([\s\S]*?vertexColors:\s*true/);
+  assert.match(scriptSource, /const\s+UNIVERSE_COLORS\s*=\s*\[0xd8d5c9,\s*0xb5b4a8,\s*0xc8c4b4,\s*0xd5c98c\]/);
+});
+
 await check("interactive blooming keeps its pointer, keyboard, and motion safeguards", () => {
   assert.match(indexSource, /data-bloom-hover=["']false["']/);
   assert.match(indexSource, /data-bloom-finale=["']false["']/);
@@ -164,6 +188,8 @@ await check("interactive blooming keeps its pointer, keyboard, and motion safegu
   assert.match(scriptSource, /function\s+sampleBloomGeometryForQa\s*\(/);
   assert.match(scriptSource, /query\.has\(["']qaBloom["']\)/);
   assert.match(scriptSource, /cores\.visible\s*=\s*false/);
+  assert.match(scriptSource, /Open_Only_Soft_Pompom_Masses/);
+  assert.match(scriptSource, /Soft_Globular_Pompom_Mass_Material/);
   assert.match(scriptSource, /BLOOM_BRUSH_STEP_MS/);
   assert.match(scriptSource, /BLOOM_BRUSH_BATCH_SIZE/);
   assert.match(scriptSource, /BLOOM_BRUSH_HEAD_STAGGER_MS/);
@@ -173,8 +199,30 @@ await check("interactive blooming keeps its pointer, keyboard, and motion safegu
   assert.match(bloomMotionSource, /function\s+bloomVisibilityHandoff\s*\(/);
   assert.match(bloomMotionSource, /function\s+bloomEnvelopeTarget\s*\(/);
   assert.match(scriptSource, /rawDuration\s*===\s*null/);
-  assert.match(scriptSource, /BLOOM_LIGHT_INTENSITY\s*=\s*0\.72/);
+  assert.match(scriptSource, /BLOOM_LIGHT_INTENSITY\s*=\s*0\.18/);
   assert.doesNotMatch(scriptSource, /BLOOM_RADIAL_SPREAD/);
+});
+
+await check("the tree grows through maturity before exposing interactive buds", () => {
+  assert.match(indexSource, /aria-label=["']Interactive 3D Golden Wattle branch growing from young shoot to bloom["']/);
+  assert.match(scriptSource, /from\s+["']\.\/tree-growth\.js["']/);
+  assert.match(scriptSource, /from\s+["']\.\/wattle-lsystem\.js["']/);
+  assert.match(wattleLsystemSource, /function\s+deriveWattleSentence\s*\(/);
+  assert.match(wattleLsystemSource, /function\s+interpretWattleSentence\s*\(/);
+  assert.match(wattleLsystemSource, /WATTLE_GOLDEN_ANGLE\s*=\s*Math\.PI\s*\*\s*\(3\s*-\s*Math\.sqrt\(5\)\)/);
+  assert.match(scriptSource, /const\s+TREE_ROOT\s*=\s*new THREE\.Vector3/);
+  assert.match(scriptSource, /root\.name\s*=\s*["']Golden_Wattle_Branch["']/);
+  assert.match(scriptSource, /species:\s*["']Golden Wattle reference morphology["']/);
+  assert.match(scriptSource, /function\s+createTreeGrowthController\s*\(/);
+  assert.match(scriptSource, /function\s+applyTreeGrowth\s*\(/);
+  assert.match(scriptSource, /function\s+updateTreeGrowth\s*\(/);
+  assert.match(scriptSource, /if\s*\(!state\.growth\?\.complete\)\s*return false/);
+  assert.match(scriptSource, /Branch_Primary_Axis_Segments/);
+  assert.match(scriptSource, /Branch_Lateral_Axis_Segments/);
+  assert.doesNotMatch(scriptSource, /root\.add\(createTie\(\)\)/);
+  assert.match(treeGrowthSource, /TREE_GROWTH_DURATION_MS\s*=\s*8400/);
+  assert.match(treeGrowthSource, /TREE_BUD_MATURITY_START\s*=\s*0\.72/);
+  assert.match(treeGrowthSource, /target\.buds\s*=\s*stage\(timeline, TREE_BUD_MATURITY_START, 1\)/);
 });
 
 await check("the all-bloomed business banner stays accessible and actionable", () => {
@@ -189,19 +237,19 @@ await check("the all-bloomed business banner stays accessible and actionable", (
   assert.doesNotMatch(stylesSource, /\.bloom-finale[\s\S]{0,500}transition:\s*all/);
 });
 
-await check("the venture rail stays vertical, independently scrollable, and keyboard operable", () => {
-  assert.match(indexSource, /id=["']venture-list["'][\s\S]*?aria-label=["']Ventures[^"']*scroll vertically/);
-  assert.match(indexSource, /id=["']venture-list["'][\s\S]*?tabindex=["']0["']/);
-  assert.match(indexSource, /id=["']venture-current["']/);
+await check("the client rail stays vertical, independently scrollable, and keyboard operable", () => {
+  assert.match(indexSource, /id=["']client-list["'][\s\S]*?aria-label=["']Clients[^"']*scroll vertically/);
+  assert.match(indexSource, /id=["']client-list["'][\s\S]*?tabindex=["']0["']/);
+  assert.match(indexSource, /id=["']client-current["']/);
   assert.match(indexSource, /class=["']client client--contact["']/);
   assert.match(stylesSource, /\.client-rail__panel\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?left:/);
   assert.match(stylesSource, /\.client-rail__group\s*\{[\s\S]*?flex-direction:\s*column;[\s\S]*?overflow-y:\s*auto;/);
   assert.match(stylesSource, /scroll-snap-type:\s*y mandatory/);
   assert.match(stylesSource, /overscroll-behavior-y:\s*contain/);
   assert.match(stylesSource, /\.client--contact\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?right:/);
-  assert.match(interactionsSource, /function\s+venturePosition\s*\(/);
+  assert.match(interactionsSource, /function\s+clientPosition\s*\(/);
   assert.match(interactionsSource, /["']ArrowDown["'][\s\S]*?["']ArrowUp["'][\s\S]*?["']Home["'][\s\S]*?["']End["']/);
-  assert.match(interactionsSource, /!link\.closest\(["']#venture-list["']\)/);
+  assert.match(interactionsSource, /!link\.closest\(["']#client-list["']\)/);
 });
 
 const port = await reservePort();
@@ -237,14 +285,24 @@ try {
     assert.match(motionResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
     assert.match(await motionResponse.text(), /BLOOM_DURATION_MS\s*=\s*2700/);
 
+    const growthResponse = await fetch(`${baseUrl}/tree-growth.js?cache-bust=qa`);
+    assert.equal(growthResponse.status, 200);
+    assert.match(growthResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
+    assert.match(await growthResponse.text(), /TREE_GROWTH_DURATION_MS\s*=\s*8400/);
+
+    const lsystemResponse = await fetch(`${baseUrl}/wattle-lsystem.js?cache-bust=qa`);
+    assert.equal(lsystemResponse.status, 200);
+    assert.match(lsystemResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
+    assert.match(await lsystemResponse.text(), /deriveWattleSentence/);
+
     const threeResponse = await fetch(`${baseUrl}/vendor/three/three.module.js`, { method: "HEAD" });
     assert.equal(threeResponse.status, 200);
     assert.match(threeResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
     assert.equal(await threeResponse.text(), "");
 
-    const posterResponse = await fetch(`${baseUrl}/assets/wattle-bouquet-poster.png`, { method: "HEAD" });
+    const posterResponse = await fetch(`${baseUrl}/assets/wattle-golden-poster.png`, { method: "HEAD" });
     assert.equal(posterResponse.status, 200);
-    assert.equal(posterResponse.headers.get("content-type"), "image/png");
+    assert.match(posterResponse.headers.get("content-type") ?? "", /^image\/png\b/);
     assert(Number(posterResponse.headers.get("content-length")) > 0);
     assert.equal(await posterResponse.text(), "");
   });

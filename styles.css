@@ -1,18 +1,19 @@
 :root {
   color-scheme: dark;
-  /* Warm dark earth rather than a neutral near-black. The old value was very
-     slightly green, which is the one cast that makes gold look synthetic. */
-  --night: #0a0806;
-  --strata: 58, 37, 21;
-  --ember: 152, 68, 26;
-  --dust: 198, 122, 54;
+  /* A neutral charcoal lets foliage, wood, and flower yellow keep their own
+     hue. Earth remains as a restrained undertone rather than a coloured wash. */
+  --night: #090909;
+  --strata: 42, 43, 39;
+  --ember: 86, 78, 57;
+  --dust: 139, 135, 112;
   --ink: #f2f0e8;
   /* Nudged up from 0.48. The warmer ground is a shade lighter than the old
      near-black, which put the micro-labels at 4.49:1 — under AA by a
      hundredth. The palette moved, so the text that sits on it moves too. */
   --muted: rgba(242, 240, 232, 0.52);
   --faint: rgba(242, 240, 232, 0.14);
-  --gold: #f4c323;
+  --gold: #b59a4d;
+  --gold-rgb: 181, 154, 77;
   --edge: rgba(242, 240, 232, 0.16);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
@@ -102,7 +103,8 @@ button {
 /* ---------- The ground ----------
    Flat near-black is the one background that turns a golden object into a
    cut-out, and it was carrying the whole site. This is the country the wattle
-   actually grows in, held at very low contrast: warm dark earth, an ember low
+   actually grows in, held at very low contrast: neutral charcoal with an earth
+   undertone, an ember low
    in the frame where ground light would be, uneven bands like a cut through
    rock, and grain across all of it.
 
@@ -114,7 +116,7 @@ button {
    and the landform, which are nobody's private property.
 
    Every layer is pushed far enough down that you have to go looking for it.
-   The bouquet stays the only thing in the frame you actually look at. */
+   The branch stays the only thing in the frame you actually look at. */
 .backdrop {
   z-index: -2;
   background-color: var(--night);
@@ -131,7 +133,7 @@ button {
       126% 80% at 50% 60%,
       rgba(var(--dust), 0.115) 0%,
       rgba(var(--ember), 0.05) 36%,
-      rgba(10, 8, 6, 0) 70%
+      rgba(9, 9, 9, 0) 70%
     ),
     /* strata — irregular on purpose: no two bands the same depth or spacing,
        because evenly spaced lines read as a UI texture, not as rock */
@@ -163,7 +165,7 @@ button {
       to top,
       rgba(var(--ember), 0.17) 0%,
       rgba(var(--ember), 0.07) 11%,
-      rgba(10, 8, 6, 0) 33%
+      rgba(9, 9, 9, 0) 33%
     ),
     /* and the corners returned to quiet */
     radial-gradient(
@@ -241,9 +243,9 @@ button {
   pointer-events: none;
   background: radial-gradient(
     44% 38% at 50% 45%,
-    rgba(244, 195, 35, 0.075) 0%,
-    rgba(244, 195, 35, 0.028) 46%,
-    rgba(244, 195, 35, 0) 72%
+    rgba(221, 225, 214, 0.045) 0%,
+    rgba(221, 225, 214, 0.014) 46%,
+    rgba(221, 225, 214, 0) 72%
   );
   mix-blend-mode: screen;
 }
@@ -340,7 +342,7 @@ button {
 }
 
 :root[data-ground="night"] {
-  --night: #03040a;
+  --night: #090909;
   --strata: 26, 34, 62;
   --ember: 38, 52, 104;
   --dust: 122, 148, 210;
@@ -653,18 +655,18 @@ button {
   animation-delay: calc(var(--i) * 45ms);
 }
 
-/* ---------- The venture rail ----------
-   A small, independent scroll surface on the left. One venture is fully in
-   view and the next is deliberately allowed to peek through the lower fade:
-   the list advertises that it scrolls without adding a loud instruction or a
-   permanent scrollbar. The full-screen footer remains pointer-transparent;
+/* ---------- The client rail ----------
+   A small, independent scroll surface on the left. Two clients remain easy to
+   scan while the faded lower edge advertises the longer list. A hairline
+   scrollbar confirms the native vertical interaction without adding chrome.
+   The full-screen footer remains pointer-transparent;
    only the rail, its links and the separate contact action receive input. */
 .client-rail {
   inset: 0;
 }
 
 .client-rail__panel {
-  --venture-row: clamp(4rem, 7.2vh, 5.25rem);
+  --client-row: clamp(4rem, 7.2vh, 5.25rem);
   position: fixed;
   top: clamp(8rem, 25vh, 14rem);
   left: max(1.5rem, env(safe-area-inset-left));
@@ -697,35 +699,45 @@ button {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: calc(var(--venture-row) * 1.55);
+  height: calc(var(--client-row) * 1.9);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: contain;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--gold-rgb), 0.34) transparent;
   scroll-snap-type: y mandatory;
   scroll-padding-block: 0;
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 76%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 76%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 90%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 90%, transparent 100%);
 }
 
 .client-rail__group::-webkit-scrollbar {
-  display: none;
+  width: 2px;
+}
+
+.client-rail__group::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.client-rail__group::-webkit-scrollbar-thumb {
+  background: rgba(var(--gold-rgb), 0.34);
+  border-radius: 1px;
 }
 
 .client-rail__group::after {
   content: "";
-  flex: 0 0 calc(var(--venture-row) * 0.55);
+  flex: 0 0 calc(var(--client-row) * 0.2);
 }
 
 .client {
   position: relative;
   display: grid;
-  flex: 0 0 var(--venture-row);
+  flex: 0 0 var(--client-row);
   grid-template-columns: 1.8rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.35rem;
   width: 100%;
-  min-height: var(--venture-row);
+  min-height: var(--client-row);
   padding: 0;
   border-bottom: 1px solid rgba(242, 240, 232, 0.1);
   color: var(--muted);
@@ -790,12 +802,12 @@ button {
   width: auto;
   min-height: 0;
   padding-bottom: 0.35rem;
-  border-bottom-color: rgba(244, 195, 35, 0.28);
-  color: rgba(244, 195, 35, 0.68);
+  border-bottom-color: rgba(var(--gold-rgb), 0.28);
+  color: rgba(var(--gold-rgb), 0.68);
 }
 
 .client--contact .client__arrow {
-  color: rgba(244, 195, 35, 0.42);
+  color: rgba(var(--gold-rgb), 0.42);
 }
 
 .client:focus-visible {
@@ -804,7 +816,7 @@ button {
 }
 
 .client-rail__group:focus-visible {
-  outline: 1px solid rgba(244, 195, 35, 0.72);
+  outline: 1px solid rgba(var(--gold-rgb), 0.72);
   outline-offset: 0.35rem;
 }
 
@@ -956,7 +968,7 @@ input:disabled {
 }
 
 .bloom-finale__action--primary {
-  border-color: rgba(244, 195, 35, 0.66);
+  border-color: rgba(var(--gold-rgb), 0.66);
   background: transparent;
   color: var(--gold);
 }
@@ -1106,6 +1118,10 @@ input:disabled {
   display: none !important;
 }
 
+.poster-mode .stage:focus-visible {
+  outline: none;
+}
+
 @keyframes load {
   0% { transform: translateX(-120%); }
   50% { transform: translateX(100%); }
@@ -1137,10 +1153,14 @@ input:disabled {
   }
 
   .client-rail__panel {
-    --venture-row: 3.85rem;
+    --client-row: 3.85rem;
     top: max(5.25rem, calc(env(safe-area-inset-top) + 4.2rem));
     left: max(1.15rem, env(safe-area-inset-left));
     width: min(40vw, 10.5rem);
+  }
+
+  .client-rail__group {
+    height: calc(var(--client-row) * 1.72);
   }
 
   .client--contact {

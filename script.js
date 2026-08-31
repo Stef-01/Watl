@@ -12,18 +12,32 @@ import {
   bloomVisibilityHandoff,
   siteBloomProgress,
 } from "./bloom-motion.js";
+import {
+  TREE_GROWTH_DURATION_MS,
+  treeGrowthProgress,
+  treeGrowthStages,
+} from "./tree-growth.js";
+import { generateWattleArchitecture } from "./wattle-lsystem.js";
 
 const DEFAULT_SEED = 0x57a771e;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const FULL_TURN = Math.PI * 2;
 const FLORET_PARTS = 5;
-const PHYLLODE_VEIN_COUNT = 5;
-const PHYLLODE_VEIN_SEGMENTS = 8;
-const PHYLLODE_CURVATURE_RATIO = 0.08;
+/* Acacia flowers have a five-part perianth but numerous stamens. Eight fine
+   rendered bundles per floret create the dense pom-pom mass at interactive
+   scale without turning every biological filament into geometry. */
+const STAMEN_BUNDLES_PER_FLORET = 8;
+const PHYLLODE_VEIN_COUNT = 3;
+const PHYLLODE_VEIN_SEGMENTS = 10;
+const PHYLLODE_WING_SIDES = 0;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const X_AXIS = new THREE.Vector3(1, 0, 0);
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
-const GATHER_POINT = new THREE.Vector3(0, -2.04, 0);
+const TREE_ROOT = new THREE.Vector3(0, 0, 0);
+/* Kept as an internal alias because the bloom instance builders all express
+   their matrices relative to one shared pivot. That pivot is now the root of
+   a living tree, not the hand-tie point of a bouquet. */
+const GATHER_POINT = TREE_ROOT;
 const BLOOM_CORE_SCALE = 0.36;
 const BLOOM_DRAG_SLOP = 7;
 const BLOOM_UNFURL_MS = BLOOM_DURATION_MS;
@@ -46,23 +60,24 @@ const CUP_FLORET_TANGENTIAL_SCALE = 0.72;
 const CUP_FLORET_AXIAL_SCALE = 0.78;
 const BUD_TIP_SCALE = 0.68;
 const INTERNAL_CORE_SCALE_FACTOR = 0.78;
-const BLOOM_LIGHT_INTENSITY = 0.72;
-const BLOOM_REDUCED_LIGHT_INTENSITY = 0.42;
-const BUD_CORE_COLOR = new THREE.Color(0x6b4814);
-const BUD_CAP_COLOR = new THREE.Color(0x727a24);
-const RIPE_CAP_COLOR = new THREE.Color(0xb9a52a);
-const RETIRED_CAP_COLOR = new THREE.Color(0x8b6814);
-const BUD_FLORET_COLOR = new THREE.Color(0xd8b51d);
-const CUP_FLORET_COLOR = new THREE.Color(0xf0bd0a);
-const BUD_FILAMENT_COLOR = new THREE.Color(0xd99f0c);
-const BUD_TIP_BURGUNDY = new THREE.Color(0x673724);
+const BLOOM_LIGHT_INTENSITY = 0.18;
+const BLOOM_REDUCED_LIGHT_INTENSITY = 0.1;
+/* The bud palette stays olive and papery until the corolla takes over. The
+   previous red-brown pore accent read as a second flower species in the dark
+   field, so it now sits in the same neutral bark family. */
+const BUD_CORE_COLOR = new THREE.Color(0x5a5a37);
+const BUD_CAP_COLOR = new THREE.Color(0x7b7a4a);
+const RIPE_CAP_COLOR = new THREE.Color(0xaca34a);
+const RETIRED_CAP_COLOR = new THREE.Color(0x6f6a46);
+const BUD_FLORET_COLOR = new THREE.Color(0xc3a71a);
+const CUP_FLORET_COLOR = new THREE.Color(0xd3b91c);
+const BUD_FILAMENT_COLOR = new THREE.Color(0xc8ae21);
+const BUD_TIP_BURGUNDY = new THREE.Color(0x594d33);
 
-/* Floret counts are unchanged from the flat version, and deliberately so: a
-   real Acacia pycnantha head carries forty to eighty florets, so the original
-   numbers were already botanically right, and raising them to cover the
-   shell's larger area would have been botany bent around an implementation
-   detail. The hexagonal spacing widens by root two instead, which fills the
-   ball with the florets the species actually has — and costs nothing. */
+/* A Golden Wattle head carries many tiny flowers. The lower
+   profile retains that biological density through larger round anther sprites
+   rather than radial filament length, keeping the silhouette compact and the
+   hover interaction responsive. */
 
 /* How much of each hemisphere the mirrored pairs cover, measured in cos(theta)
    rather than in radius. One would be a closed hemisphere per side and would
@@ -70,45 +85,51 @@ const BUD_TIP_BURGUNDY = new THREE.Color(0x673724);
    short of the equator and leaves them a gap to occupy. */
 const SHELL_COS_SPAN = 0.94;
 
-const STEM_COLORS = [0x165c30, 0x276f36, 0x477d3b, 0x8b782b];
-const YOUNG_STEM_COLORS = [0x8f5520, 0xa76624, 0xb9782e];
-const LEAF_COLORS = [0x075f2b, 0x0b7b32, 0x15923a, 0x2ba84a];
-const CORE_COLORS = [0xe99500, 0xf2a600, 0xf8b609, 0xffc318];
-const FILAMENT_COLORS = [0xf6a900, 0xffb900, 0xffc715, 0xffd525];
-const PETAL_COLORS = [0xffad03, 0xffba08, 0xffc615, 0xffd127];
-const TIP_COLORS = [0xffc20a, 0xffd311, 0xffdf25, 0xffe83c];
-// Warmed toward bone and ochre, so the field reads as dust and distance over
-// country rather than as stars over space.
-const UNIVERSE_COLORS = [0xf2ebda, 0xd8c9b4, 0xe8d8bd, 0xf4c323];
+const YOUNG_STEM_COLORS = [0x75805b, 0x849064, 0x929b70];
+const BARK_COLORS = [0x5f5637, 0x716341, 0x82724c, 0x94835c];
+/* Cooler forest/eucalyptus greens sampled from the supplied photographs.
+   Keeping blue closer to green removes the previous chartreuse cast while
+   the four values retain natural sun/shade variation across the branch. */
+const LEAF_COLORS = [0x36532c, 0x456438, 0x557647, 0x69895a];
+const YOUNG_PHYLLODE_COLORS = [0x50663f, 0x60774d, 0x71885c, 0x81986b];
+const CORE_COLORS = [0xd9b800, 0xe6c400, 0xf2d300, 0xffdf00];
+const FILAMENT_COLORS = [0xf4d000, 0xffdc00, 0xffe522, 0xffea3b];
+const PETAL_COLORS = [0xe8c600, 0xf3d200, 0xffde00, 0xffe62e];
+const TIP_COLORS = [0xf9d900, 0xffe200, 0xffe933, 0xffef5e];
+// Kept pale and mineral so the spatial field reads as depth, not a second
+// source of yellow competing with the flowering racemes.
+const UNIVERSE_COLORS = [0xd8d5c9, 0xb5b4a8, 0xc8c4b4, 0xd5c98c];
 
 const HIGH_PROFILE = Object.freeze({
   id: "high",
-  branchCount: 11,
+  branchCount: 10,
   mainSegments: 9,
   mainLeaves: 11,
   twigSegments: 4,
-  heroFlorets: 88,
-  openFlorets: 60,
-  innerFibersPerBloom: 34,
-  exportInnerFibers: 8,
-  interiorSpecks: 28,
+  heroFlorets: 36,
+  openFlorets: 24,
+  innerFibersPerBloom: 12,
+  exportInnerFibers: 6,
+  interiorSpecks: 18,
   exportCenterSpecks: 4,
-  dprCap: 1.65,
+  pompomFuzzPerBloom: 900,
+  dprCap: 1.4,
 });
 
 const LOW_PROFILE = Object.freeze({
   id: "low",
-  branchCount: 8,
+  branchCount: 7,
   mainSegments: 7,
   mainLeaves: 8,
   twigSegments: 3,
-  heroFlorets: 60,
-  openFlorets: 40,
-  innerFibersPerBloom: 18,
+  heroFlorets: 26,
+  openFlorets: 18,
+  innerFibersPerBloom: 8,
   exportInnerFibers: 4,
-  interiorSpecks: 16,
+  interiorSpecks: 10,
   exportCenterSpecks: 3,
-  dprCap: 1.25,
+  pompomFuzzPerBloom: 360,
+  dprCap: 1.12,
 });
 
 /* Read by the watchdog in index.html. If the imports above fail this line is
@@ -204,6 +225,7 @@ const state = {
   swayGroups: [],
   coreMeshes: [],
   pointsMaterial: null,
+  pompomMassMaterial: null,
   petalMaterial: null,
   selectionLight: null,
   resizeObserver: null,
@@ -234,6 +256,7 @@ const state = {
   qaIsolatedBloomIndex: -1,
   finaleShown: false,
   finaleDismissed: false,
+  growth: null,
 };
 
 init().catch(showFailure);
@@ -255,14 +278,21 @@ async function init() {
   addLighting(state.scene);
   state.data = generateBouquetData(state.profile, readSeed());
   state.bloom = createBloomController(state.data);
+  state.growth = createTreeGrowthController();
 
   const built = buildBouquet(state.data);
   state.bouquet = built.root;
   state.swayGroups = built.swayGroups;
   state.coreMeshes = built.coreMeshes;
   state.pointsMaterial = built.pointsMaterial;
+  state.pompomMassMaterial = built.pompomMassMaterial;
   state.petalMaterial = built.petalMaterial;
+  state.growth.trunks = built.growthTrunks;
+  state.growth.canopies = built.growthCanopies;
+  state.growth.leaves = built.growthLeaves;
+  state.growth.materials = built.growthMaterials;
   applyBloomEffects(state.bloom.heads.map((head) => head.index));
+  applyTreeGrowth(state.growth.progress, true);
   const universe = buildUniverse(state.data.bounds, state.data.seed, state.profile);
   state.universe = universe.root;
   state.universeMaterial = universe.material;
@@ -285,7 +315,9 @@ async function init() {
   ui.stage.setAttribute("aria-busy", "false");
   ui.stage.dataset.state = "ready";
   ui.body.classList.add("is-ready");
-  setStatus("The 3D bouquet is ready. Move across the buds to help it bloom.");
+  setStatus(state.growth.complete
+    ? "The Golden Wattle branch is mature. Move across its buds to help it bloom."
+    : "A young Golden Wattle shoot is extending into a flowering branch.");
   performance.mark("wattle-scene-ready");
   exposeQaSnapshot();
   invalidate();
@@ -307,6 +339,116 @@ function readSeed() {
   if (!value) return DEFAULT_SEED;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed >>> 0 : DEFAULT_SEED;
+}
+
+function initialTreeGrowthProgress() {
+  const requested = query.get("qaGrowth");
+  if (requested !== null) {
+    const value = Number(requested);
+    return Number.isFinite(value) ? THREE.MathUtils.clamp(value, 0, 1) : 1;
+  }
+  if (query.get("qa") === "1" || query.get("motion") === "off" || posterMode || state.reduced) return 1;
+  return 0;
+}
+
+function createTreeGrowthController() {
+  const progress = initialTreeGrowthProgress();
+  const fixedCheckpoint = query.has("qaGrowth");
+  return {
+    progress,
+    stages: treeGrowthStages(progress, {}),
+    startAt: performance.now() + 320,
+    duration: TREE_GROWTH_DURATION_MS,
+    active: progress < 1 && !fixedCheckpoint,
+    complete: progress >= 1,
+    announcedMaturity: progress >= 1,
+    trunks: [],
+    canopies: [],
+    leaves: [],
+    materials: null,
+  };
+}
+
+function applyTreeGrowth(progress, force = false) {
+  if (!state.growth) return;
+  state.growth.progress = THREE.MathUtils.clamp(progress, 0, 1);
+  const stages = treeGrowthStages(state.growth.progress, state.growth.stages);
+  /* L-system modules now own their developmental windows. The assembled branch
+     remains at its final coordinate frame while individual segments extend
+     from their parent nodes and leaves unfold locally. */
+  for (const trunk of state.growth.trunks) {
+    trunk.scale.setScalar(1);
+  }
+  for (const canopy of state.growth.canopies) {
+    canopy.visible = stages.branches > 0.001;
+    canopy.scale.setScalar(1);
+  }
+  if (state.growth.materials?.stemGrowth) {
+    state.growth.materials.stemGrowth.value = state.growth.progress;
+  }
+  if (state.growth.materials?.leafGrowth) {
+    state.growth.materials.leafGrowth.value = state.growth.progress;
+  }
+  if (state.growth.materials?.saplingLeafGrowth) {
+    state.growth.materials.saplingLeafGrowth.value = state.growth.progress;
+  }
+  if (state.growth.materials?.budGrowth) {
+    state.growth.materials.budGrowth.value = Math.max(0.025, stages.buds);
+  }
+  if (state.growth.materials?.tipGrowth) {
+    state.growth.materials.tipGrowth.value = Math.max(0.025, stages.buds);
+  }
+
+  for (const leaf of state.growth.leaves) leaf.visible = state.growth.progress > 0.12;
+  for (const renderable of state.bloom?.renderables.caps ?? []) {
+    renderable.mesh.visible = stages.buds > 0.001;
+  }
+  for (const renderable of state.bloom?.renderables.tips ?? []) {
+    renderable.points.visible = stages.buds > 0.001;
+  }
+
+  state.growth.complete = state.growth.progress >= 1;
+  const stageName = stages.mature
+    ? "mature"
+    : stages.buds > 0
+      ? "budding"
+      : stages.foliage > 0
+        ? "leafing"
+        : stages.branches > 0
+          ? "branching"
+      : "shoot";
+  ui.stage.dataset.treeGrowth = state.growth.progress.toFixed(4);
+  ui.stage.dataset.treeStage = stageName;
+  ui.stage.dataset.treeMature = String(state.growth.complete);
+  if (query.get("qa") === "1") {
+    ui.stage.dataset.qaTreeGrowth = state.growth.progress.toFixed(4);
+    ui.stage.dataset.qaTreeStage = stageName;
+    ui.stage.dataset.qaTreeMature = String(state.growth.complete);
+  }
+}
+
+function updateTreeGrowth(now) {
+  if (!state.growth?.active) return false;
+  const progress = treeGrowthProgress(now - state.growth.startAt, state.growth.duration);
+  applyTreeGrowth(progress);
+  if (progress < 1) return true;
+
+  state.growth.active = false;
+  state.growth.complete = true;
+  if (!state.growth.announcedMaturity) {
+    state.growth.announcedMaturity = true;
+    setStatus("The Golden Wattle branch is mature. Move across its buds to help it flower.");
+  }
+  return false;
+}
+
+function completeTreeGrowth(announce = true) {
+  if (!state.growth || state.growth.complete) return false;
+  state.growth.active = false;
+  applyTreeGrowth(1, true);
+  if (announce) setStatus("The Golden Wattle is mature. Its buds are ready to flower.", 1800);
+  invalidate();
+  return true;
 }
 
 function reduceBloomMotion() {
@@ -351,6 +493,7 @@ function createBloomController(data) {
     maxTimeline: 0,
     dirtyHeads: [],
     renderables: {
+      masses: [],
       caps: [],
       cups: [],
       florets: [],
@@ -572,7 +715,7 @@ function createRenderer(profile) {
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.1;
   return renderer;
 }
 
@@ -591,22 +734,25 @@ function createControls(camera, canvas) {
 }
 
 function addLighting(scene) {
-  const hemisphere = new THREE.HemisphereLight(0xffefb8, 0x102a19, 1.18);
+  /* Neutral, broad light preserves the reference's grey-olive foliage without
+     painting the branch orange or green. Brightness comes from coverage rather
+     than saturated emitters, so the scene stays quiet when no bloom is active. */
+  const hemisphere = new THREE.HemisphereLight(0xf4f1dd, 0x30382b, 1.32);
   scene.add(hemisphere);
 
-  const key = new THREE.DirectionalLight(0xffe4a0, 2.45);
+  const key = new THREE.DirectionalLight(0xfff5d7, 1.42);
   key.position.set(-4.2, 6.5, 5.2);
   scene.add(key);
 
-  const rim = new THREE.DirectionalLight(0xffad18, 1.28);
+  const rim = new THREE.DirectionalLight(0xdfe6c8, 0.34);
   rim.position.set(4.8, 2.6, -4.4);
   scene.add(rim);
 
-  const fill = new THREE.DirectionalLight(0x83bd75, 0.72);
+  const fill = new THREE.DirectionalLight(0xe7ead6, 0.32);
   fill.position.set(0, -2, 4);
   scene.add(fill);
 
-  state.selectionLight = new THREE.PointLight(0xffd23f, 0, 2.2, 2);
+  state.selectionLight = new THREE.PointLight(0xe7cf72, 0, 2.2, 2);
   scene.add(state.selectionLight);
 }
 
@@ -765,16 +911,44 @@ function generateBouquetData(profile, seed) {
     data.all[category].push(value);
   };
 
-  const addSegment = (start, end, radius, color, cluster) => {
-    push("segments", { start: start.clone(), end: end.clone(), radius, color }, cluster);
+  const addSegment = (start, end, radius, color, cluster, role = "branch", growth = null) => {
+    push("segments", {
+      start: start.clone(),
+      end: end.clone(),
+      radius,
+      color,
+      role,
+      birth: growth?.birth ?? (role === "trunk" ? 0.03 : 0.18),
+      mature: growth?.mature ?? (role === "trunk" ? 0.46 : 0.72),
+      branchOrder: growth?.order ?? (role === "trunk" ? 0 : 1),
+    }, cluster);
   };
 
-  const addLeaf = (position, direction, length, width, roll, color, cluster) => {
-    const quaternion = new THREE.Quaternion().setFromUnitVectors(Y_AXIS, direction.clone().normalize());
+  const addLeaf = (
+    position,
+    direction,
+    length,
+    width,
+    roll,
+    color,
+    cluster,
+    role = "canopy",
+    growth = null,
+  ) => {
+    const bladeAxis = direction.clone().normalize();
+    const facingBias = new THREE.Vector3(0, 0.08, 1)
+      .add(new THREE.Vector3(signed(random) * 0.28, signed(random) * 0.12, signed(random) * 0.22));
+    facingBias.addScaledVector(bladeAxis, -facingBias.dot(bladeAxis));
+    if (facingBias.lengthSq() < 0.01) facingBias.copy(X_AXIS);
+    const bladeNormal = facingBias.normalize();
+    const bladeAcross = new THREE.Vector3().crossVectors(bladeAxis, bladeNormal).normalize();
+    bladeNormal.crossVectors(bladeAcross, bladeAxis).normalize();
+    const basis = new THREE.Matrix4().makeBasis(bladeAcross, bladeAxis, bladeNormal);
+    const quaternion = new THREE.Quaternion().setFromRotationMatrix(basis);
     const handedness = random() < 0.5 ? -1 : 1;
     quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(
       Y_AXIS,
-      roll + (handedness < 0 ? Math.PI : 0),
+      signed(random) * 0.32 + (handedness < 0 ? Math.PI : 0),
     ));
     push("leaves", {
       position: position.clone(),
@@ -782,12 +956,19 @@ function generateBouquetData(profile, seed) {
       length,
       width,
       color,
-      falcate: true,
+      form: growth?.form ?? "narrow-lanceolate-phyllode",
+      continuousWithStem: growth?.continuousWithStem ?? false,
+      wingSides: growth?.wingSides ?? PHYLLODE_WING_SIDES,
+      freeTipRatio: growth?.freeTipRatio ?? 0.88,
       veinCount: PHYLLODE_VEIN_COUNT,
       tapersBothEnds: true,
-      curvatureRatio: PHYLLODE_CURVATURE_RATIO,
-      curve: 0.86 + random() * 0.28,
+      undulation: 0.72 + random() * 0.3,
+      curve: 0.82 + random() * 0.24,
       handedness,
+      role,
+      birth: growth?.birth ?? 0.43,
+      mature: growth?.mature ?? 0.84,
+      branchOrder: growth?.order ?? 1,
     }, cluster);
   };
 
@@ -797,6 +978,7 @@ function generateBouquetData(profile, seed) {
     cluster,
     prominence = "primary",
     pedicelAxis = Y_AXIS,
+    growth = null,
   ) => {
     const bloomOrdinal = data.all.blooms.length;
     const archetypeRandom = mulberry32(
@@ -809,8 +991,8 @@ function generateBouquetData(profile, seed) {
        become a recognisable golden pom-pom instead of scaling a sparse shell. */
     const archetype = archetypeRoll > heroThreshold ? "hero" : "open";
     const radiusScale = archetype === "hero"
-      ? 1.34 + random() * 0.2
-      : 0.9 + random() * 0.18;
+      ? 1.16 + random() * 0.09
+      : 1.03 + random() * 0.09;
     const radius = baseRadius * radiusScale;
     const maturity = archetype === "hero"
       ? 0.96 + random() * 0.04
@@ -835,13 +1017,13 @@ function generateBouquetData(profile, seed) {
     faceQuaternion.multiply(new THREE.Quaternion().setFromAxisAngle(Y_AXIS, phase * 0.31));
     const basisU = X_AXIS.clone().applyQuaternion(faceQuaternion).normalize();
     const basisV = Z_AXIS.clone().applyQuaternion(faceQuaternion).normalize();
-    const headForm = "spherical-rosette";
-    const rosetteRadius = radius * (archetype === "hero" ? 0.9 : 0.87);
+    const headForm = "dense-globular-pompom";
+    const rosetteRadius = radius * (archetype === "hero" ? 0.74 : 0.72);
     // The receptacle used to be flattened to sit inside a lens. Inside a ball
     // it has to be a ball, or the flanks show a disc through the florets.
     const coreScale3 = archetype === "hero"
-      ? new THREE.Vector3(0.4, 0.37, 0.4)
-      : new THREE.Vector3(0.42, 0.39, 0.42);
+      ? new THREE.Vector3(0.7, 0.68, 0.7)
+      : new THREE.Vector3(0.68, 0.66, 0.68);
     const coreOffset = 0;
     const coreColor = choose(CORE_COLORS, random);
     const surfaceFloretCount = archetype === "hero"
@@ -866,6 +1048,7 @@ function generateBouquetData(profile, seed) {
       position: position.clone(),
       radius,
       color: coreColor,
+      undercoatColor: choose(PETAL_COLORS.slice(1), random),
       maturity,
       archetype,
       prominence,
@@ -880,6 +1063,9 @@ function generateBouquetData(profile, seed) {
       layerCount: 3,
       surfaceFloretCount,
       packing: null,
+      birth: growth?.birth ?? 0.72,
+      matureAt: growth?.mature ?? 1,
+      branchOrder: growth?.order ?? 2,
     };
     push("blooms", bloom, cluster);
 
@@ -934,7 +1120,7 @@ function generateBouquetData(profile, seed) {
       if (bendDirection.lengthSq() < 0.01) bendDirection.crossVectors(axis, Y_AXIS);
       if (bendDirection.lengthSq() < 0.01) bendDirection.crossVectors(axis, X_AXIS);
       bendDirection.normalize();
-      const expressiveBend = role === "outer" && random() < 0.12 ? 0.035 + random() * 0.045 : 0;
+      const expressiveBend = role === "outer" && random() < 0.06 ? 0.015 + random() * 0.025 : 0;
       const bendAmount = role === "inner"
         ? radius * (0.075 + random() * 0.115)
         : start.distanceTo(end) * (0.08 + random() * 0.12 + expressiveBend);
@@ -1044,7 +1230,11 @@ function generateBouquetData(profile, seed) {
         * (0.95 + pairRandom() * 0.1);
       heightScale = [1.02, 1, 1.06][layer] * (0.96 + pairRandom() * 0.08);
       floretAnchor = surfacePoint.clone().addScaledVector(normal, -motifScale * 0.035);
-      terminal = floretAnchor.clone().addScaledVector(normal, motifScale * 1.28 * heightScale);
+      /* A wattle head is a soft, compact ball. The earlier reach exposed each
+         individual filament as a radial spoke and turned the silhouette into
+         a sea urchin; keep the halo short enough that density, not length,
+         makes the bloom feel fluffy. */
+      terminal = floretAnchor.clone().addScaledVector(normal, motifScale * 0.12 * heightScale);
       filamentStart = surfacePoint.clone().addScaledVector(
         normal,
         -motifScale * (0.045 + pairRandom() * 0.035),
@@ -1113,13 +1303,17 @@ function generateBouquetData(profile, seed) {
         exportable: false,
       }, cluster);
 
+      /* In Acacia the petals disappear beneath the stamen mass. Keep them as
+         the animated opening mechanism, but recess them so the final read is
+         hundreds of round anthers forming one soft sphere. */
+      const petalMotifScale = motifScale * 0.09;
       push("florets", {
         position: floretAnchor,
         budPosition,
         cupPosition,
         quaternion,
         normal: normal.clone(),
-        scale: motifScale,
+        scale: petalMotifScale,
         heightScale,
         color: choose(PETAL_COLORS, random),
         headIndex: bloomOrdinal,
@@ -1135,42 +1329,34 @@ function generateBouquetData(profile, seed) {
         exportable: true,
       }, cluster);
 
-      const floretMatrix = new THREE.Matrix4().compose(
-        floretAnchor,
-        quaternion,
-        new THREE.Vector3(motifScale, motifScale * heightScale, motifScale),
-      );
-      for (let part = 0; part < FLORET_PARTS; part += 1) {
-        const angle = part / FLORET_PARTS * FULL_TURN;
+      for (let part = 0; part < STAMEN_BUNDLES_PER_FLORET; part += 1) {
+        const angle = part / STAMEN_BUNDLES_PER_FLORET * FULL_TURN;
         const cosine = Math.cos(angle);
         const sine = Math.sin(angle);
-        const rootLocal = new THREE.Vector3(
-          cosine * 0.11,
-          0.025,
-          sine * 0.11,
-        );
-        const endLocal = new THREE.Vector3(
-          cosine * 0.19,
-          1.16,
-          sine * 0.19,
-        );
-        const stamenStart = rootLocal.clone().applyMatrix4(floretMatrix);
-        const antherPosition = endLocal.clone().applyMatrix4(floretMatrix);
+        const tangent = basisU.clone().multiplyScalar(cosine)
+          .addScaledVector(basisV, sine)
+          .normalize();
+        /* The photographic pom-pom is made by filaments crossing the whole
+           visible ball, not by a smooth sphere with hairs pasted onto its
+           rim. Each representative stamen therefore starts well inside the
+           head and reaches a slightly irregular point near the outer shell. */
+        const stamenStart = position.clone()
+          .addScaledVector(normal, radius * (0.52 + random() * 0.1))
+          .addScaledVector(tangent, radius * (0.01 + random() * 0.018));
+        const antherPosition = surfacePoint.clone()
+          .addScaledVector(normal, radius * (0.018 + random() * 0.04))
+          .addScaledVector(tangent, radius * (0.018 + random() * 0.025));
         const filament = addCurvedFiber(
           stamenStart,
           antherPosition,
           choose(FILAMENT_COLORS, random),
           choose(TIP_COLORS, random),
-          radius * (0.007 + random() * 0.003),
+          radius * (0.0018 + random() * 0.0008),
           "floret",
           true,
           bloomOrder,
           {
-            siteIndex: index,
-            siteKey,
             partIndex: part,
-            rootLocal,
-            endLocal,
             bloomNoise,
             normal: normal.clone(),
           },
@@ -1178,7 +1364,7 @@ function generateBouquetData(profile, seed) {
         push("tips", {
           position: antherPosition,
           origin: stamenStart,
-          size: motifScale * (0.15 + random() * 0.06),
+          size: radius * (0.009 + random() * 0.009),
           color: choose(TIP_COLORS, random),
           role: "floret-anther",
           headIndex: bloomOrdinal,
@@ -1201,7 +1387,7 @@ function generateBouquetData(profile, seed) {
         terminal,
         startColor,
         endColor,
-        radius * (0.013 + random() * 0.005),
+        radius * (0.002 + random() * 0.001),
         "outer",
         true,
         bloomOrder,
@@ -1245,7 +1431,7 @@ function generateBouquetData(profile, seed) {
         end,
         startColor,
         endColor,
-        radius * (0.014 + random() * 0.007),
+        radius * (0.006 + random() * 0.003),
         "inner",
         index < exportInnerCount,
         bloomOrder,
@@ -1254,7 +1440,7 @@ function generateBouquetData(profile, seed) {
       push("tips", {
         position: end.clone(),
         origin: start.clone(),
-        size: radius * (0.078 + random() * 0.072),
+        size: radius * (0.035 + random() * 0.026),
         color: endColor,
         role: "center",
         headIndex: bloomOrdinal,
@@ -1294,8 +1480,8 @@ function generateBouquetData(profile, seed) {
         position: speckPosition,
         origin: position.clone(),
         size: radius * (archetype === "hero"
-          ? 0.1 + random() * 0.08
-          : 0.085 + random() * 0.075),
+          ? 0.04 + random() * 0.03
+          : 0.035 + random() * 0.026),
         color: choose(TIP_COLORS, random),
         role: "center",
         headIndex: bloomOrdinal,
@@ -1309,184 +1495,144 @@ function generateBouquetData(profile, seed) {
         exportable: index < exportCenterCount,
       }, cluster);
     }
+
+    /* The reference reads as one fibrous yellow ball at normal viewing size,
+       not as a diagram of its individual five-part florets. A secondary
+       equal-area particle shell supplies that perceptual mass with tiny round
+       anthers. It is point geometry (one draw call), so this added density is
+       substantially cheaper than lengthening or multiplying line filaments. */
+    const fuzzCount = Math.round(profile.pompomFuzzPerBloom * (archetype === "hero" ? 1.14 : 1));
+    for (let index = 0; index < fuzzCount; index += 1) {
+      const fuzzRandom = mulberry32((
+        seed
+        ^ Math.imul(bloomOrdinal + 1, 0x51ed270b)
+        ^ Math.imul(index + 1, 0x9e3779b9)
+      ) >>> 0);
+      const axial = 1 - 2 * (index + 0.5) / fuzzCount;
+      const radial = Math.sqrt(Math.max(0, 1 - axial * axial));
+      const angle = index * GOLDEN_ANGLE + phase * 1.17;
+      const normal = basisU.clone().multiplyScalar(Math.cos(angle) * radial)
+        .addScaledVector(basisV, Math.sin(angle) * radial)
+        .addScaledVector(faceNormal, axial)
+        .normalize();
+      /* Keep the photographic halo compact.  Golden-wattle heads have a
+         fibrous edge, but their countless short filaments overlap into a
+         cohesive pom-pom rather than leaving isolated points far outside the
+         silhouette. */
+      const shellRadius = radius * (0.51 + Math.pow(fuzzRandom(), 0.75) * 0.18);
+      const fuzzPosition = position.clone().addScaledVector(normal, shellRadius);
+      const bloomOrder = emergenceOrderFor(Math.floor(index / 6), 0x51ed270b);
+      push("tips", {
+        position: fuzzPosition,
+        origin: position.clone().addScaledVector(normal, radius * 0.2),
+        size: radius * (0.008 + fuzzRandom() * 0.009),
+        color: choose(TIP_COLORS, fuzzRandom),
+        role: "pompom-fuzz",
+        headIndex: bloomOrdinal,
+        bloomOrder,
+        bloomNoise: spatialNoiseFor(normal, index + 1701),
+        bloomPhase: shellRadius / Math.max(radius, 0.0001),
+        exportable: false,
+      }, cluster);
+    }
+
+    /* A tiny warm receptacle is intermittently visible through the stamens in
+       the photographic references. It anchors the fluff without turning the
+       flower into a dark-eyed daisy. */
+    push("tips", {
+      position: position.clone().addScaledVector(faceNormal, radius * 0.63),
+      origin: position.clone(),
+      size: radius * (0.065 + random() * 0.025),
+      color: 0x8f6313,
+      role: "flower-receptacle",
+      headIndex: bloomOrdinal,
+      bloomOrder: 0.96,
+      bloomNoise: 0.5,
+      bloomPhase: 0.66,
+      exportable: false,
+    }, cluster);
   };
 
-  for (let branchIndex = 0; branchIndex < profile.branchCount; branchIndex += 1) {
-    const fan = branchIndex / Math.max(1, profile.branchCount - 1) - 0.5;
-    const cluster = fan < -0.12 ? 0 : fan > 0.12 ? 2 : 1;
-    const base = GATHER_POINT.clone().add(new THREE.Vector3(
-      fan * 0.12 + signed(random) * 0.045,
-      signed(random) * 0.035,
-      signed(random) * 0.085,
-    ));
-    const bottom = new THREE.Vector3(
-      fan * 0.25 + signed(random) * 0.075,
-      -3.03 + signed(random) * 0.09,
-      signed(random) * 0.16,
+  /* Parametric stochastic L-system: parallel apex rewriting creates the
+     hierarchy; the 3D turtle supplies geometry and per-module developmental
+     windows. The right-anchored apical axis extends leftward while lateral
+     sprays emerge in golden-angle succession. */
+  const architecture = generateWattleArchitecture({
+    seed,
+    quality: profile.id,
+  });
+  const toWorld = (tuple) => new THREE.Vector3(...tuple).add(TREE_ROOT);
+
+  for (const segment of architecture.segments) {
+    const start = toWorld(segment.start);
+    const end = toWorld(segment.end);
+    const cluster = end.x < -0.34 ? 0 : end.x > 0.34 ? 2 : 1;
+    const branchT = THREE.MathUtils.clamp(segment.order / 3, 0, 1);
+    const ageT = THREE.MathUtils.clamp(segment.birth / 0.7, 0, 1);
+    const color = mixColor(
+      choose(BARK_COLORS.slice(0, 3), random),
+      choose(YOUNG_STEM_COLORS, random),
+      branchT * 0.72 + ageT * 0.18,
     );
-    const matureStemColor = choose(STEM_COLORS.slice(0, 3), random);
-    const youngStemColor = choose(YOUNG_STEM_COLORS, random);
-
-    addSegment(bottom, base, 0.045 + random() * 0.012, matureStemColor, cluster);
-
-    const outside = Math.abs(fan) * 2;
-    const end = new THREE.Vector3(
-      fan * 4.25 + signed(random) * 0.18,
-      1.63 + (1 - outside) * 0.72 + signed(random) * 0.14,
-      signed(random) * 0.86,
-    );
-    const controlOne = base.clone().lerp(end, 0.32).add(new THREE.Vector3(
-      -fan * 0.13,
-      0.34 + random() * 0.18,
-      signed(random) * 0.15,
-    ));
-    const controlTwo = base.clone().lerp(end, 0.68).add(new THREE.Vector3(
-      fan * 0.15,
-      0.2 + random() * 0.18,
-      signed(random) * 0.2,
-    ));
-    const branchCurve = new THREE.CatmullRomCurve3([base, controlOne, controlTwo, end]);
-
-    let previous = branchCurve.getPointAt(0);
-    for (let segmentIndex = 1; segmentIndex <= profile.mainSegments; segmentIndex += 1) {
-      const t = segmentIndex / profile.mainSegments;
-      const next = branchCurve.getPointAt(t);
-      const radius = THREE.MathUtils.lerp(0.045, 0.019, Math.pow(t, 0.82));
-      addSegment(previous, next, radius, mixColor(matureStemColor, youngStemColor, t * 0.48), cluster);
-      previous = next;
-    }
-
-    const branchPhase = random() * Math.PI * 2;
-    for (let leafIndex = 0; leafIndex < profile.mainLeaves; leafIndex += 1) {
-      const t = 0.12 + (leafIndex / Math.max(1, profile.mainLeaves - 1)) * 0.61 + signed(random) * 0.012;
-      const position = branchCurve.getPointAt(t);
-      const tangent = branchCurve.getTangentAt(t).normalize();
-      const angle = branchPhase + leafIndex * 2.17;
-      const direction = new THREE.Vector3(
-        Math.cos(angle) * 0.78,
-        0.13 + random() * 0.2,
-        Math.sin(angle) * 0.78,
-      ).addScaledVector(tangent, 0.33).normalize();
-
-      addLeaf(
-        position,
-        direction,
-        0.5 + random() * 0.26,
-        0.86 + random() * 0.3,
-        signed(random) * 0.38,
-        choose(LEAF_COLORS, random),
-        cluster,
-      );
-    }
-
-    const twigCount = 3 + (profile.id === "high" && branchIndex % 3 === 1 ? 1 : 0);
-    for (let twigIndex = 0; twigIndex < twigCount; twigIndex += 1) {
-      const t = 0.37 + (twigIndex / Math.max(1, twigCount - 1)) * 0.46 + signed(random) * 0.018;
-      const start = branchCurve.getPointAt(t);
-      const tangent = branchCurve.getTangentAt(t).normalize();
-      const sign = (branchIndex + twigIndex) % 2 === 0 ? -1 : 1;
-      const lateral = new THREE.Vector3().crossVectors(tangent, Z_AXIS);
-      if (lateral.lengthSq() < 0.01) lateral.crossVectors(tangent, X_AXIS);
-      lateral.normalize().multiplyScalar(sign);
-      const depth = new THREE.Vector3().crossVectors(tangent, lateral).normalize();
-      const direction = tangent.clone().multiplyScalar(0.4)
-        .addScaledVector(lateral, 0.74 + random() * 0.22)
-        .addScaledVector(depth, signed(random) * 0.25)
-        .addScaledVector(Y_AXIS, 0.16 + random() * 0.12)
-        .normalize();
-      const twigLength = 0.68 + random() * 0.42;
-      const twigEnd = start.clone().addScaledVector(direction, twigLength);
-      const middle = start.clone()
-        .addScaledVector(tangent, twigLength * 0.24)
-        .addScaledVector(direction, twigLength * 0.5)
-        .addScaledVector(Y_AXIS, 0.05 + random() * 0.08);
-      const twigCurve = new THREE.QuadraticBezierCurve3(start, middle, twigEnd);
-
-      let twigPrevious = twigCurve.getPoint(0);
-      for (let segmentIndex = 1; segmentIndex <= profile.twigSegments; segmentIndex += 1) {
-        const segmentT = segmentIndex / profile.twigSegments;
-        const next = twigCurve.getPoint(segmentT);
-        addSegment(
-          twigPrevious,
-          next,
-          THREE.MathUtils.lerp(0.021, 0.009, segmentT),
-          mixColor(matureStemColor, youngStemColor, 0.5 + segmentT * 0.5),
-          cluster,
-        );
-        twigPrevious = next;
-      }
-
-      for (let leafIndex = 0; leafIndex < 2; leafIndex += 1) {
-        const leafT = 0.22 + leafIndex * 0.29;
-        const position = twigCurve.getPoint(leafT);
-        const twigTangent = twigCurve.getTangent(leafT).normalize();
-        const leafDirection = lateral.clone().multiplyScalar(leafIndex === 0 ? -0.55 : 0.55)
-          .addScaledVector(depth, signed(random) * 0.48)
-          .addScaledVector(twigTangent, 0.52)
-          .addScaledVector(Y_AXIS, 0.2)
-          .normalize();
-        addLeaf(
-          position,
-          leafDirection,
-          0.36 + random() * 0.2,
-          0.88 + random() * 0.28,
-          signed(random) * 0.42,
-          choose(LEAF_COLORS, random),
-          cluster,
-        );
-      }
-
-      const bloomBaseRadius = 0.187 + random() * 0.058;
-      const bloomRadius = bloomBaseRadius * (random() < 0.18
-        ? 1.1 + random() * 0.06
-        : 0.95 + random() * 0.07);
-      addBloom(
-        twigEnd.clone().addScaledVector(direction, bloomRadius * 0.08),
-        bloomRadius,
-        cluster,
-        "primary",
-        direction,
-      );
-
-      const addCompanionBloom = profile.id === "high" || (branchIndex + twigIndex) % 2 === 0;
-      if (addCompanionBloom) {
-        const secondaryT = 0.64 + random() * 0.09;
-        const secondaryAnchor = twigCurve.getPoint(secondaryT);
-        const secondaryDirection = lateral.clone().multiplyScalar(-0.3)
-          .addScaledVector(depth, (branchIndex + twigIndex) % 2 === 0 ? 0.58 : -0.58)
-          .addScaledVector(tangent, 0.34)
-          .addScaledVector(Y_AXIS, 0.4)
-          .normalize();
-        const secondaryLength = 0.25 + random() * 0.13;
-        const secondaryRadius = bloomRadius * (0.72 + random() * 0.22);
-        const secondaryPosition = secondaryAnchor.clone().addScaledVector(secondaryDirection, secondaryLength);
-        const pedicelEnd = secondaryPosition.clone().addScaledVector(secondaryDirection, -secondaryRadius * 0.1);
-        addSegment(
-          secondaryAnchor,
-          pedicelEnd,
-          0.0075 + random() * 0.0025,
-          youngStemColor,
-          cluster,
-        );
-        addBloom(
-          secondaryPosition,
-          secondaryRadius,
-          cluster,
-          "companion",
-          secondaryDirection,
-        );
-      }
-    }
-
-    const tipTangent = branchCurve.getTangentAt(1).normalize();
-    addBloom(
-      end.clone().addScaledVector(tipTangent, 0.035),
-      0.205 + random() * 0.055,
+    addSegment(
+      start,
+      end,
+      segment.radius,
+      color,
       cluster,
-      "terminal",
-      tipTangent,
+      segment.order === 0 ? "trunk" : "branch",
+      segment,
     );
   }
+
+  for (const leaf of architecture.leaves) {
+    const position = toWorld(leaf.position);
+    const direction = new THREE.Vector3(...leaf.direction).normalize();
+    const cluster = position.x < -0.34 ? 0 : position.x > 0.34 ? 2 : 1;
+    const role = leaf.order === 0 && leaf.birth < 0.12 ? "sapling" : "canopy";
+    addLeaf(
+      position,
+      direction,
+      leaf.length,
+      leaf.width,
+      leaf.roll,
+      choose(role === "sapling" ? YOUNG_PHYLLODE_COLORS : LEAF_COLORS, random),
+      cluster,
+      role,
+      leaf,
+    );
+  }
+
+  for (let index = 0; index < architecture.buds.length; index += 1) {
+    const bud = architecture.buds[index];
+    const position = toWorld(bud.position);
+    const direction = new THREE.Vector3(...bud.direction).normalize();
+    const cluster = position.x < -0.34 ? 0 : position.x > 0.34 ? 2 : 1;
+    const prominence = bud.order <= 1
+      ? "terminal"
+      : index % 4 === 0
+        ? "primary"
+        : "companion";
+    addBloom(
+      position,
+      bud.radius,
+      cluster,
+      prominence,
+      direction,
+      bud,
+    );
+  }
+
+  data.grammar = {
+    family: "parametric-stochastic-bracketed-l-system",
+    axiom: "A(0)",
+    iterations: profile.id === "high" ? 6 : 5,
+    moduleCount: architecture.sentence.length,
+    segmentCount: architecture.segments.length,
+    terminalBudCount: architecture.buds.length,
+    racemeCount: new Set(architecture.buds.map((bud) => bud.racemeId)).size,
+    peduncleCount: architecture.segments.filter((segment) => segment.kind === "flower-pedicel").length,
+  };
 
   computeDataBounds(data);
   data.metrics = computeSemanticMetrics(data);
@@ -1503,9 +1649,15 @@ function computeDataBounds(data) {
   }
 
   for (const leaf of data.all.leaves) {
-    const padding = new THREE.Vector3(leaf.length, leaf.length, leaf.length).multiplyScalar(1.24);
+    const tip = new THREE.Vector3(0, leaf.length, leaf.length * 0.12 * (leaf.curve ?? 1))
+      .applyQuaternion(leaf.quaternion)
+      .add(leaf.position);
+    const bladePadding = Math.max(0.025, leaf.length * leaf.width * 0.58);
+    const padding = new THREE.Vector3(bladePadding, bladePadding, bladePadding);
     box.expandByPoint(leaf.position.clone().sub(padding));
     box.expandByPoint(leaf.position.clone().add(padding));
+    box.expandByPoint(tip.clone().sub(padding));
+    box.expandByPoint(tip.clone().add(padding));
   }
 
   for (const bloom of data.all.blooms) {
@@ -1537,15 +1689,21 @@ function computeDataBounds(data) {
 
 function buildBouquet(data) {
   const root = new THREE.Group();
-  root.name = "Golden_Wattle_Bouquet";
+  root.name = "Golden_Wattle_Branch";
   root.userData = {
-    species: "Acacia pycnantha",
+    species: "Golden Wattle reference morphology",
     seed: data.seed,
-    description: "Procedural hand-tied golden wattle bouquet",
-    headForm: "mature spherical rosettes collapsed into interactive globular bud poses",
+    description: "Procedural living Golden Wattle branch grown from a young shoot",
+    architecture: data.grammar?.family ?? "procedural-branch",
+    lsystemAxiom: data.grammar?.axiom ?? null,
+    lsystemIterations: data.grammar?.iterations ?? null,
+    lsystemModuleCount: data.grammar?.moduleCount ?? null,
+    inflorescenceForm: "multi-head axillary racemes with short radial pedicels",
+    racemeCount: data.grammar?.racemeCount ?? 0,
+    headForm: "dense spherical pom-poms collapsed into interactive globular bud poses",
     floretMerosity: FLORET_PARTS,
-    floretPacking: "mirrored golden-angle Fermat rosettes for every mature head topology",
-    phyllodeForm: "falcate with parallel-convergent longitudinal veins",
+    floretPacking: "mirrored equal-area golden-angle shells with compact round anther coverage",
+    phyllodeForm: "long narrow lanceolate green phyllodes with three visible nerves",
   };
 
   const stemGeometry = new THREE.CylinderGeometry(
@@ -1556,6 +1714,18 @@ function buildBouquet(data) {
     1,
     true,
   );
+  /* Instanced bark colours are multiplied with the geometry colour in
+     Three.js. CylinderGeometry has no vertex colour attribute by default, so
+     enabling vertexColors on the stem material would otherwise multiply the
+     instance colour by an undefined channel and turn every trunk black. A
+     white base keeps the per-segment bark ramp intact. */
+  stemGeometry.setAttribute(
+    "color",
+    new THREE.Float32BufferAttribute(
+      new Float32Array(stemGeometry.attributes.position.count * 3).fill(1),
+      3,
+    ),
+  );
   stemGeometry.name = "Stem_Segment_Geometry";
   const leafGeometry = createLeafGeometry();
   const floretGeometry = createFivePartFloretGeometry();
@@ -1565,29 +1735,32 @@ function buildBouquet(data) {
 
   const stemMaterial = new THREE.MeshStandardMaterial({
     color: 0xfffffe,
-    roughness: 0.92,
+    roughness: 0.96,
     metalness: 0,
+    vertexColors: true,
   });
   stemMaterial.name = "Stem_Material";
-  const leafMaterial = new THREE.MeshPhysicalMaterial({
+  const stemGrowth = { value: 1 };
+  enableTimedStemGrowth(stemMaterial, stemGrowth);
+  const leafMaterial = new THREE.MeshStandardMaterial({
     color: 0xfffffe,
-    roughness: 0.66,
+    roughness: 0.94,
     metalness: 0,
-    clearcoat: 0.08,
-    clearcoatRoughness: 0.78,
+    emissive: 0x000000,
+    emissiveIntensity: 0,
     vertexColors: true,
     side: THREE.DoubleSide,
   });
   leafMaterial.name = "Phyllode_Material";
-  const coreMaterial = new THREE.MeshStandardMaterial({
-    color: 0xfffffe,
-    roughness: 0.84,
-    metalness: 0,
-    emissive: 0x5d3500,
-    emissiveIntensity: 0.08,
-    flatShading: true,
-  });
-  coreMaterial.name = "Bloom_Core_Material";
+  const leafGrowth = { value: 1 };
+  enableTimedPhyllodeGrowth(leafMaterial, leafGrowth);
+  const saplingLeafMaterial = leafMaterial.clone();
+  saplingLeafMaterial.name = "Sapling_Phyllode_Material";
+  const saplingLeafGrowth = { value: 1 };
+  enableTimedPhyllodeGrowth(saplingLeafMaterial, saplingLeafGrowth);
+  const coreMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+  coreMaterial.name = "Invisible_Bloom_Interaction_Proxy_Material";
+  const pompomMassMaterial = createPompomMassMaterial();
   const capMaterial = new THREE.MeshStandardMaterial({
     color: 0xfffffe,
     roughness: 0.9,
@@ -1596,13 +1769,14 @@ function buildBouquet(data) {
     alphaHash: true,
   });
   capMaterial.name = "Closed_Floret_Capsule_Material";
-  enableInstancedVisibility(capMaterial, "bud-capsule");
+  const budGrowth = { value: 1 };
+  enableInstancedVisibility(capMaterial, "bud-capsule", budGrowth);
   const cupMaterial = new THREE.MeshStandardMaterial({
     color: 0xfffffe,
-    roughness: 0.76,
+    roughness: 0.8,
     metalness: 0,
-    emissive: 0x633700,
-    emissiveIntensity: 0.1,
+    emissive: 0x000000,
+    emissiveIntensity: 0,
     vertexColors: true,
     alphaHash: true,
   });
@@ -1610,34 +1784,37 @@ function buildBouquet(data) {
   enableInstancedVisibility(cupMaterial, "corolla-cup");
   const petalMaterial = new THREE.MeshStandardMaterial({
     color: 0xfffffe,
-    roughness: 0.72,
+    roughness: 0.8,
     metalness: 0,
-    emissive: 0x633700,
-    emissiveIntensity: 0.11,
+    emissive: 0x000000,
+    emissiveIntensity: 0,
     vertexColors: true,
     side: THREE.DoubleSide,
   });
   petalMaterial.name = "Five_Part_Floret_Material";
-  petalMaterial.alphaHash = true;
   enableInstancedVisibility(petalMaterial, "petal-morph");
   const lineMaterial = new LineMaterial({
     vertexColors: true,
     transparent: true,
-    opacity: 0.9,
+    opacity: 0.3,
     depthWrite: false,
-    linewidth: state.profile.id === "high" ? 2.08 : 1.78,
+    linewidth: state.profile.id === "high" ? 0.22 : 0.2,
     worldUnits: false,
     alphaToCoverage: true,
   });
-  lineMaterial.name = "Soft_Stamen_Material";
+  lineMaterial.name = "Recessed_Stamen_Filament_Material";
   enableLineVisibility(lineMaterial);
   const pointsMaterial = createPointsMaterial();
   const swayGroups = [];
   const coreMeshes = [];
 
+  const growthTrunks = [];
+  const growthCanopies = [];
+  const growthLeaves = [];
+
   data.clusters.forEach((bucket, clusterIndex) => {
     const group = new THREE.Group();
-    group.name = ["Left_Wattle_Cluster", "Center_Wattle_Cluster", "Right_Wattle_Cluster"][clusterIndex];
+    group.name = ["Left_Wattle_Crown", "Central_Wattle_Crown", "Right_Wattle_Crown"][clusterIndex];
     group.position.copy(GATHER_POINT);
     group.userData.sway = {
       phase: 0.7 + clusterIndex * 1.93,
@@ -1645,61 +1822,120 @@ function buildBouquet(data) {
       amplitude: [0.011, 0.007, 0.013][clusterIndex],
     };
 
-    const stems = createStemInstances(bucket.segments, stemGeometry, stemMaterial);
-    const leaves = createLeafInstances(bucket.leaves, leafGeometry, leafMaterial);
+    const trunk = createStemInstances(
+      bucket.segments.filter((item) => item.role === "trunk"),
+      stemGeometry,
+      stemMaterial,
+    );
+    trunk.name = "Branch_Primary_Axis_Segments";
+    const stems = createStemInstances(
+      bucket.segments.filter((item) => item.role !== "trunk"),
+      stemGeometry,
+      stemMaterial,
+    );
+    stems.name = "Branch_Lateral_Axis_Segments";
+    const leaves = createLeafInstances(
+      bucket.leaves.filter((item) => item.role !== "sapling"),
+      leafGeometry,
+      leafMaterial,
+    );
+    const saplingLeaves = createLeafInstances(
+      bucket.leaves.filter((item) => item.role === "sapling"),
+      leafGeometry,
+      saplingLeafMaterial,
+    );
+    saplingLeaves.name = "Juvenile_Golden_Wattle_Phyllodes";
     const cores = createCoreInstances(bucket.blooms, coreGeometry, coreMaterial);
-    /* The receptacle remains a stable interaction proxy, but it never renders
-       as a second ball behind the opening florets. Its old visible silhouette
-       was the green/brown "ghost flower" exposed during the handoff. */
+    /* Interaction proxies never render. The mature yellow mass is a separate
+       soft point-sprite layer whose visibility follows the bloom timeline, so
+       an olive sphere can never ghost behind a half-open flower. */
     cores.visible = false;
+    const pompomMass = createPompomMassPoints(bucket.blooms, pompomMassMaterial);
     const caps = createCapInstances(bucket.caps, capGeometry, capMaterial);
     const cups = createCupInstances(bucket.florets, cupGeometry, cupMaterial);
     const florets = createFloretInstances(bucket.florets, floretGeometry, petalMaterial);
     const filaments = createFilamentLines(bucket.filaments, lineMaterial);
     const tips = createTipPoints(bucket.tips, pointsMaterial);
 
-    group.add(stems, leaves, cores, caps, cups, florets, filaments, tips);
+    const canopy = new THREE.Group();
+    canopy.name = "Growing_Wattle_Canopy";
+    canopy.add(stems, leaves, cores, pompomMass, caps, cups, florets, filaments, tips);
+    const saplingFrame = new THREE.Group();
+    saplingFrame.name = "Growing_Sapling_Frame";
+    saplingFrame.add(trunk, saplingLeaves);
+    group.add(saplingFrame, canopy);
     root.add(group);
     swayGroups.push(group);
     coreMeshes.push(cores);
+    growthTrunks.push(saplingFrame);
+    growthCanopies.push(canopy);
+    growthLeaves.push(leaves);
   });
 
-  root.add(createTie());
-  return { root, swayGroups, coreMeshes, pointsMaterial, petalMaterial };
+  return {
+    root,
+    swayGroups,
+    coreMeshes,
+    pointsMaterial,
+    pompomMassMaterial,
+    petalMaterial,
+    growthTrunks,
+    growthCanopies,
+    growthLeaves,
+    growthMaterials: {
+      leafMaterial,
+      leafGrowth,
+      stemMaterial,
+      stemGrowth,
+      saplingLeafMaterial,
+      saplingLeafGrowth,
+      capMaterial,
+      budGrowth,
+      pointsMaterial,
+      tipGrowth: pointsMaterial.uniforms.uGrowthScale,
+    },
+  };
 }
 
 function createLeafGeometry() {
-  const stationCount = 9;
-  const columnCount = 11;
   const positions = [];
   const colors = [];
   const uvs = [];
   const indices = [];
+  const columns = [-1, -0.67, -0.33, 0, 0.33, 0.67, 1];
+  const rowCount = 21;
 
-  for (let row = 0; row < stationCount; row += 1) {
-    const y = row / (stationCount - 1);
-    const widthEnvelope = Math.pow(Math.max(0, Math.sin(Math.PI * y)), 0.72);
-    const halfWidth = Math.max(0.002, 0.13 * widthEnvelope * (0.88 + 0.12 * y));
-    const centerCurve = 0.3 * (1 - Math.cos(Math.PI * y * 0.5));
-    const lengthEnvelope = Math.sin(Math.PI * y);
-
-    for (let column = 0; column < columnCount; column += 1) {
-      const across = column / (columnCount - 1) * 2 - 1;
-      const isVein = column % 2 === 1;
-      const camber = (1 - across * across) * lengthEnvelope * 0.014;
-      const veinRelief = isVein ? lengthEnvelope * 0.0065 : -lengthEnvelope * 0.0015;
-      positions.push(across * halfWidth, y, centerCurve + camber + veinRelief);
-      uvs.push((across + 1) * 0.5, y);
-      const tone = isVein ? 1.04 : column === 0 || column === columnCount - 1 ? 0.72 : 0.82;
+  /* The references are dominated by long, narrow, pointed phyllodes. A
+     fourteen-row blade keeps the base pinched, the middle nearly parallel,
+     and the tip acute. Five columns provide a central keel and enough cross
+     section for broad, soft highlights without making the leaf look faceted. */
+  for (let row = 0; row < rowCount; row += 1) {
+    const y = row / (rowCount - 1);
+    const taper = Math.pow(Math.max(0, Math.sin(Math.PI * y)), 0.58);
+    const width = row === 0 ? 0.028 : row === rowCount - 1 ? 0.001 : taper * 0.49;
+    for (let column = 0; column < columns.length; column += 1) {
+      const crossT = columns[column];
+      const edgeT = Math.abs(crossT);
+      const ridge = Math.sin(Math.PI * y) * (1 - Math.pow(edgeT, 1.4)) * 0.024;
+      const longitudinalCurve = Math.pow(y, 1.55) * 0.12;
+      const edgeFlutter = Math.sin(y * Math.PI * 2.2 + crossT * 1.5) * edgeT * 0.008;
+      const x = crossT * width;
+      const z = ridge + longitudinalCurve + edgeFlutter;
+      positions.push(x, y, z);
+      const tone = 0.79 + (1 - edgeT) * 0.14 + y * 0.045;
       colors.push(tone, tone, tone);
+      uvs.push((crossT + 1) * 0.5, y);
     }
   }
 
-  for (let row = 0; row < stationCount - 1; row += 1) {
+  const columnCount = columns.length;
+  for (let row = 0; row < rowCount - 1; row += 1) {
     for (let column = 0; column < columnCount - 1; column += 1) {
-      const current = row * columnCount + column;
-      const next = current + columnCount;
-      indices.push(current, next, next + 1, current, next + 1, current + 1);
+      const a = row * columnCount + column;
+      const b = a + 1;
+      const d = (row + 1) * columnCount + column;
+      const c = d + 1;
+      indices.push(a, d, c, a, c, b);
     }
   }
 
@@ -1707,9 +1943,11 @@ function createLeafGeometry() {
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
   geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute("aPhyllodeUv", new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
-  geometry.name = "Falcate_Five_Vein_Phyllode";
+  geometry.computeBoundingSphere();
+  geometry.name = "Narrow_Lanceolate_Golden_Wattle_Phyllode";
   return geometry;
 }
 
@@ -1894,9 +2132,7 @@ function createCorollaCupGeometry() {
 }
 
 function createBloomSupportGeometry() {
-  const sphere = new THREE.SphereGeometry(1, 12, 8);
-  const geometry = sphere.toNonIndexed();
-  sphere.dispose();
+  const geometry = new THREE.SphereGeometry(1, 24, 16);
   const positions = geometry.getAttribute("position");
 
   for (let index = 0; index < positions.count; index += 1) {
@@ -1905,35 +2141,151 @@ function createBloomSupportGeometry() {
     const z = positions.getZ(index);
     const angle = Math.atan2(z, x);
     const radial = Math.hypot(x, z);
-    const scallop = 1 + 0.075 * Math.sin(angle * 5 + 0.62) * Math.pow(radial, 1.4);
-    const rearTaper = y < 0 ? THREE.MathUtils.lerp(0.84, 1, y + 1) : 1;
+    const scallop = 1
+      + 0.028 * Math.sin(angle * 7 + 0.62) * Math.pow(radial, 1.4)
+      + 0.014 * Math.sin((y + angle) * 13.0);
+    const rearTaper = y < 0 ? THREE.MathUtils.lerp(0.92, 1, y + 1) : 1;
     positions.setXYZ(
       index,
       x * scallop * rearTaper,
-      y < 0 ? y * 1.04 : y * 0.94,
+      y < 0 ? y * 1.015 : y * 0.985,
       z * scallop * rearTaper,
     );
   }
 
   positions.needsUpdate = true;
   geometry.computeVertexNormals();
+  geometry.setAttribute(
+    "color",
+    new THREE.Float32BufferAttribute(
+      new Float32Array(positions.count * 3).fill(1),
+      3,
+    ),
+  );
   geometry.computeBoundingSphere();
-  geometry.name = "Scalloped_Botanical_Receptacle";
+  geometry.name = "Smooth_Perforated_Pompom_Undercoat";
   return geometry;
 }
 
-function enableInstancedVisibility(material, cacheKey) {
+function enableLocalGrowth(material, growthUniform, cacheKey) {
   material.onBeforeCompile = (shader) => {
+    shader.uniforms.uGrowthScale = growthUniform;
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+        uniform float uGrowthScale;`,
+      )
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+        transformed *= uGrowthScale;`,
+      );
+  };
+  material.customProgramCacheKey = () => `watl-local-growth-${cacheKey}-v1`;
+}
+
+function enableTimedStemGrowth(material, growthUniform) {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uTreeProgress = growthUniform;
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+        attribute float instanceBirth;
+        attribute float instanceMature;
+        uniform float uTreeProgress;
+        varying float vStemGrowth;`,
+      )
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+        vStemGrowth = smoothstep(instanceBirth, instanceMature, uTreeProgress);
+        if (instanceBirth <= 0.001) vStemGrowth = max(0.18, vStemGrowth);
+        transformed.y = -0.5 + (transformed.y + 0.5) * vStemGrowth;
+        transformed.xz *= mix(0.62, 1.0, vStemGrowth);`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+        varying float vStemGrowth;`,
+      )
+      .replace(
+        "#include <alphatest_fragment>",
+        `if (vStemGrowth <= 0.001) discard;
+        #include <alphatest_fragment>`,
+      );
+  };
+  material.customProgramCacheKey = () => "watl-timed-stem-growth-v1";
+}
+
+function enableTimedPhyllodeGrowth(material, growthUniform) {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uTreeProgress = growthUniform;
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+        attribute float instanceBirth;
+        attribute float instanceMature;
+        attribute vec2 aPhyllodeUv;
+        uniform float uTreeProgress;
+        varying float vLeafGrowth;
+        varying vec2 vPhyllodeUv;`,
+      )
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+        vLeafGrowth = smoothstep(instanceBirth, instanceMature, uTreeProgress);
+        vPhyllodeUv = aPhyllodeUv;
+        float longitudinalGrowth = smoothstep(0.0, 0.7, vLeafGrowth);
+        float bladeUnfurl = smoothstep(0.18, 1.0, vLeafGrowth);
+        transformed.y *= max(0.035, longitudinalGrowth);
+        transformed.xz *= mix(0.035, 1.0, bladeUnfurl);`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+        varying float vLeafGrowth;
+        varying vec2 vPhyllodeUv;`,
+      )
+      .replace(
+        "#include <normal_fragment_maps>",
+        `#include <normal_fragment_maps>
+        float mainNerve = exp(-pow((vPhyllodeUv.x - 0.5) * 27.0, 2.0));
+        float sideNerveA = exp(-pow((vPhyllodeUv.x - 0.36) * 42.0, 2.0));
+        float sideNerveB = exp(-pow((vPhyllodeUv.x - 0.64) * 42.0, 2.0));
+        float grazing = pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 2.0);
+        diffuseColor.rgb *= 0.965 + mainNerve * 0.095 + (sideNerveA + sideNerveB) * 0.035;
+        vec3 sunlitEdge = diffuseColor.rgb * vec3(0.96, 1.08, 0.9) + vec3(0.012, 0.024, 0.008);
+        diffuseColor.rgb = mix(diffuseColor.rgb, sunlitEdge, grazing * 0.2);`,
+      )
+      .replace(
+        "#include <alphatest_fragment>",
+        `if (vLeafGrowth <= 0.001) discard;
+        #include <alphatest_fragment>`,
+      );
+  };
+  material.customProgramCacheKey = () => "watl-lanceolate-phyllode-growth-v3";
+}
+
+function enableInstancedVisibility(material, cacheKey, growthUniform = null) {
+  material.onBeforeCompile = (shader) => {
+    if (growthUniform) shader.uniforms.uGrowthScale = growthUniform;
     shader.vertexShader = shader.vertexShader
       .replace(
         "#include <common>",
         `#include <common>
         attribute float instanceVisibility;
+        ${growthUniform ? "uniform float uGrowthScale;" : ""}
         varying float vInstanceVisibility;`,
       )
       .replace(
         "#include <begin_vertex>",
         `#include <begin_vertex>
+        ${growthUniform ? "transformed *= uGrowthScale;" : ""}
         vInstanceVisibility = instanceVisibility;`,
       );
     shader.fragmentShader = shader.fragmentShader
@@ -1948,7 +2300,7 @@ function enableInstancedVisibility(material, cacheKey) {
         #include <alphahash_fragment>`,
       );
   };
-  material.customProgramCacheKey = () => `watl-instance-visibility-${cacheKey}-v1`;
+  material.customProgramCacheKey = () => `watl-instance-visibility-${cacheKey}-${growthUniform ? "growth" : "static"}-v2`;
 }
 
 function enableLineVisibility(material) {
@@ -1980,7 +2332,16 @@ function enableLineVisibility(material) {
   material.customProgramCacheKey = () => "watl-line-visibility-v1";
 }
 
-function createStemInstances(items, geometry, material) {
+function createStemInstances(items, sourceGeometry, material) {
+  const geometry = sourceGeometry.clone();
+  geometry.setAttribute("instanceBirth", new THREE.InstancedBufferAttribute(
+    Float32Array.from(items, (item) => item.birth ?? 0),
+    1,
+  ));
+  geometry.setAttribute("instanceMature", new THREE.InstancedBufferAttribute(
+    Float32Array.from(items, (item) => item.mature ?? 1),
+    1,
+  ));
   const mesh = new THREE.InstancedMesh(geometry, material, items.length);
   mesh.name = "Stem_Segments";
   mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
@@ -1995,7 +2356,7 @@ function createStemInstances(items, geometry, material) {
       matrix,
     );
     mesh.setMatrixAt(index, matrix);
-    mesh.setColorAt(index, new THREE.Color(item.color));
+    mesh.setColorAt(index, new THREE.Color(item.undercoatColor ?? item.color));
   });
 
   mesh.instanceMatrix.needsUpdate = true;
@@ -2017,9 +2378,18 @@ function buildHeadRanges(items) {
   return ranges;
 }
 
-function createLeafInstances(items, geometry, material) {
+function createLeafInstances(items, sourceGeometry, material) {
+  const geometry = sourceGeometry.clone();
+  geometry.setAttribute("instanceBirth", new THREE.InstancedBufferAttribute(
+    Float32Array.from(items, (item) => item.birth ?? 0.43),
+    1,
+  ));
+  geometry.setAttribute("instanceMature", new THREE.InstancedBufferAttribute(
+    Float32Array.from(items, (item) => item.mature ?? 0.84),
+    1,
+  ));
   const mesh = new THREE.InstancedMesh(geometry, material, items.length);
-  mesh.name = "Falcate_Veined_Phyllodes";
+  mesh.name = "Narrow_Lanceolate_Phyllodes";
   mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
   mesh.frustumCulled = false;
   const matrix = new THREE.Matrix4();
@@ -2209,6 +2579,11 @@ function createFloretInstances(items, sourceGeometry, material) {
   geometry.setAttribute("instanceVisibility", visibilityAttribute);
   const mesh = new THREE.InstancedMesh(geometry, material, items.length);
   mesh.name = "Five_Part_Floret_Rosettes";
+  /* A deterministic tree seed can leave the central crown without flower
+     sites. Three.js expects an instanced morph texture only when at least one
+     instance has called setMorphAt; keeping the empty morph mesh out of the
+     render list avoids asking it to upload a texture that cannot exist. */
+  mesh.visible = items.length > 0;
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   mesh.frustumCulled = false;
   const matrix = new THREE.Matrix4();
@@ -2300,7 +2675,7 @@ function createFloretInstances(items, sourceGeometry, material) {
 
 function createCoreInstances(items, geometry, material) {
   const mesh = new THREE.InstancedMesh(geometry, material, items.length);
-  mesh.name = "Internal_Rosette_Supports";
+  mesh.name = "Invisible_Bloom_Interaction_Proxies";
   mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
   mesh.frustumCulled = false;
   const matrix = new THREE.Matrix4();
@@ -2308,11 +2683,9 @@ function createCoreInstances(items, geometry, material) {
   items.forEach((item, index) => {
     composeBloomCoreMatrix(item, matrix, GATHER_POINT);
     mesh.setMatrixAt(index, matrix);
-    mesh.setColorAt(index, BUD_CORE_COLOR);
   });
 
   mesh.instanceMatrix.needsUpdate = true;
-  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   mesh.userData.hitRadii = items.map((item) => item.radius * 1.18);
   mesh.userData.bloomIndices = items.map((item) => item.index);
   mesh.userData.hitShapes = items.map((item) => ({
@@ -2321,6 +2694,131 @@ function createCoreInstances(items, geometry, material) {
     centerOffset: -(item.coreOffset ?? 0),
   }));
   return mesh;
+}
+
+function createPompomMassPoints(items, material) {
+  const positions = [];
+  const colors = [];
+  const sizes = [];
+  const seeds = [];
+  for (const item of items) {
+    const position = item.position.clone().sub(GATHER_POINT);
+    positions.push(position.x, position.y, position.z);
+    appendColor(colors, new THREE.Color(item.undercoatColor ?? item.color));
+    sizes.push(item.radius * 1.42);
+    seeds.push(((item.index + 1) * 0.61803398875) % 1);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute("aSize", new THREE.Float32BufferAttribute(sizes, 1));
+  geometry.setAttribute("aSeed", new THREE.Float32BufferAttribute(seeds, 1));
+  const visibilityAttribute = new THREE.Float32BufferAttribute(new Float32Array(items.length), 1);
+  visibilityAttribute.setUsage(THREE.DynamicDrawUsage);
+  geometry.setAttribute("aVisibility", visibilityAttribute);
+  geometry.computeBoundingSphere();
+  geometry.name = "Soft_Globular_Pompom_Mass_Points";
+  const points = new THREE.Points(geometry, material);
+  points.name = "Open_Only_Soft_Pompom_Masses";
+  points.frustumCulled = false;
+  points.renderOrder = -1;
+  state.bloom.renderables.masses.push({
+    points,
+    items,
+    ranges: buildHeadRanges(items),
+    visibilityAttribute,
+  });
+  return points;
+}
+
+function createPompomMassMaterial() {
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      uPixelRatio: { value: 1 },
+      uPointScale: { value: 920 },
+    },
+    vertexShader: `
+      attribute float aSize;
+      attribute float aVisibility;
+      attribute float aSeed;
+      attribute vec3 color;
+      varying vec3 vColor;
+      varying float vVisibility;
+      varying float vSeed;
+      uniform float uPixelRatio;
+      uniform float uPointScale;
+
+      void main() {
+        vColor = color;
+        vVisibility = aVisibility;
+        vSeed = aSeed;
+        vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+        float attenuation = uPointScale / max(0.4, -viewPosition.z);
+        gl_PointSize = max(1.0, aSize * attenuation * uPixelRatio);
+        gl_Position = projectionMatrix * viewPosition;
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vColor;
+      varying float vVisibility;
+      varying float vSeed;
+
+      float hash21(vec2 point) {
+        point = fract(point * vec2(123.34, 456.21));
+        point += dot(point, point + 45.32 + vSeed * 11.0);
+        return fract(point.x * point.y);
+      }
+
+      float valueNoise(vec2 point) {
+        vec2 cell = floor(point);
+        vec2 local = fract(point);
+        local = local * local * (3.0 - 2.0 * local);
+        float a = hash21(cell);
+        float b = hash21(cell + vec2(1.0, 0.0));
+        float c = hash21(cell + vec2(0.0, 1.0));
+        float d = hash21(cell + vec2(1.0, 1.0));
+        return mix(mix(a, b, local.x), mix(c, d, local.x), local.y);
+      }
+
+      void main() {
+        if (vVisibility <= 0.001) discard;
+        vec2 point = gl_PointCoord * 2.0 - 1.0;
+        float angle = atan(point.y, point.x);
+        float fibrousEdge = 1.0
+          + 0.052 * sin(angle * 19.0 + vSeed * 29.0)
+          + 0.028 * sin(angle * 37.0 - vSeed * 41.0);
+        float radius = length(point) / fibrousEdge;
+        if (radius > 1.0) discard;
+        float sphereDepth = sqrt(max(0.0, 1.0 - radius * radius));
+        vec3 normal = normalize(vec3(point.x, -point.y, sphereDepth));
+        vec3 lightDirection = normalize(vec3(-0.4, 0.5, 1.0));
+        float diffuse = max(0.0, dot(normal, lightDirection));
+        float coarseFiber = valueNoise(point * 23.0 + vSeed * 7.0);
+        float fineFiber = valueNoise(point * 57.0 - vSeed * 13.0);
+        float radialFiber = 0.82 + 0.18 * sin(
+          angle * 73.0 + radius * 91.0 + fineFiber * 6.0 + vSeed * 17.0
+        );
+        float micro = (0.66 + coarseFiber * 0.34 + fineFiber * 0.12) * radialFiber;
+        float alpha = 1.0 - smoothstep(0.76, 1.0, radius);
+        alpha *= 0.86 + fineFiber * 0.14;
+        /* Preserve the reference's saturated lemon yellow. Fine structural
+           variation should read as crossing filaments, not as grey/brown
+           blotches that desaturate the whole head. */
+        float fiberLight = 0.84 + micro * 0.22;
+        vec3 color = vColor * (0.86 + sphereDepth * 0.18 + diffuse * 0.1) * fiberLight;
+        color *= vec3(1.06, 1.04, 0.72);
+        gl_FragColor = vec4(color, alpha * vVisibility * 0.98);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+  });
+  material.name = "Soft_Globular_Pompom_Mass_Material";
+  return material;
 }
 
 function createFilamentLines(items, material) {
@@ -2414,18 +2912,21 @@ function createTipPoints(items, material) {
   const positions = [];
   const colors = [];
   const sizes = [];
+  const seeds = [];
 
   for (const item of items) {
     const position = item.position.clone().sub(GATHER_POINT);
     positions.push(position.x, position.y, position.z);
     appendColor(colors, item.color);
     sizes.push(item.size);
+    seeds.push(item.bloomNoise ?? item.bloomOrder ?? ((item.headIndex ?? 0) * 0.61803398875) % 1);
   }
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
   geometry.setAttribute("aSize", new THREE.Float32BufferAttribute(sizes, 1));
+  geometry.setAttribute("aSeed", new THREE.Float32BufferAttribute(seeds, 1));
   geometry.setAttribute(
     "aVisibility",
     new THREE.Float32BufferAttribute(
@@ -2481,53 +2982,70 @@ function createPointsMaterial() {
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uPixelRatio: { value: 1 },
-      uPointScale: { value: 1020 },
+      uPointScale: { value: 920 },
+      uGrowthScale: { value: 1 },
     },
     vertexShader: `
       attribute float aSize;
       attribute float aVisibility;
+      attribute float aSeed;
       attribute vec3 color;
       varying vec3 vColor;
       varying float vVisibility;
+      varying float vSeed;
       uniform float uPixelRatio;
       uniform float uPointScale;
+      uniform float uGrowthScale;
 
       void main() {
         vColor = color;
         vVisibility = aVisibility;
+        vSeed = aSeed;
         vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
         float attenuation = uPointScale / max(0.4, -viewPosition.z);
-        gl_PointSize = max(1.0, aSize * attenuation * uPixelRatio);
+        gl_PointSize = max(1.0, aSize * attenuation * uPixelRatio * uGrowthScale);
         gl_Position = projectionMatrix * viewPosition;
       }
     `,
     fragmentShader: `
       varying vec3 vColor;
       varying float vVisibility;
+      varying float vSeed;
+      uniform float uGrowthScale;
 
       void main() {
         if (vVisibility <= 0.001) discard;
         vec2 point = gl_PointCoord * 2.0 - 1.0;
-        float radiusSquared = dot(point, point);
-        if (radiusSquared > 1.0) discard;
-        float edgeWidth = max(fwidth(radiusSquared) * 1.4, 0.012);
-        float alpha = 1.0 - smoothstep(1.0 - edgeWidth, 1.0, radiusSquared);
-        float sphereDepth = sqrt(max(0.0, 1.0 - radiusSquared));
+        float angle = atan(point.y, point.x);
+        float edgeVariation = 1.0
+          + sin(angle * 7.0 + vSeed * 31.0) * 0.026
+          + sin(angle * 13.0 - vSeed * 19.0) * 0.014;
+        float radius = length(point) / edgeVariation;
+        if (radius > 1.0) discard;
+        float edgeWidth = max(fwidth(radius) * 1.5, 0.018);
+        float alpha = 1.0 - smoothstep(1.0 - edgeWidth, 1.0, radius);
+        float sphereDepth = sqrt(max(0.0, 1.0 - radius * radius));
         vec3 normal = normalize(vec3(point.x, -point.y, sphereDepth));
-        vec3 lightDirection = normalize(vec3(-0.35, 0.45, 1.0));
+        vec3 lightDirection = normalize(vec3(-0.42, 0.52, 1.0));
         float diffuse = max(0.0, dot(normal, lightDirection));
-        float highlight = pow(diffuse, 6.0);
-        vec3 color = vColor * (0.86 + diffuse * 0.18 + highlight * 0.055);
-        gl_FragColor = vec4(color, alpha * vVisibility);
+        float highlight = pow(diffuse, 9.0);
+        float fibril = 0.975 + 0.025 * sin(angle * 17.0 + vSeed * 43.0)
+          * smoothstep(0.32, 0.92, radius);
+        /* Hundreds of overlapping, softly irregular anther discs form one
+           compact pom-pom. The low-contrast fibril modulation keeps close-up
+           texture without turning the head into a radial sea urchin. */
+        vec3 color = vColor * (0.88 + diffuse * 0.2 + highlight * 0.035) * fibril;
+        float growthVisibility = smoothstep(0.18, 0.45, uGrowthScale);
+        gl_FragColor = vec4(color, alpha * vVisibility * growthVisibility);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }
     `,
     transparent: true,
     depthTest: true,
-    depthWrite: false,
+    depthWrite: true,
   });
-  material.name = "Spherical_Pollen_Tip_Material";
+  material.name = "Soft_Pompom_Anther_Material";
   return material;
 }
 
@@ -2575,6 +3093,39 @@ function bloomRenderableVisible(headIndex) {
 function applyBloomEffects(dirtyHeads) {
   if (!state.bloom || dirtyHeads.length === 0) return;
   const spatialAllowed = !reduceBloomMotion();
+  const fullBloomUpload = dirtyHeads.length > 1;
+  const uploadWholeAttribute = (attribute) => {
+    if (!fullBloomUpload || !attribute) return;
+    attribute.clearUpdateRanges();
+    attribute.addUpdateRange(0, attribute.array.length);
+  };
+
+  for (const renderable of state.bloom.renderables.masses) {
+    const visibility = renderable.visibilityAttribute.array;
+    renderable.visibilityAttribute.clearUpdateRanges();
+    let changed = false;
+    for (const headIndex of dirtyHeads) {
+      const range = renderable.ranges[headIndex];
+      if (!range) continue;
+      const head = state.bloom.heads[headIndex];
+      const qaVisible = bloomRenderableVisible(headIndex);
+      for (let index = range.start; index < range.start + range.count; index += 1) {
+        const stages = bloomStagesFor(head, renderable.items[index], spatialAllowed);
+        const openMass = THREE.MathUtils.smoothstep(
+          Math.max(stages.petal * 0.72, stages.innerFilament),
+          0.22,
+          0.92,
+        );
+        visibility[index] = qaVisible ? openMass * 0.92 : 0;
+      }
+      renderable.visibilityAttribute.addUpdateRange(range.start, range.count);
+      changed = true;
+    }
+    if (changed) {
+      uploadWholeAttribute(renderable.visibilityAttribute);
+      renderable.visibilityAttribute.needsUpdate = true;
+    }
+  }
 
   for (const renderable of state.bloom.renderables.caps) {
     const matrixAttribute = renderable.mesh.instanceMatrix;
@@ -2626,6 +3177,9 @@ function applyBloomEffects(dirtyHeads) {
       changed = true;
     }
     if (changed) {
+      uploadWholeAttribute(matrixAttribute);
+      uploadWholeAttribute(colorAttribute);
+      uploadWholeAttribute(renderable.visibilityAttribute);
       matrixAttribute.needsUpdate = true;
       if (colorAttribute) colorAttribute.needsUpdate = true;
       renderable.visibilityAttribute.needsUpdate = true;
@@ -2680,6 +3234,9 @@ function applyBloomEffects(dirtyHeads) {
       changed = true;
     }
     if (changed) {
+      uploadWholeAttribute(matrixAttribute);
+      uploadWholeAttribute(colorAttribute);
+      uploadWholeAttribute(renderable.visibilityAttribute);
       matrixAttribute.needsUpdate = true;
       if (colorAttribute) colorAttribute.needsUpdate = true;
       renderable.visibilityAttribute.needsUpdate = true;
@@ -2737,6 +3294,9 @@ function applyBloomEffects(dirtyHeads) {
       changed = true;
     }
     if (changed) {
+      uploadWholeAttribute(matrixAttribute);
+      uploadWholeAttribute(colorAttribute);
+      uploadWholeAttribute(renderable.visibilityAttribute);
       matrixAttribute.needsUpdate = true;
       if (colorAttribute) colorAttribute.needsUpdate = true;
       if (renderable.mesh.morphTexture) renderable.mesh.morphTexture.needsUpdate = true;
@@ -2831,6 +3391,9 @@ function applyBloomEffects(dirtyHeads) {
       changed = true;
     }
     if (changed) {
+      uploadWholeAttribute(renderable.positionBuffer);
+      uploadWholeAttribute(renderable.colorBuffer);
+      uploadWholeAttribute(renderable.visibilityAttribute);
       renderable.positionBuffer.needsUpdate = true;
       renderable.colorBuffer.needsUpdate = true;
       renderable.visibilityAttribute.needsUpdate = true;
@@ -2936,38 +3499,16 @@ function applyBloomEffects(dirtyHeads) {
       changed = true;
     }
     if (changed) {
+      uploadWholeAttribute(positionAttribute);
+      uploadWholeAttribute(colorAttribute);
+      uploadWholeAttribute(sizeAttribute);
+      uploadWholeAttribute(visibilityAttribute);
       positionAttribute.needsUpdate = true;
       colorAttribute.needsUpdate = true;
       sizeAttribute.needsUpdate = true;
       visibilityAttribute.needsUpdate = true;
     }
   }
-}
-
-function createTie() {
-  const group = new THREE.Group();
-  group.name = "Hand_Tie";
-  const material = new THREE.MeshStandardMaterial({
-    color: 0xa77724,
-    roughness: 0.92,
-    metalness: 0,
-  });
-  material.name = "Natural_Twine_Material";
-
-  for (let index = 0; index < 3; index += 1) {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.017, 5, 28), material);
-    ring.rotation.x = Math.PI / 2;
-    ring.position.set(0, GATHER_POINT.y - 0.08 + index * 0.038, 0);
-    ring.name = `Twine_Ring_${index + 1}`;
-    group.add(ring);
-  }
-
-  const knot = new THREE.Mesh(new THREE.IcosahedronGeometry(0.064, 1), material);
-  knot.position.set(0.19, GATHER_POINT.y - 0.04, 0.035);
-  knot.scale.set(1.25, 0.9, 0.9);
-  knot.name = "Twine_Knot";
-  group.add(knot);
-  return group;
 }
 
 function composeSegmentMatrix(start, end, radius, target) {
@@ -3093,6 +3634,7 @@ function resizeScene(forceFit) {
   state.camera.aspect = width / height;
   state.camera.updateProjectionMatrix();
   if (state.pointsMaterial) state.pointsMaterial.uniforms.uPixelRatio.value = pixelRatio;
+  if (state.pompomMassMaterial) state.pompomMassMaterial.uniforms.uPixelRatio.value = pixelRatio;
   if (state.universeMaterial) state.universeMaterial.uniforms.uPixelRatio.value = pixelRatio;
 
   if (forceFit || !state.userMoved) {
@@ -3114,10 +3656,20 @@ function fitView() {
   const verticalDistance = size.y * 0.5 / Math.tan(verticalFov / 2);
   const horizontalDistance = size.x * 0.5 / Math.tan(horizontalFov / 2);
   const portrait = state.camera.aspect < 0.82;
-  const margin = portrait ? 1.1 : 1.12;
+  /* The reference is an intimate botanical study rather than a distant
+     specimen plate. Fill the right-hand field while preserving the quiet
+     client column at left. */
+  const margin = portrait ? 0.9 : 0.76;
   const distance = (Math.max(verticalDistance, horizontalDistance) + size.z * 0.52) * margin;
 
-  center.x -= state.camera.aspect > 1.25 ? 0.24 : 0;
+  const compositionOffset = state.camera.aspect > 1.25
+    ? size.x * 0.38
+    : state.camera.aspect > 0.85
+      ? size.x * 0.28
+      : state.camera.aspect > 0.62
+        ? size.x * 0.13
+        : size.x * 0.08;
+  center.x -= compositionOffset;
   center.y -= portrait ? 0.05 : 0;
   state.camera.position.set(center.x, center.y + 0.035, center.z + distance);
   state.camera.near = Math.max(0.06, distance - size.z * 2.6 - size.y);
@@ -3188,6 +3740,7 @@ function renderFrame(timestamp) {
   state.lastFrame = timestamp;
 
   const autonomous = shouldAnimateAutonomously();
+  const growthAnimating = updateTreeGrowth(timestamp);
   if (autonomous) {
     state.motionTime += delta;
     updateSway(state.motionTime);
@@ -3212,7 +3765,7 @@ function renderFrame(timestamp) {
     ui.stage.dataset.qaFrameMax = sortedFrameTimes.at(-1).toFixed(2);
   }
 
-  if (autonomous || bloomAnimating || state.hoverPointer.pending || controlsChanged) invalidate();
+  if (autonomous || growthAnimating || bloomAnimating || state.hoverPointer.pending || controlsChanged) invalidate();
 }
 
 function shouldAnimateAutonomously() {
@@ -3300,6 +3853,10 @@ function onPointerUp(event) {
 
 function onCanvasClick(event) {
   if (state.pointerDragged) return;
+  if (!state.growth?.complete) {
+    setStatus("The shoot is still growing. Buds form when the branch reaches maturity.", 1700);
+    return;
+  }
   if (query.get("qa") === "1") {
     ui.stage.dataset.qaClickX = event.clientX.toFixed(2);
     ui.stage.dataset.qaClickY = event.clientY.toFixed(2);
@@ -3343,6 +3900,11 @@ function clearBloomHover(now = performance.now()) {
 }
 
 function updateHoverPicking(now) {
+  if (!state.growth?.complete) {
+    state.hoverPointer.pending = false;
+    clearBloomHover(now);
+    return;
+  }
   if (!state.hoverPointer.pending || !finePointer.matches || state.controlsActive || state.press) return;
   if (now - state.hoverPointer.lastBrushAt < BLOOM_BRUSH_STEP_MS) return;
 
@@ -3457,6 +4019,7 @@ function bloomAtHoverArea(clientX, clientY, now) {
 }
 
 function pickBloomAt(clientX, clientY) {
+  if (!state.growth?.complete) return false;
   const rect = ui.canvas.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return false;
   bloomPicker.pointer.set(
@@ -3544,6 +4107,7 @@ function activateBloomAtIndex(
   delay = 0,
   originNormal = null,
 ) {
+  if (!state.growth?.complete) return false;
   const head = state.bloom?.heads[index];
   if (!head) return false;
   if (head.committedOpen) {
@@ -3576,6 +4140,7 @@ function activateBloomAtIndex(
 
 function triggerBouquetBloom(announce = true) {
   if (!state.bloom) return false;
+  if (!state.growth?.complete) return completeTreeGrowth(announce);
   const remaining = state.bloom.heads.filter((head) => !head.committedOpen);
   if (remaining.length === 0) {
     if (announce) setStatus("All flowers are already open.", 1200);
@@ -3646,6 +4211,10 @@ function onStageKeydown(event) {
     case "Enter":
     case " ":
       event.preventDefault();
+      if (!state.growth?.complete) {
+        completeTreeGrowth(true);
+        return;
+      }
       triggerBouquetBloom();
       return;
     case "Home":
@@ -3681,6 +4250,7 @@ function onReducedMotionChange() {
   state.controls.enableDamping = !state.reduced;
   resetBloomState();
   if (state.reduced) {
+    completeTreeGrowth(false);
     resetSwayPose();
     resetUniversePose();
   }
@@ -3702,12 +4272,16 @@ function setStatus(message, resetAfter = 0) {
   if (resetAfter) {
     state.statusTimer = window.setTimeout(() => {
       if (!state.ready) {
-        ui.status.textContent = "Building the 3D bouquet.";
+        ui.status.textContent = "Growing the 3D Golden Wattle branch.";
+        return;
+      }
+      if (!state.growth?.complete) {
+        ui.status.textContent = "The Golden Wattle shoot is still growing.";
         return;
       }
       const remaining = state.bloom?.heads.filter((head) => !head.committedOpen).length ?? 0;
       ui.status.textContent = remaining > 0
-        ? `Move across the bouquet to bloom it. ${remaining} buds remain.`
+        ? `Move across the mature branch to bloom it. ${remaining} buds remain.`
         : "All flowers are open.";
     }, resetAfter);
   }
@@ -4092,9 +4666,9 @@ function writeQaBloomDataset(metrics) {
 function setQaMorphIsolation(enabled) {
   if (!state.bouquet) return;
   const contextualObjects = new Set([
-    "Stem_Segments",
-    "Falcate_Veined_Phyllodes",
-    "Hand_Tie",
+    "Branch_Primary_Axis_Segments",
+    "Branch_Lateral_Axis_Segments",
+    "Narrow_Lanceolate_Phyllodes",
   ]);
   state.bouquet.traverse((object) => {
     if (contextualObjects.has(object.name)) object.visible = !enabled;
@@ -4200,6 +4774,9 @@ function exposeQaSnapshot() {
         },
         scene: {
           flowerHeads: state.data.all.blooms.length,
+          racemeAxes: state.data.grammar?.racemeCount ?? 0,
+          singleHeadRacemes: 0,
+          flowerPeduncles: state.data.grammar?.peduncleCount ?? 0,
           branchClusters: state.swayGroups.length,
           leaves: state.data.all.leaves.length,
           florets: state.data.metrics.florets,
@@ -4218,10 +4795,11 @@ function exposeQaSnapshot() {
             heroes: state.data.all.blooms.filter((item) => item.archetype === "hero").length,
           },
           headForms: {
-            symmetricBiconvexRosettes: state.data.all.blooms.filter((item) => item.archetype !== "bud").length,
+            denseGlobularPompoms: state.data.all.blooms.filter((item) => item.archetype !== "bud").length,
             globularBuds: state.data.all.blooms.filter((item) => item.archetype === "bud").length,
           },
           bouquetWithinInitialFrustum: bouquetWithinFrustum(),
+          treeWithinInitialFrustum: bouquetWithinFrustum(),
         },
         camera: {
           azimuth: spherical.theta,
@@ -4236,6 +4814,12 @@ function exposeQaSnapshot() {
           paused: state.motionPaused,
           breeze: state.breeze,
           autonomous: shouldAnimateAutonomously(),
+          treeGrowth: {
+            progress: state.growth?.progress ?? 1,
+            stage: ui.stage.dataset.qaTreeStage ?? (state.growth?.complete ? "mature" : "growing"),
+            mature: state.growth?.complete ?? true,
+            durationMs: state.growth?.duration ?? TREE_GROWTH_DURATION_MS,
+          },
         },
         lod: {
           profile: state.profile.id,
@@ -4335,9 +4919,9 @@ function showFailure(error) {
   /* This lives in the markup only as a status target; guard it so the failure
      path can never itself fail on a missing node. */
   if (ui.instructions) {
-    ui.instructions.textContent = "A still view of the complete golden wattle bouquet.";
+    ui.instructions.textContent = "A still view of a mature Golden Wattle branch.";
   }
-  setStatus("The interactive 3D bouquet could not open. A still bouquet is shown.");
+  setStatus("The interactive 3D branch could not open. A still Golden Wattle branch is shown.");
   window.__WATTLE_QA__ = Object.freeze({
     snapshot: () => ({ state: "error", renderer: "fallback" }),
   });
@@ -4872,15 +5456,15 @@ function computeSemanticMetrics(data) {
   }
   const antherPartViolations = data.all.florets.filter((floret) => {
     const parts = antherParts.get(`${floret.headIndex}:${floret.siteIndex}`) ?? [];
-    return parts.length !== FLORET_PARTS
-      || new Set(parts).size !== FLORET_PARTS
-      || parts.some((part) => !Number.isInteger(part) || part < 0 || part >= FLORET_PARTS);
+    return parts.length !== STAMEN_BUNDLES_PER_FLORET
+      || new Set(parts).size !== STAMEN_BUNDLES_PER_FLORET
+      || parts.some((part) => !Number.isInteger(part) || part < 0 || part >= STAMEN_BUNDLES_PER_FLORET);
   }).length;
 
-  const curvatures = data.all.leaves
-    .map((leaf) => leaf.curvatureRatio * leaf.curve)
+  const undulations = data.all.leaves
+    .map((leaf) => leaf.undulation)
     .sort((a, b) => a - b);
-  const curvatureMedian = curvatures[Math.floor(curvatures.length * 0.5)] || 0;
+  const undulationMedian = undulations[Math.floor(undulations.length * 0.5)] || 0;
 
   return {
     florets: {
@@ -4889,20 +5473,25 @@ function computeSemanticMetrics(data) {
       petalInstances: data.all.florets.length * FLORET_PARTS,
       petalsPerFloret: FLORET_PARTS,
       fivePartViolations: data.all.florets.filter((floret) => floret.petalCount !== FLORET_PARTS).length,
-      anthersPerFloret: FLORET_PARTS,
+      renderedStamenBundlesPerFloret: STAMEN_BUNDLES_PER_FLORET,
+      stamenModel: "representative bundles for numerous biological stamens",
       antherPartViolations,
       outwardFacingViolations,
       nonFiniteTransforms,
     },
     headPacking,
     phyllodes: {
-      falcateLeaves: data.all.leaves.filter((leaf) => leaf.falcate).length,
+      form: "long narrow lanceolate phyllodes",
+      wingedLeaves: 0,
+      lanceolateLeaves: data.all.leaves.filter((leaf) => leaf.form === "narrow-lanceolate-phyllode").length,
+      continuousWithStem: data.all.leaves.filter((leaf) => leaf.continuousWithStem).length,
+      twoSidedWings: 0,
       veinedLeaves: data.all.leaves.filter((leaf) => leaf.veinCount === PHYLLODE_VEIN_COUNT).length,
       veinsPerLeaf: PHYLLODE_VEIN_COUNT,
       veinSegments: data.all.leaves.length * PHYLLODE_VEIN_COUNT * PHYLLODE_VEIN_SEGMENTS,
-      minCurvatureRatio: curvatures[0] || 0,
-      medianCurvatureRatio: curvatureMedian,
-      maxCurvatureRatio: curvatures[curvatures.length - 1] || 0,
+      minUndulation: undulations[0] || 0,
+      medianUndulation: undulationMedian,
+      maxUndulation: undulations[undulations.length - 1] || 0,
       taperViolations: data.all.leaves.filter((leaf) => !leaf.tapersBothEnds).length,
     },
   };
