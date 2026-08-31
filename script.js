@@ -3843,6 +3843,7 @@ function setupEvents() {
   state.controls.addEventListener("change", invalidate);
   state.controls.addEventListener("end", () => {
     state.controlsActive = false;
+    ui.body.classList.remove("is-orbiting");
     /* A drag ending is not a hover gesture. Wait for a fresh pointermove before
        the bloom brush can commit another bud. */
     state.hoverPointer.pending = false;
@@ -3856,8 +3857,10 @@ function setupEvents() {
   ui.canvas.addEventListener("lostpointercapture", clearPress);
   ui.canvas.addEventListener("pointerleave", onCanvasPointerLeave);
   ui.canvas.addEventListener("click", onCanvasClick);
+  window.addEventListener("blur", clearPress);
 
   ui.stage.addEventListener("keydown", onStageKeydown);
+  ui.stage.addEventListener("blur", () => ui.stage.removeAttribute("data-pointer-focus"));
   ui.retry.addEventListener("click", () => window.location.reload());
   ui.finaleDismiss.addEventListener("click", dismissBloomFinale);
   ui.finale.addEventListener("keydown", (event) => {
@@ -4128,6 +4131,7 @@ function stopLoop() {
 }
 
 function onPointerDown(event) {
+  ui.stage.dataset.pointerFocus = "true";
   ui.stage.focus({ preventScroll: true });
   state.pointerDragged = false;
   state.hoverPointer.pending = false;
@@ -4148,6 +4152,14 @@ function onPointerMove(event) {
   if (state.press && state.press.pointerId === event.pointerId) {
     const distance = Math.hypot(event.clientX - state.press.x, event.clientY - state.press.y);
     if (distance > BLOOM_DRAG_SLOP) {
+      if (!state.press.moved) {
+        ui.body.classList.add("is-orbiting");
+        if (qaMode) {
+          ui.stage.dataset.qaOrbitFocusCount = String(
+            Number(ui.stage.dataset.qaOrbitFocusCount || 0) + 1,
+          );
+        }
+      }
       state.press.moved = true;
       state.pointerDragged = true;
       clearBloomHover(performance.now());
@@ -4191,6 +4203,7 @@ function onCanvasClick(event) {
 
 function clearPress() {
   state.press = null;
+  ui.body.classList.remove("is-orbiting");
 }
 
 function onCanvasPointerLeave() {
@@ -4495,6 +4508,7 @@ function triggerBouquetBloom(announce = true) {
 }
 
 function onStageKeydown(event) {
+  ui.stage.removeAttribute("data-pointer-focus");
   if (!state.ready) return;
   const spherical = new THREE.Spherical().setFromVector3(
     state.camera.position.clone().sub(state.controls.target),

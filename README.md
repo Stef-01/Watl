@@ -115,6 +115,16 @@ interaction floor without downloading it.
 - **Lifecycle guidance follows the input method.** Fine pointers are invited
   to move across buds; coarse pointers are told to tap. Plugging in or removing
   a pointer updates the visible guidance without rebuilding the scene.
+- **The interface yields during direct manipulation.** Once a canvas press
+  crosses the real drag threshold, the wordmark, clients, ground control and
+  lifecycle meter recede to 34% while the bloom brush disappears. Releasing,
+  cancelling, losing pointer capture or leaving the window restores the chrome;
+  ordinary bud clicks never trigger the effect. Pointer-originated canvas focus
+  also suppresses the viewport ring, while the next keyboard event restores
+  visible focus.
+- **The client rail reports intent as well as scroll position.** Its counter
+  and restrained gold row marker follow hover and keyboard focus immediately,
+  then return to the row nearest the native scroll origin.
 
 Three constraints hold this layer honest:
 

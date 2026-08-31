@@ -294,9 +294,21 @@ function clientPosition(list) {
   const items = [...list.querySelectorAll(".client")];
   const current = document.querySelector("#client-current");
   const total = document.querySelector("#client-total");
+  const previews = [];
   let queued = 0;
+  let activeIndex = -1;
+  let previewIndex = -1;
 
   if (total) total.textContent = String(items.length).padStart(2, "0");
+
+  function render(index) {
+    if (index === activeIndex) return;
+    activeIndex = index;
+    if (current) current.textContent = String(index + 1).padStart(2, "0");
+    items.forEach((item, itemIndex) => {
+      item.dataset.current = String(itemIndex === index);
+    });
+  }
 
   function update() {
     queued = 0;
@@ -311,8 +323,7 @@ function clientPosition(list) {
         closest = index;
       }
     });
-
-    if (current) current.textContent = String(closest + 1).padStart(2, "0");
+    render(previewIndex >= 0 ? previewIndex : closest);
   }
 
   function onScroll() {
@@ -352,11 +363,42 @@ function clientPosition(list) {
 
   list.addEventListener("scroll", onScroll, { passive: true });
   list.addEventListener("keydown", onKeyDown);
+
+  /* The counter describes the row the visitor is considering as well as the
+     one nearest the scroll origin. The update is immediate; only the tiny
+     index/underline acknowledgement transitions in CSS. */
+  items.forEach((item, index) => {
+    const preview = () => {
+      previewIndex = index;
+      render(index);
+    };
+    const restore = () => {
+      if (document.activeElement === item) return;
+      previewIndex = -1;
+      update();
+    };
+    const blur = () => {
+      previewIndex = -1;
+      update();
+    };
+    item.addEventListener("pointerenter", preview, { passive: true });
+    item.addEventListener("pointerleave", restore, { passive: true });
+    item.addEventListener("focus", preview);
+    item.addEventListener("blur", blur);
+    previews.push({ item, preview, restore, blur });
+  });
   update();
 
   return () => {
     list.removeEventListener("scroll", onScroll);
     list.removeEventListener("keydown", onKeyDown);
+    previews.forEach(({ item, preview, restore, blur }) => {
+      item.removeEventListener("pointerenter", preview);
+      item.removeEventListener("pointerleave", restore);
+      item.removeEventListener("focus", preview);
+      item.removeEventListener("blur", blur);
+      item.removeAttribute("data-current");
+    });
     if (queued) cancelAnimationFrame(queued);
   };
 }

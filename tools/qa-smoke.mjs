@@ -352,6 +352,23 @@ await check("state-triggered motion stays interruptible and input aware", () => 
   assert.doesNotMatch(stylesSource, /animation-duration:\s*0\.01ms/);
 });
 
+await check("direct manipulation yields the chrome and the client rail reports intent", () => {
+  assert.match(scriptSource, /if\s*\(!state\.press\.moved\)\s*\{[\s\S]*?ui\.body\.classList\.add\(["']is-orbiting["']\)[\s\S]*?qaOrbitFocusCount/);
+  assert.match(scriptSource, /function\s+clearPress\s*\(\)[\s\S]*?classList\.remove\(["']is-orbiting["']\)/);
+  assert.match(scriptSource, /function\s+onPointerDown\s*\([\s\S]*?dataset\.pointerFocus\s*=\s*["']true["'][\s\S]*?\.focus\(\{\s*preventScroll:\s*true\s*\}\)/);
+  assert.match(scriptSource, /function\s+onStageKeydown\s*\([\s\S]*?removeAttribute\(["']data-pointer-focus["']\)/);
+  assert.match(scriptSource, /ui\.stage\.addEventListener\(["']blur["'],\s*\(\)\s*=>\s*ui\.stage\.removeAttribute\(["']data-pointer-focus["']\)\)/);
+  assert.match(stylesSource, /\.is-orbiting\s+:is\(\.hero,\s*\.ground-switch,\s*\.client-rail,\s*\.cultivation\)\s*\{[\s\S]*?opacity:\s*0\.34/);
+  assert.match(stylesSource, /\.stage\[data-pointer-focus=["']true["']\]:focus-visible\s*\{[\s\S]*?outline:\s*none/);
+  assert.match(stylesSource, /\.is-orbiting\s+\.bloom-cursor__ring\s*\{[\s\S]*?opacity:\s*0\s*!important/);
+  assert.match(interactionsSource, /item\.dataset\.current\s*=\s*String\(itemIndex\s*===\s*index\)/);
+  assert.match(interactionsSource, /item\.addEventListener\(["']pointerenter["'],\s*preview/);
+  assert.match(interactionsSource, /item\.addEventListener\(["']focus["'],\s*preview\)/);
+  assert.match(stylesSource, /\.client\[data-current=["']true["']\]::before\s*\{[\s\S]*?scaleX\(0\.16\)/);
+  assert.match(stylesSource, /\.ground-swatch:active\s*\{[\s\S]*?scale\(0\.9\)/);
+  assert.match(stylesSource, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ground-switch__toggle:active\s+\.ground-switch__dot\s*\{[\s\S]*?transform:\s*none/);
+});
+
 const port = await reservePort();
 const child = spawn(process.execPath, ["server.mjs"], {
   cwd: root,

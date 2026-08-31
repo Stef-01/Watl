@@ -115,6 +115,13 @@ button {
   outline-offset: -5px;
 }
 
+/* Pointer focus keeps keyboard continuity after orbiting without drawing a
+   viewport-sized ring. The first real key event removes this attribute and
+   restores the ordinary :focus-visible treatment. */
+.stage[data-pointer-focus="true"]:focus-visible {
+  outline: none;
+}
+
 /* A fine-pointer bloom brush. The outer layer follows the cursor without
    interpolation; the inner ring alone changes state, so feedback is immediate
    while the 3D plant keeps all of the expressive motion. */
@@ -428,6 +435,25 @@ button {
 .interface-layer :is(a, button, input),
 .interface-layer:is(a, button, input) {
   pointer-events: auto;
+}
+
+/* Direct manipulation gets the visual field to itself. The chrome only
+   recedes after the pointer crosses the real drag threshold, so clicking a bud
+   never makes the interface blink. Opacity preserves layout and stays cheap
+   while OrbitControls and WebGL are working. */
+.hero,
+.ground-switch,
+.client-rail,
+.cultivation {
+  transition: opacity var(--duration-ui) ease;
+}
+
+.is-orbiting :is(.hero, .ground-switch, .client-rail, .cultivation) {
+  opacity: 0.34;
+}
+
+.is-orbiting .bloom-cursor__ring {
+  opacity: 0 !important;
 }
 
 .hero {
@@ -755,7 +781,12 @@ button {
   transition:
     opacity 180ms ease,
     background-color 240ms ease,
-    box-shadow 180ms ease;
+    box-shadow 180ms ease,
+    transform 120ms ease;
+}
+
+.ground-switch__toggle:active .ground-switch__dot {
+  transform: scale(0.84);
 }
 
 .ground-switch:focus-within .ground-switch__name {
@@ -888,6 +919,10 @@ button {
 .ground-swatch:focus-visible {
   outline: 1px solid var(--gold);
   outline-offset: 3px;
+}
+
+.ground-swatch:active {
+  transform: scale(0.9);
 }
 
 /* ---------- The entrance ----------
@@ -1102,9 +1137,12 @@ button {
   left: 0;
   height: 1px;
   background: rgba(var(--gold-rgb), 0.72);
+  opacity: 0.55;
   transform: scaleX(0);
   transform-origin: left center;
-  transition: transform var(--duration-ui) var(--ease-out);
+  transition:
+    opacity var(--duration-fast) ease,
+    transform var(--duration-ui) var(--ease-out);
 }
 
 .client__index {
@@ -1112,6 +1150,15 @@ button {
   font-size: 0.55rem;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
+  transition: color var(--duration-fast) ease;
+}
+
+.client[data-current="true"]::before {
+  transform: scaleX(0.16);
+}
+
+.client[data-current="true"] .client__index {
+  color: rgba(var(--gold-rgb), 0.72);
 }
 
 .client__name {
@@ -1156,6 +1203,7 @@ button {
 
 .client:active::before,
 .client:focus-visible::before {
+  opacity: 1;
   transform: scaleX(1);
 }
 
@@ -1171,6 +1219,7 @@ button {
   }
 
   .client:hover::before {
+    opacity: 1;
     transform: scaleX(1);
   }
 }
@@ -1389,6 +1438,12 @@ input:disabled {
   .bloom-finale__action:hover .bloom-finale__arrow {
     transform: translate(0.12rem, -0.12rem);
   }
+}
+
+.bloom-finale__action:active,
+.bloom-finale__dismiss:active {
+  opacity: 0.72;
+  transform: translateY(0) scale(0.98);
 }
 
 .loader,
@@ -1672,6 +1727,10 @@ input:disabled {
   .ground-switch__dot::before {
     transform: none;
     transition: opacity var(--duration-fast) ease;
+  }
+
+  .ground-switch__toggle:active .ground-switch__dot {
+    transform: none;
   }
 
   .ground-switch__swatches {
