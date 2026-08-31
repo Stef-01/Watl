@@ -365,6 +365,13 @@ await check("state-triggered motion stays interruptible and input aware", () => 
   assert.match(scriptSource, /function\s+onFinePointerChange\s*\([\s\S]*?syncCultivation\(\)/);
   assert.match(stylesSource, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation:\s*settle var\(--duration-fast\)/);
   assert.doesNotMatch(stylesSource, /animation-duration:\s*0\.01ms/);
+  assert.match(stylesSource, /--duration-press:\s*120ms/);
+  assert.match(stylesSource, /\.cultivation__fill\s*\{[\s\S]*?transition:\s*none;[\s\S]*?will-change:\s*transform/);
+  assert.doesNotMatch(stylesSource, /\.cultivation__fill\s*\{[\s\S]{0,420}?transition:\s*transform\s+260ms/);
+  assert.match(stylesSource, /\.loader__track span\s*\{[\s\S]*?animation:\s*load\s+1\.6s\s+linear\s+infinite/);
+  assert.match(stylesSource, /\.ground-swatch\s*\{[\s\S]*?transform\s+var\(--duration-press\)\s+var\(--ease-out\)/);
+  assert.match(stylesSource, /\.client:active \.client__arrow\s*\{[\s\S]*?transition-duration:\s*var\(--duration-press\)/);
+  assert.match(stylesSource, /\.bloom-finale__action:active,[\s\S]*?transition-duration:\s*var\(--duration-press\)/);
 });
 
 await check("direct manipulation yields the chrome and the client rail reports intent", () => {

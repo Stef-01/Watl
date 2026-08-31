@@ -69,7 +69,13 @@ Elsewhere:
 - **The lifecycle meter moves through the biological states.** Its fill uses
   the exact tree-growth progress, marks the 72% bud threshold, then resets as
   the phase changes from growth to blooming and fills from the aggregate
-  flower-head choreography rather than jumping only when a head finishes.
+  flower-head choreography rather than jumping only when a head finishes. Its
+  transform is written directly without a trailing CSS transition, so the line
+  remains phase-accurate even while the render loop is advancing every frame.
+- **Continuous and direct motion use separate physics.** The indeterminate
+  loader travels at a constant linear velocity, while press feedback shares a
+  fast 120 ms ease-out token; neither inherits the slower narrative timing used
+  for tree growth or the rare completion reveal.
 
 Two implementation notes worth keeping:
 

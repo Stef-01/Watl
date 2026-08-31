@@ -21,6 +21,7 @@
   --horizon-duration: 46s;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --duration-press: 120ms;
   --duration-fast: 160ms;
   --duration-ui: 220ms;
   --duration-reveal: 680ms;
@@ -548,7 +549,10 @@ button {
   box-shadow: 0 0 0.8rem rgba(var(--gold-rgb), 0.16);
   transform: scaleX(0);
   transform-origin: left center;
-  transition: transform 260ms var(--ease-out);
+  /* script.js writes the exact biological progress every frame. Interpolating
+     those writes would make the meter describe the recent past. */
+  transition: none;
+  will-change: transform;
 }
 
 .cultivation__prompt {
@@ -786,7 +790,7 @@ button {
     opacity 180ms ease,
     background-color 240ms ease,
     box-shadow 180ms ease,
-    transform 120ms ease;
+    transform var(--duration-press) var(--ease-out);
 }
 
 .ground-switch__toggle:active .ground-switch__dot {
@@ -884,7 +888,7 @@ button {
   transition:
     opacity 180ms ease,
     box-shadow 180ms ease,
-    transform 180ms ease;
+    transform var(--duration-press) var(--ease-out);
 }
 
 .ground-swatch::before {
@@ -1221,6 +1225,12 @@ button {
   transform: scaleX(1);
 }
 
+.client:active::before,
+.client:active .client__name,
+.client:active .client__arrow {
+  transition-duration: var(--duration-press);
+}
+
 @media (hover: hover) and (pointer: fine) {
   .client:hover .client__name {
     transform: translateX(0.22rem);
@@ -1354,7 +1364,7 @@ input:disabled {
   opacity: 0;
   transform: translateY(1.25rem);
   transition:
-    opacity 240ms ease,
+    opacity 240ms var(--ease-out),
     transform 420ms var(--ease-out);
 }
 
@@ -1475,6 +1485,7 @@ input:disabled {
 .bloom-finale__dismiss:active {
   opacity: 0.72;
   transform: translateY(0) scale(0.98);
+  transition-duration: var(--duration-press);
 }
 
 .loader,
@@ -1524,7 +1535,7 @@ input:disabled {
   width: 34%;
   height: 100%;
   background: var(--gold);
-  animation: load 1.6s var(--ease-in-out) infinite;
+  animation: load 1.6s linear infinite;
 }
 
 .is-ready .loader {
