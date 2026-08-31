@@ -25,7 +25,7 @@ The first reference was judged at flower-head scale; the second was judged at br
 | Flower colour | Muddy mustard and grey blotching | Saturated lemon core/filament/tip palette with texture carried by light variation rather than desaturation | Closed |
 | Bloom staging | Scale-up only | Bud swell → seam separation → cup reveal → five-part floret opening → stamen extension → anther settling → persistent mature head | Closed |
 | Hover behaviour | Global or coarse bloom response | Screen-space brush opens only nearby heads, four at a time, with 135 ms local staggering | Closed |
-| Composition | Distant specimen and collision with client list | Camera fill tightened to 0.76, branch target shifted 0.38 of branch width left to render the botanical form strongly on the right | Closed |
+| Composition | Flat frontal specimen and collision with client list | Projection-aware 24° three-quarter landscape view, optically lifted canopy target, and 0.38 projected-width offset compose the complete branch strongly on the right | Closed |
 | Finale | No completion acknowledgement | All 82 persistent heads trigger the restrained black “Help your business bloom” contact banner | Closed |
 
 ## Recursive appraisal record
@@ -38,14 +38,17 @@ The first reference was judged at flower-head scale; the second was judged at br
 6. Rejected the exposed long-filament version because it read as a sea urchin; recessed the lines and added a compact point-shell mass.
 7. Reduced coarse radial spikes, tightened the particle shell from 0.72 to 0.69 radius, and lowered representative filament opacity to 0.30.
 8. Compared the macro and whole-branch states together with both references; corrected foliage hue, flower saturation, camera fill and right-side offset.
-9. Rechecked the settled all-open state rather than judging a partially loaded frame.
-10. Verified desktop, mobile hover-area blooming, reduced-motion, full-bloom completion and performance budgets.
+9. Re-measured the complete generated silhouette across eleven azimuths; selected 24° because it exposes branch depth while preserving a 1.698 projected height-to-width ratio and improving average flower separation by approximately 8% over the frontal view.
+10. Rechecked the settled all-open state rather than judging a partially loaded frame.
+11. Verified desktop, mobile hover-area blooming, reduced-motion, full-bloom completion and performance budgets.
 
 ## Final technical measurements
 
 - Procedural morphology: 82 flower heads, 21 racemes, no single-head racemes, four botanical branch orders.
 - Flower scale: the complete bud-to-pom-pom radius is 50% larger than the previous release; every growth stage shares the same multiplier, so no phase pops or changes proportion during the transition.
 - Branch finish: deterministic internode curvature, calmer lateral inclination, and a 0.84 stem-tip taper aligned to the primary continuation ratio remove ruler-straight axes and swollen joints.
+- Authored camera: 34° field of view, responsive 24°/18°/10° three-quarter azimuth, 4.5° elevation, and an optically raised target center the flower-bearing canopy while the stem enters from below.
+- Exploration range: wheel/pinch zoom speed increased from 0.72 to 1.18; camera distance now spans 0.34×–2.45× the authored distance, with symmetric 18% keyboard zoom steps.
 - Interaction sampling: hover brush radius 90 px in the recorded desktop state; four heads per brush step.
 - Hover-area blooming remains capped at four nearby heads per brush step, independent of total flower count.
 - Mature completion state: 82 open, 0 closed, growth 1.0, bloom timeline 1.0.
@@ -55,7 +58,7 @@ The first reference was judged at flower-head scale; the second was judged at br
 
 ## Post-approval performance refinement
 
-- The approved high-quality geometry, palette, camera, and 2.7-second choreography are unchanged.
+- The approved high-quality geometry, palette, and 2.7-second choreography are unchanged; the whole-branch camera is now an intentional responsive three-quarter portrait.
 - Local bloom updates no longer upload whole scene attributes; the QA surface now reports actual scheduled ranges and bytes.
 - Pointer-facing site delays are evaluated once per activation instead of once per item per frame, and the filament hot path performs no temporary array allocation.
 - Production no longer maintains or shifts the 240-entry QA frame-time window.

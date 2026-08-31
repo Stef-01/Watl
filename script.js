@@ -35,6 +35,17 @@ const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const X_AXIS = new THREE.Vector3(1, 0, 0);
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const TREE_ROOT = new THREE.Vector3(0, 0, 0);
+/* The load view is an authored botanical portrait. A mild telephoto field of
+   view and three-quarter azimuth reveal the branch's real depth without
+   turning the specimen into a dramatic wide-angle object. */
+const DEFAULT_CAMERA_FOV = 34;
+const DEFAULT_VIEW_AZIMUTH_LANDSCAPE = THREE.MathUtils.degToRad(24);
+const DEFAULT_VIEW_AZIMUTH_TABLET = THREE.MathUtils.degToRad(18);
+const DEFAULT_VIEW_AZIMUTH_PORTRAIT = THREE.MathUtils.degToRad(10);
+const DEFAULT_VIEW_ELEVATION = THREE.MathUtils.degToRad(4.5);
+const MIN_ZOOM_DISTANCE_RATIO = 0.34;
+const MAX_ZOOM_DISTANCE_RATIO = 2.45;
+const KEYBOARD_ZOOM_FACTOR = 0.82;
 /* Kept as an internal alias because the bloom instance builders all express
    their matrices relative to one shared pivot. That pivot is now the root of
    a living tree, not the hand-tie point of a bouquet. */
@@ -279,7 +290,7 @@ async function init() {
   state.profile = chooseProfile(rect.width);
   state.renderer = createRenderer(state.profile);
   state.scene = new THREE.Scene();
-  state.camera = new THREE.PerspectiveCamera(36, 1, 0.08, 40);
+  state.camera = new THREE.PerspectiveCamera(DEFAULT_CAMERA_FOV, 1, 0.04, 40);
   state.controls = createControls(state.camera, state.renderer.domElement);
 
   addLighting(state.scene);
@@ -749,8 +760,8 @@ function createControls(camera, canvas) {
   controls.enablePan = false;
   controls.minPolarAngle = 0.58;
   controls.maxPolarAngle = 2.38;
-  controls.rotateSpeed = 0.58;
-  controls.zoomSpeed = 0.72;
+  controls.rotateSpeed = 0.72;
+  controls.zoomSpeed = 1.18;
   controls.autoRotate = false;
   controls.target.set(0, -0.35, 0);
   return controls;
@@ -3886,32 +3897,61 @@ function fitView() {
   const center = state.data.bounds.getCenter(new THREE.Vector3());
   const verticalFov = THREE.MathUtils.degToRad(state.camera.fov);
   const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * state.camera.aspect);
-  const verticalDistance = size.y * 0.5 / Math.tan(verticalFov / 2);
-  const horizontalDistance = size.x * 0.5 / Math.tan(horizontalFov / 2);
   const portrait = state.camera.aspect < 0.82;
-  /* The reference is an intimate botanical study rather than a distant
-     specimen plate. Fill the right-hand field while preserving the quiet
-     client column at left. */
-  const margin = portrait ? 0.9 : 0.76;
-  const distance = (Math.max(verticalDistance, horizontalDistance) + size.z * 0.52) * margin;
+  const azimuth = state.camera.aspect > 1.25
+    ? DEFAULT_VIEW_AZIMUTH_LANDSCAPE
+    : state.camera.aspect > 0.82
+      ? DEFAULT_VIEW_AZIMUTH_TABLET
+      : DEFAULT_VIEW_AZIMUTH_PORTRAIT;
+  const elevation = portrait ? DEFAULT_VIEW_ELEVATION * 0.68 : DEFAULT_VIEW_ELEVATION;
+  const cosAzimuth = Math.cos(azimuth);
+  const sinAzimuth = Math.sin(azimuth);
+  const cosElevation = Math.cos(elevation);
+  const sinElevation = Math.sin(elevation);
+
+  /* Fit the rotated silhouette rather than its unrotated world-space box.
+     This keeps the complete branch composition stable as the authored view
+     moves away from a flat frontal angle. */
+  const projectedWidth = Math.abs(size.x * cosAzimuth) + Math.abs(size.z * sinAzimuth);
+  const projectedDepth = Math.abs(size.x * sinAzimuth) + Math.abs(size.z * cosAzimuth);
+  const projectedHeight = Math.abs(size.y * cosElevation)
+    + Math.abs(projectedDepth * sinElevation);
+  const verticalDistance = projectedHeight * 0.5 / Math.tan(verticalFov / 2);
+  const horizontalDistance = projectedWidth * 0.5 / Math.tan(horizontalFov / 2);
+  const margin = portrait ? 0.92 : state.camera.aspect < 1.25 ? 0.86 : 0.81;
+  const distance = (
+    Math.max(verticalDistance, horizontalDistance)
+    + projectedDepth * cosElevation * 0.5
+  ) * margin;
 
   const compositionOffset = state.camera.aspect > 1.25
-    ? size.x * 0.38
+    ? projectedWidth * 0.38
     : state.camera.aspect > 0.85
-      ? size.x * 0.28
+      ? projectedWidth * 0.28
       : state.camera.aspect > 0.62
-        ? size.x * 0.13
-        : size.x * 0.08;
+        ? projectedWidth * 0.13
+        : projectedWidth * 0.08;
   center.x -= compositionOffset;
-  center.y -= portrait ? 0.05 : 0;
-  state.camera.position.set(center.x, center.y + 0.035, center.z + distance);
-  state.camera.near = Math.max(0.06, distance - size.z * 2.6 - size.y);
-  const universeReach = state.universe?.userData?.outerRadius ?? 0;
-  state.camera.far = Math.max(distance + size.y * 3.6, distance + universeReach * 1.08);
-  state.camera.updateProjectionMatrix();
+  /* Geometry is bottom-heavy while flowers and leaves form the visual mass
+     above its bounding-box midpoint. This optical lift centers the living
+     canopy and lets the rooted stem enter naturally from the lower edge. */
+  center.y += size.y * (portrait ? 0.025 : 0.055);
+  const viewDirection = new THREE.Vector3(
+    sinAzimuth * cosElevation,
+    sinElevation,
+    cosAzimuth * cosElevation,
+  );
+  state.camera.position.copy(center).addScaledVector(viewDirection, distance);
   state.controls.target.copy(center);
-  state.controls.minDistance = distance * 0.58;
-  state.controls.maxDistance = distance * 1.62;
+  state.controls.minDistance = distance * MIN_ZOOM_DISTANCE_RATIO;
+  state.controls.maxDistance = distance * MAX_ZOOM_DISTANCE_RATIO;
+  state.camera.near = 0.04;
+  const universeReach = state.universe?.userData?.outerRadius ?? 0;
+  state.camera.far = Math.max(
+    state.controls.maxDistance + size.y * 3.6,
+    state.controls.maxDistance + universeReach * 1.08,
+  );
+  state.camera.updateProjectionMatrix();
   state.controls.update();
 
   state.defaultView = {
@@ -3921,6 +3961,11 @@ function fitView() {
     far: state.camera.far,
     minDistance: state.controls.minDistance,
     maxDistance: state.controls.maxDistance,
+    azimuth,
+    elevation,
+    projectedWidth,
+    projectedHeight,
+    compositionOffset,
   };
 }
 
@@ -4428,29 +4473,29 @@ function onStageKeydown(event) {
 
   switch (event.key) {
     case "ArrowLeft":
-      spherical.theta -= 0.11;
+      spherical.theta -= 0.15;
       changed = true;
       break;
     case "ArrowRight":
-      spherical.theta += 0.11;
+      spherical.theta += 0.15;
       changed = true;
       break;
     case "ArrowUp":
-      spherical.phi -= 0.08;
+      spherical.phi -= 0.11;
       changed = true;
       break;
     case "ArrowDown":
-      spherical.phi += 0.08;
+      spherical.phi += 0.11;
       changed = true;
       break;
     case "+":
     case "=":
-      spherical.radius *= 0.9;
+      spherical.radius *= KEYBOARD_ZOOM_FACTOR;
       changed = true;
       break;
     case "-":
     case "_":
-      spherical.radius *= 1.1;
+      spherical.radius /= KEYBOARD_ZOOM_FACTOR;
       changed = true;
       break;
     case "Enter":
@@ -5078,6 +5123,11 @@ function exposeQaSnapshot() {
           distance: spherical.radius,
           minDistance: state.controls.minDistance,
           maxDistance: state.controls.maxDistance,
+          authoredAzimuth: state.defaultView?.azimuth ?? 0,
+          authoredElevation: state.defaultView?.elevation ?? 0,
+          authoredProjectedWidth: state.defaultView?.projectedWidth ?? 0,
+          authoredProjectedHeight: state.defaultView?.projectedHeight ?? 0,
+          authoredCompositionOffset: state.defaultView?.compositionOffset ?? 0,
         },
         motion: {
           reduced: state.reduced,

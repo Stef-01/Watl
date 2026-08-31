@@ -241,6 +241,11 @@ await check("the tree grows through maturity before exposing interactive buds", 
   assert.match(wattleLsystemSource, /maxBuds:\s*84/);
   assert.match(wattleLsystemSource, /WATTLE_FLOWER_SCALE\s*=\s*1\.5/);
   assert.match(wattleLsystemSource, /radius:\s*WATTLE_FLOWER_SCALE\s*\*/);
+  assert.match(scriptSource, /DEFAULT_VIEW_AZIMUTH_LANDSCAPE\s*=\s*THREE\.MathUtils\.degToRad\(24\)/);
+  assert.match(scriptSource, /projectedWidth\s*=\s*Math\.abs\(size\.x\s*\*\s*cosAzimuth\)/);
+  assert.match(scriptSource, /MIN_ZOOM_DISTANCE_RATIO\s*=\s*0\.34/);
+  assert.match(scriptSource, /MAX_ZOOM_DISTANCE_RATIO\s*=\s*2\.45/);
+  assert.match(scriptSource, /controls\.zoomSpeed\s*=\s*1\.18/);
   assert.doesNotMatch(scriptSource, /root\.add\(createTie\(\)\)/);
   assert.match(treeGrowthSource, /TREE_GROWTH_DURATION_MS\s*=\s*8400/);
   assert.match(treeGrowthSource, /TREE_BUD_MATURITY_START\s*=\s*0\.72/);

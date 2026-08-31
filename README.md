@@ -256,7 +256,7 @@ architecture with per-module growth windows.
 
 ## Explore the branch
 
-- Drag to orbit; use the wheel or a pinch gesture to zoom.
+- Drag to orbit; use the wheel or a pinch gesture to explore the expanded close-detail-to-whole-branch zoom range.
 - With a mouse or trackpad, sweep across the mature branch. A soft screen-space brush opens up to four nearby buds in 135ms offsets, then advances every 90ms while the pointer remains in a dense area. This makes local clusters bloom in a patchy wave instead of firing the whole branch at once.
 - Click or tap a bud to open that head directly and permanently from olive bud to golden pom-pom.
 - With the 3D stage focused, use the arrow keys to rotate, `+` / `-` to zoom, `Enter` or `Space` to finish growth first and then open every remaining bud, and `Home` to restore the authored view.
