@@ -50,6 +50,8 @@ The first reference was judged at flower-head scale; the second was judged at br
 - Authored camera: 34° field of view, responsive 24°/18°/10° three-quarter azimuth, 4.5° elevation, and an optically raised target center the flower-bearing canopy while the stem enters from below.
 - Exploration range: wheel/pinch zoom speed increased from 0.72 to 1.18; camera distance now spans 0.34×–2.45× the authored distance, with symmetric 18% keyboard zoom steps.
 - Environmental motion: Night remains the explicit first-paint default with only black, vignette and the 3D stars; six optional grounds reuse two transform-only atmosphere planes plus a gently drifting contour field, all paused while hidden or motion-reduced.
+- Interface telemetry: one fixed lower-left meter reports the current shoot/branch/leaf/bud/bloom phase, shows exact growth percentage or open/total heads, and derives its fill from aggregate biological progress without adding a render loop.
+- Fine-pointer feedback: the cursor ring is clamped to the same 20vmin diameter as the 68–104 px bloom-brush radius and changes state only when unopened heads are inside the activation area; touch and reduced-motion paths omit it.
 - Interaction sampling: hover brush radius 90 px in the recorded desktop state; four heads per brush step.
 - Hover-area blooming remains capped at four nearby heads per brush step, independent of total flower count.
 - Mature completion state: 82 open, 0 closed, growth 1.0, bloom timeline 1.0.
@@ -80,7 +82,7 @@ The first reference was judged at flower-head scale; the second was judged at br
   than the previous packed sampler. The render split costs three small cluster
   draw calls in exchange for removing seven of eight dynamic floats per fuzz
   point.
-- All 37 regression checks pass after the refactor.
+- All 38 regression checks pass after the refactor.
 
 ## Final judgement
 

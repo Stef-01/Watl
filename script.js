@@ -14,6 +14,7 @@ import {
   siteBloomProgress,
 } from "./bloom-motion.js";
 import {
+  TREE_BUD_MATURITY_START,
   TREE_GROWTH_DURATION_MS,
   treeGrowthProgress,
   treeGrowthStages,
@@ -224,6 +225,11 @@ const ui = Object.freeze({
   finale: document.querySelector("#bloom-finale"),
   finaleDismiss: document.querySelector("#bloom-finale-dismiss"),
   finaleCalendar: document.querySelector("#bloom-finale-calendar"),
+  cultivation: document.querySelector("#cultivation"),
+  cultivationPhase: document.querySelector("#cultivation-phase"),
+  cultivationValue: document.querySelector("#cultivation-value"),
+  cultivationPrompt: document.querySelector("#cultivation-prompt"),
+  cultivationFill: document.querySelector("#cultivation-fill"),
 });
 
 const state = {
@@ -276,6 +282,8 @@ const state = {
   finaleShown: false,
   finaleDismissed: false,
   growth: null,
+  cultivationKey: "",
+  cultivationProgress: -1,
 };
 
 init().catch(showFailure);
@@ -447,6 +455,7 @@ function applyTreeGrowth(progress, force = false) {
   ui.stage.dataset.treeGrowth = state.growth.progress.toFixed(4);
   ui.stage.dataset.treeStage = stageName;
   ui.stage.dataset.treeMature = String(state.growth.complete);
+  syncCultivation();
   if (qaMode) {
     ui.stage.dataset.qaTreeGrowth = state.growth.progress.toFixed(4);
     ui.stage.dataset.qaTreeStage = stageName;
@@ -516,6 +525,7 @@ function createBloomController(data) {
     cascadeEndsAt: 0,
     activeCount: 0,
     openCount: 0,
+    progress: 0,
     maxProgress: 0,
     maxTimeline: 0,
     dirtyHeads: [],
@@ -647,9 +657,13 @@ function bloomLightWeight(head) {
 function updateBloomAnimation(now) {
   if (!state.bloom) return false;
   const dirty = state.bloom.dirtyHeads;
+  const previousActiveCount = state.bloom.activeCount;
+  const previousOpenCount = state.bloom.openCount;
+  const previousProgress = state.bloom.progress;
   dirty.length = 0;
   let activeCount = 0;
   let openCount = 0;
+  let bloomProgress = 0;
   let maxProgress = 0;
   let maxTimeline = 0;
 
@@ -659,6 +673,7 @@ function updateBloomAnimation(now) {
     const active = updateBloomHead(head, now);
     if (active) activeCount += 1;
     if (head.mode === "open") openCount += 1;
+    bloomProgress += head.value;
     maxProgress = Math.max(maxProgress, head.value);
     maxTimeline = Math.max(maxTimeline, head.timeline);
     if (
@@ -671,6 +686,7 @@ function updateBloomAnimation(now) {
 
   state.bloom.activeCount = activeCount;
   state.bloom.openCount = openCount;
+  state.bloom.progress = bloomProgress / Math.max(1, state.bloom.heads.length);
   state.bloom.maxProgress = maxProgress;
   state.bloom.maxTimeline = maxTimeline;
   state.bloom.cascadeActive = now < state.bloom.cascadeEndsAt;
@@ -700,6 +716,13 @@ function updateBloomAnimation(now) {
     showBloomFinale(!reduceBloomMotion());
   }
 
+  if (
+    dirty.length > 0
+    || activeCount !== previousActiveCount
+    || openCount !== previousOpenCount
+    || Math.abs(state.bloom.progress - previousProgress) > 0.0005
+  ) syncCultivation();
+
   return activeCount > 0;
 }
 
@@ -722,12 +745,14 @@ function resetBloomState() {
   applyBloomEffects(dirty);
   state.bloom.activeCount = 0;
   state.bloom.openCount = state.bloom.heads.filter((head) => head.committedOpen).length;
+  state.bloom.progress = state.bloom.openCount / Math.max(1, state.bloom.heads.length);
   state.bloom.maxProgress = state.bloom.openCount > 0 ? 1 : 0;
   state.bloom.maxTimeline = state.bloom.maxProgress;
   state.selectionLight.intensity = 0;
   if (state.bloom.openCount === state.bloom.heads.length) {
     showBloomFinale(false);
   }
+  syncCultivation();
 }
 
 function createRenderer(profile) {
@@ -4454,11 +4479,13 @@ function triggerBouquetBloom(announce = true) {
   applyBloomEffects(dirty);
   state.bloom.activeCount = 0;
   state.bloom.openCount = state.bloom.heads.length;
+  state.bloom.progress = 1;
   state.bloom.maxProgress = 1;
   state.bloom.maxTimeline = 1;
   state.bloom.cascadeActive = false;
   state.bloom.cascadeEndsAt = 0;
   state.selectionLight.intensity = 0;
+  syncCultivation();
   if (announce) setStatus("All remaining buds opened.", 1500);
   showBloomFinale(false);
   invalidate();
@@ -4557,6 +4584,71 @@ function onVisibilityChange() {
   }
 }
 
+function syncCultivation() {
+  if (!ui.cultivation || !ui.cultivationFill) return;
+
+  if (state.rendererState === "error") {
+    const key = "still|Still view|—|Interactive growth is unavailable";
+    if (state.cultivationKey !== key) {
+      state.cultivation.dataset.phase = "still";
+      ui.cultivationPhase.textContent = "Still view";
+      ui.cultivationValue.textContent = "—";
+      ui.cultivationPrompt.textContent = "Interactive growth is unavailable";
+      state.cultivationKey = key;
+    }
+    ui.cultivationFill.style.transform = "scaleX(1)";
+    state.cultivationProgress = 1;
+    return;
+  }
+
+  const growth = state.growth?.progress ?? 0;
+  const treeStage = ui.stage.dataset.treeStage || "shoot";
+  const total = state.bloom?.heads.length ?? 0;
+  const open = state.bloom?.openCount ?? 0;
+  const bloomProgress = state.bloom?.progress ?? 0;
+  const active = state.bloom?.activeCount ?? 0;
+  let phase = "growth";
+  let label = ({
+    shoot: "Young shoot",
+    branching: "Branching",
+    leafing: "Leafing",
+    budding: "Budding",
+  })[treeStage] || "Growing";
+  let value = `${String(Math.round(growth * 100)).padStart(2, "0")}%`;
+  let prompt = growth >= TREE_BUD_MATURITY_START
+    ? "Flower heads are beginning to form"
+    : "A living system is taking form";
+  let progress = growth;
+
+  if (growth >= 1) {
+    const complete = total > 0 && open >= total;
+    phase = complete ? "complete" : "bloom";
+    label = complete ? "Full bloom" : active > 0 ? "Flowering" : "Bloom";
+    value = `${String(open).padStart(2, "0")} / ${String(total).padStart(2, "0")}`;
+    prompt = complete
+      ? "The living system is complete"
+      : active > 0
+        ? "The branch is responding to you"
+        : open > 0
+          ? "Keep moving across closed buds"
+          : "Move across the buds to begin";
+    progress = bloomProgress;
+  }
+
+  const key = `${phase}|${label}|${value}|${prompt}`;
+  if (state.cultivationKey !== key) {
+    ui.cultivation.dataset.phase = phase;
+    ui.cultivationPhase.textContent = label;
+    ui.cultivationValue.textContent = value;
+    ui.cultivationPrompt.textContent = prompt;
+    state.cultivationKey = key;
+  }
+  if (Math.abs(progress - state.cultivationProgress) > 0.0005) {
+    ui.cultivationFill.style.transform = `scaleX(${progress.toFixed(4)})`;
+    state.cultivationProgress = progress;
+  }
+}
+
 function setStatus(message, resetAfter = 0) {
   window.clearTimeout(state.statusTimer);
   ui.status.textContent = message;
@@ -4603,7 +4695,10 @@ function showBloomFinale(animate = true) {
   ui.finale.setAttribute("aria-hidden", "false");
   ui.stage.dataset.bloomFinale = "true";
 
-  const reveal = () => ui.finale.classList.add("is-visible");
+  const reveal = () => {
+    ui.finale.classList.add("is-visible");
+    ui.finale.focus({ preventScroll: true });
+  };
   if (animate) {
     window.requestAnimationFrame(reveal);
   } else {
@@ -5251,6 +5346,7 @@ function showFailure(error) {
   ui.body.classList.add("has-error", "is-ready");
   ui.stage.setAttribute("aria-busy", "false");
   ui.stage.dataset.state = "error";
+  syncCultivation();
   revealFallback();
   ui.error.hidden = false;
   /* This lives in the markup only as a status target; guard it so the failure

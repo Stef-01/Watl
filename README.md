@@ -15,7 +15,9 @@ contact action. The rail shows almost two rows at once, scrolls
 independently from the tree, and snaps each client into place. A quiet
 `01 / 02` position marker follows native trackpad, wheel, touch and keyboard
 scrolling. Hover and focus use only a short horizontal acknowledgement so this
-frequently used list stays restrained.
+frequently used list stays restrained. Each row uses the same authored
+single-stroke arrow and grows a one-pixel gold baseline from its origin; no
+font glyph is asked to impersonate an icon.
 
 | Link | Goes to |
 | --- | --- |
@@ -36,7 +38,8 @@ so a screen reader never spells it out.
 
 The page composes itself rather than simply being there. The identity rises a
 letter at a time, then the discipline, then the ground switch, then each link
-in the rail — about 1.6 seconds end to end.
+and the lifecycle meter — about 1.55 seconds end to end. Every entrance uses
+the shared strong ease-out and hands its resting state back to the cascade.
 
 That timeline is deliberately **not** gated on the 3D scene. The interface is
 text and should be readable immediately; waiting on a WebGL build would hold an
@@ -59,6 +62,10 @@ Elsewhere:
   low horizon reflection and contour plane drift on separate 34–56 second
   transform-only cycles. Night removes and pauses them, preserving the simple
   black star field as the default.
+- **The lifecycle meter moves through the biological states.** Its fill uses
+  the exact tree-growth progress, marks the 72% bud threshold, then resets as
+  the phase changes from growth to blooming and fills from the aggregate
+  flower-head choreography rather than jumping only when a head finishes.
 
 Two implementation notes worth keeping:
 
@@ -93,6 +100,11 @@ interaction floor without downloading it.
 - **Press gives back** — a small spring-loaded scale on fine-pointer devices;
   touch keeps the immediate CSS active state without paying for the spring
   runtime.
+- **The bloom brush is visible on fine pointers.** A hairline ring matches the
+  actual 20vmin activation diameter, follows the cursor directly, and tightens
+  only when the raycaster finds unopened heads. It is immediate feedback, not
+  a trailing cursor effect, and it never appears on touch or reduced-motion
+  devices.
 
 Three constraints hold this layer honest:
 

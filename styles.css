@@ -21,6 +21,9 @@
   --horizon-duration: 46s;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --duration-fast: 160ms;
+  --duration-ui: 220ms;
+  --duration-reveal: 680ms;
   --sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
@@ -42,15 +45,23 @@ body {
 
 html {
   -webkit-text-size-adjust: 100%;
+  scrollbar-color: rgba(var(--gold-rgb), 0.42) transparent;
+  scrollbar-width: thin;
 }
 
 body {
+  caret-color: var(--gold);
   color: var(--ink);
   font-family: var(--sans);
   font-size: 16px;
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
+}
+
+::selection {
+  background: rgba(var(--gold-rgb), 0.34);
+  color: var(--ink);
 }
 
 button,
@@ -102,6 +113,59 @@ button {
 .stage:focus-visible {
   outline: 1px solid var(--gold);
   outline-offset: -5px;
+}
+
+/* A fine-pointer bloom brush. The outer layer follows the cursor without
+   interpolation; the inner ring alone changes state, so feedback is immediate
+   while the 3D plant keeps all of the expressive motion. */
+.bloom-cursor {
+  position: fixed;
+  z-index: 8;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  transform: translate3d(-6rem, -6rem, 0);
+}
+
+.bloom-cursor__ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: clamp(8.5rem, 20vmin, 13rem);
+  height: clamp(8.5rem, 20vmin, 13rem);
+  border: 1px solid rgba(242, 240, 232, 0.24);
+  border-radius: 50%;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.92);
+  transition:
+    border-color var(--duration-fast) ease,
+    opacity var(--duration-fast) ease,
+    transform var(--duration-ui) var(--ease-out);
+}
+
+.stage[data-tree-mature="true"] .bloom-cursor[data-visible="true"] .bloom-cursor__ring {
+  opacity: 0.32;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.stage[data-bloom-hover="true"] .bloom-cursor__ring {
+  border-color: rgba(var(--gold-rgb), 0.82);
+  opacity: 0.76;
+  transform: translate(-50%, -50%) scale(0.86);
+}
+
+.bloom-cursor[data-pressed="true"] .bloom-cursor__ring {
+  opacity: 0.24;
+  transform: translate(-50%, -50%) scale(0.8);
+}
+
+@media (hover: none), (pointer: coarse) {
+  .bloom-cursor {
+    display: none;
+  }
 }
 
 /* ---------- The ground ----------
@@ -387,11 +451,91 @@ button {
 
 .hero h1 {
   font-family: var(--mono);
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   font-weight: 400;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/* Lifecycle telemetry makes the long growth-to-bloom interaction legible
+   without becoming a control panel. The 72% marker is the exact point at
+   which the authored growth system begins producing buds. */
+.cultivation {
+  left: max(1.5rem, env(safe-area-inset-left));
+  bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  width: clamp(10.75rem, 16vw, 14.5rem);
+  color: rgba(242, 240, 232, 0.46);
+  font-family: var(--mono);
+  text-transform: uppercase;
+}
+
+.cultivation__state {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+
+.cultivation__value {
+  color: rgba(242, 240, 232, 0.68);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.cultivation__track {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 1px;
+  margin-top: 0.72rem;
+  overflow: visible;
+  background: rgba(242, 240, 232, 0.14);
+}
+
+.cultivation__track::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: 72%;
+  width: 1px;
+  height: 5px;
+  background: rgba(242, 240, 232, 0.3);
+  transition: opacity var(--duration-fast) ease;
+}
+
+.cultivation:not([data-phase="growth"]) .cultivation__track::after {
+  opacity: 0;
+}
+
+.cultivation__fill {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background: var(--gold);
+  box-shadow: 0 0 0.8rem rgba(var(--gold-rgb), 0.16);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 260ms var(--ease-out);
+}
+
+.cultivation__prompt {
+  margin: 0.64rem 0 0;
+  color: rgba(242, 240, 232, 0.28);
+  font-size: 0.53rem;
+  letter-spacing: 0.07em;
+  line-height: 1.45;
+}
+
+.cultivation[data-phase="bloom"] .cultivation__state,
+.cultivation[data-phase="complete"] .cultivation__state {
+  color: rgba(var(--gold-rgb), 0.76);
+}
+
+.cultivation[data-phase="complete"] .cultivation__fill {
+  box-shadow: 0 0 1.2rem rgba(var(--gold-rgb), 0.3);
 }
 
 
@@ -745,33 +889,38 @@ button {
 
 .wordmark span {
   display: inline-block;
-  animation: rise 820ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
-  animation-delay: calc(140ms + var(--i) * 70ms);
+  animation: rise var(--duration-reveal) var(--ease-out) backwards;
+  animation-delay: calc(120ms + var(--i) * 56ms);
 }
 
 .hero h1 {
-  animation: settle 900ms ease backwards;
-  animation-delay: 520ms;
+  animation: settle var(--duration-reveal) var(--ease-out) backwards;
+  animation-delay: 430ms;
 }
 
 .ground-switch {
-  animation: settle 900ms ease backwards;
-  animation-delay: 700ms;
+  animation: settle var(--duration-reveal) var(--ease-out) backwards;
+  animation-delay: 560ms;
 }
 
 .client-rail .client {
-  animation: rise 900ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation: rise var(--duration-reveal) var(--ease-out) backwards;
 }
 
-.client-rail__group .client:nth-child(1) { animation-delay: 820ms; }
-.client-rail__group .client:nth-child(2) { animation-delay: 920ms; }
-.client--contact { animation-delay: 1020ms; }
+.client-rail__group .client:nth-child(1) { animation-delay: 680ms; }
+.client-rail__group .client:nth-child(2) { animation-delay: 740ms; }
+.client--contact { animation-delay: 800ms; }
+
+.cultivation {
+  animation: settle var(--duration-reveal) var(--ease-out) backwards;
+  animation-delay: 860ms;
+}
 
 /* The canvas is the one thing that does wait, because until the scene reports
    ready there is nothing in it worth fading up. */
 #wattle-canvas {
   opacity: 0;
-  transition: opacity 1200ms ease;
+  transition: opacity 900ms var(--ease-out);
 }
 
 .is-ready #wattle-canvas {
@@ -793,7 +942,7 @@ button {
 }
 
 .stage__light {
-  animation: breathe 19s ease-in-out infinite;
+  animation: breathe 19s var(--ease-in-out) infinite;
 }
 
 /* Changing ground dissolves rather than cuts. Gradient stacks cannot
@@ -825,15 +974,16 @@ button {
   animation: ground-dissolve 640ms var(--ease-in-out) both;
 }
 
-/* Hovering one name lets the others recede. */
-.client-rail__group:hover .client:not(:hover) {
-  opacity: 0.42;
-}
-
 .client {
   transition:
-    color 180ms ease,
-    opacity 180ms ease;
+    color var(--duration-fast) ease,
+    opacity var(--duration-fast) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .client-rail__group:hover .client:not(:hover) {
+    opacity: 0.42;
+  }
 }
 
 /* The swatches deal themselves out when the tray opens. */
@@ -949,6 +1099,19 @@ button {
   white-space: nowrap;
 }
 
+.client::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: rgba(var(--gold-rgb), 0.72);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--duration-ui) var(--ease-out);
+}
+
 .client__index {
   color: rgba(242, 240, 232, 0.27);
   font-size: 0.55rem;
@@ -960,8 +1123,8 @@ button {
   min-width: 0;
   display: inline-block;
   transition:
-    color 180ms ease,
-    transform 180ms ease;
+    color var(--duration-fast) ease,
+    transform var(--duration-ui) var(--ease-out);
 }
 
 .client__name span {
@@ -969,27 +1132,52 @@ button {
 }
 
 .client__arrow {
-  display: inline-block;
-  font-style: normal;
-  font-size: 0.62em;
+  display: block;
+  width: 0.72em;
+  height: 0.72em;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: 1.15;
   color: rgba(242, 240, 232, 0.34);
   transition:
-    transform 180ms ease,
-    color 180ms ease;
+    transform var(--duration-ui) var(--ease-out),
+    color var(--duration-fast) ease;
 }
 
-.client:hover .client__name,
 .client:active .client__name,
 .client:focus-visible .client__name {
   transform: translateX(0.22rem);
   color: var(--gold);
 }
 
-.client:hover .client__arrow,
 .client:active .client__arrow,
 .client:focus-visible .client__arrow {
   transform: translate(0.16em, -0.16em);
   color: var(--gold);
+}
+
+.client:active::before,
+.client:focus-visible::before {
+  transform: scaleX(1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .client:hover .client__name {
+    transform: translateX(0.22rem);
+    color: var(--gold);
+  }
+
+  .client:hover .client__arrow {
+    transform: translate(0.16em, -0.16em);
+    color: var(--gold);
+  }
+
+  .client:hover::before {
+    transform: scaleX(1);
+  }
 }
 
 .client--contact {
@@ -1033,10 +1221,16 @@ button {
   transition: color 160ms ease, background-color 160ms ease;
 }
 
-.scene-error button:hover,
 .scene-error button:focus-visible {
   color: var(--ink);
   background: rgba(242, 240, 232, 0.06);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .scene-error button:hover {
+    color: var(--ink);
+    background: rgba(242, 240, 232, 0.06);
+  }
 }
 
 :where(button, input):focus-visible {
@@ -1066,6 +1260,7 @@ input:disabled {
   border-bottom: 1px solid rgba(242, 240, 232, 0.16);
   background: #050505;
   color: var(--ink);
+  outline: none;
   opacity: 0;
   visibility: hidden;
   transform: translateY(-50%) scale(0.96);
@@ -1094,13 +1289,11 @@ input:disabled {
   margin: 0 auto;
 }
 
-.bloom-finale__eyebrow,
 .bloom-finale__copy,
 .bloom-finale__title {
   margin: 0;
 }
 
-.bloom-finale__eyebrow,
 .bloom-finale__copy,
 .bloom-finale__action,
 .bloom-finale__dismiss {
@@ -1109,19 +1302,12 @@ input:disabled {
   text-transform: uppercase;
 }
 
-.bloom-finale__eyebrow {
-  color: var(--gold);
-  font-size: clamp(0.58rem, 0.52rem + 0.22vw, 0.72rem);
-  font-weight: 700;
-}
-
 .bloom-finale__title {
   max-width: 12ch;
-  margin-top: 0.34em;
   font-size: clamp(3rem, 9.6vw, 8.6rem);
   font-weight: 600;
   line-height: 0.82;
-  letter-spacing: -0.068em;
+  letter-spacing: -0.038em;
   text-transform: uppercase;
   text-wrap: balance;
 }
@@ -1156,8 +1342,8 @@ input:disabled {
   text-decoration: none;
   cursor: pointer;
   transition:
-    opacity 160ms ease,
-    transform 160ms ease;
+    opacity var(--duration-fast) ease,
+    transform var(--duration-ui) var(--ease-out);
 }
 
 .bloom-finale__action {
@@ -1169,6 +1355,18 @@ input:disabled {
   border-color: rgba(var(--gold-rgb), 0.66);
   background: transparent;
   color: var(--gold);
+}
+
+.bloom-finale__arrow {
+  width: 0.78rem;
+  height: 0.78rem;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: 1.15;
+  transition: transform var(--duration-ui) var(--ease-out);
 }
 
 .bloom-finale__dismiss {
@@ -1192,6 +1390,10 @@ input:disabled {
     opacity: 0.72;
     transform: translateY(-0.14rem);
   }
+
+  .bloom-finale__action:hover .bloom-finale__arrow {
+    transform: translate(0.12rem, -0.12rem);
+  }
 }
 
 .loader,
@@ -1206,7 +1408,9 @@ input:disabled {
 }
 
 .loader {
-  transition: opacity 500ms ease, visibility 500ms step-end;
+  transition:
+    opacity 500ms var(--ease-out),
+    visibility 500ms step-end;
 }
 
 .loader p,
@@ -1239,7 +1443,7 @@ input:disabled {
   width: 34%;
   height: 100%;
   background: var(--gold);
-  animation: load 1.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  animation: load 1.6s var(--ease-in-out) infinite;
 }
 
 .is-ready .loader {
@@ -1312,7 +1516,8 @@ input:disabled {
 
 .poster-mode .interface-layer,
 .poster-mode .loader,
-.poster-mode .scene-error {
+.poster-mode .scene-error,
+.poster-mode .bloom-cursor {
   display: none !important;
 }
 
@@ -1368,7 +1573,17 @@ input:disabled {
 
   .client {
     grid-template-columns: 1.35rem minmax(0, 1fr) auto;
-    font-size: clamp(0.67rem, 2.8vw, 0.8rem);
+    font-size: clamp(0.72rem, 3vw, 0.82rem);
+  }
+
+  .cultivation {
+    left: max(1.15rem, env(safe-area-inset-left));
+    bottom: calc(1.15rem + env(safe-area-inset-bottom));
+    width: min(40vw, 10.5rem);
+  }
+
+  .cultivation__prompt {
+    font-size: 0.5rem;
   }
 }
 
@@ -1377,7 +1592,6 @@ input:disabled {
     top: max(1.15rem, env(safe-area-inset-top));
     left: max(1.15rem, env(safe-area-inset-left));
   }
-
 }
 
 
@@ -1400,7 +1614,8 @@ input:disabled {
 
   .backdrop__atmosphere,
   .backdrop::before,
-  .stage__light {
+  .stage__light,
+  .bloom-cursor {
     animation: none !important;
     transform: none !important;
     translate: none !important;

@@ -210,6 +210,65 @@ function parallax(layers) {
 }
 
 /**
+ * The bloom brush is feedback, not decoration: its diameter makes the hover
+ * activation area visible and it tightens only when the raycaster has found a
+ * closed bud. Position follows the pointer directly; only the ring's state is
+ * transitioned in CSS, so there is no cursor lag.
+ */
+function bloomCursor(cursor, canvas) {
+  let pointerX = -96;
+  let pointerY = -96;
+  let queued = 0;
+
+  function frame() {
+    queued = 0;
+    cursor.style.transform = `translate3d(${pointerX.toFixed(2)}px, ${pointerY.toFixed(2)}px, 0)`;
+  }
+
+  function move(event) {
+    pointerX = event.clientX;
+    pointerY = event.clientY;
+    cursor.dataset.visible = "true";
+    if (!queued) queued = requestAnimationFrame(frame);
+  }
+
+  function hide() {
+    cursor.dataset.visible = "false";
+    cursor.dataset.pressed = "false";
+  }
+
+  function press() {
+    cursor.dataset.pressed = "true";
+  }
+
+  function release() {
+    cursor.dataset.pressed = "false";
+  }
+
+  canvas.addEventListener("pointerenter", move, { passive: true });
+  canvas.addEventListener("pointermove", move, { passive: true });
+  canvas.addEventListener("pointerleave", hide, { passive: true });
+  canvas.addEventListener("pointerdown", press, { passive: true });
+  canvas.addEventListener("pointerup", release, { passive: true });
+  canvas.addEventListener("pointercancel", hide, { passive: true });
+  window.addEventListener("blur", hide);
+
+  return () => {
+    canvas.removeEventListener("pointerenter", move);
+    canvas.removeEventListener("pointermove", move);
+    canvas.removeEventListener("pointerleave", hide);
+    canvas.removeEventListener("pointerdown", press);
+    canvas.removeEventListener("pointerup", release);
+    canvas.removeEventListener("pointercancel", hide);
+    window.removeEventListener("blur", hide);
+    if (queued) cancelAnimationFrame(queued);
+    cursor.style.removeProperty("transform");
+    cursor.removeAttribute("data-visible");
+    cursor.removeAttribute("data-pressed");
+  };
+}
+
+/**
  * Press gives back on the spring-enabled pointer layer. Touch keeps the CSS
  * active state, so it has immediate feedback without loading this runtime.
  */
@@ -315,11 +374,19 @@ function start() {
   const magneticLinks = links.filter((link) => !link.closest("#client-list"));
   const clientList = document.querySelector("#client-list");
   const toggle = document.querySelector(".ground-switch__toggle");
+  const cursor = document.querySelector("#bloom-cursor");
+  const canvas = document.querySelector("#wattle-canvas");
   const parallaxLayers = PARALLAX_TARGETS
     .map(({ selector, range }) => ({ element: document.querySelector(selector), range }))
     .filter(({ element }) => element);
 
   if (clientList) teardown.push(clientPosition(clientList));
+
+  /* This direct, transform-only feedback does not need the spring runtime, so
+     it is available immediately while Motion loads in parallel. */
+  if (fine.matches && !reduced.matches && cursor && canvas) {
+    teardown.push(bloomCursor(cursor, canvas));
+  }
 
   if (!enabled()) return;
 

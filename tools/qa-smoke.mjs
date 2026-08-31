@@ -264,7 +264,9 @@ await check("the all-bloomed business banner stays accessible and actionable", (
   assert.match(indexSource, /mailto:Stefan\.thottunkal@gmail\.com/i);
   assert.match(indexSource, /id=["']bloom-finale-calendar["'][\s\S]*?data-calendly-url=/);
   assert.match(indexSource, /id=["']bloom-finale-dismiss["']/);
+  assert.match(indexSource, /id=["']bloom-finale["'][\s\S]*?tabindex=["']-1["']/);
   assert.match(scriptSource, /function\s+showBloomFinale\s*\(/);
+  assert.match(scriptSource, /ui\.finale\.classList\.add\(["']is-visible["']\);[\s\S]*?ui\.finale\.focus\(\{\s*preventScroll:\s*true\s*\}\)/);
   assert.match(stylesSource, /\.bloom-finale\.is-visible/);
   assert.match(stylesSource, /\.bloom-finale\s*\{[\s\S]*?background:\s*#050505/);
   assert.doesNotMatch(stylesSource, /\.bloom-finale[\s\S]{0,500}transition:\s*all/);
@@ -301,6 +303,25 @@ await check("optional grounds animate while the plain night remains the default"
   assert.match(interactionsSource, /const\s+PARALLAX_TARGETS\s*=\s*Object\.freeze/);
   assert.match(interactionsSource, /backdrop__atmosphere--weather["'],\s*range:\s*0\.012/);
   assert.match(interactionsSource, /backdrop__atmosphere--horizon["'],\s*range:\s*-0\.007/);
+});
+
+await check("the living-system interface exposes progress and precise bloom feedback", () => {
+  assert.match(indexSource, /id=["']cultivation["'][^>]*aria-hidden=["']true["'][^>]*data-phase=["']growth["']/);
+  assert.match(indexSource, /id=["']cultivation-phase["']/);
+  assert.match(indexSource, /id=["']cultivation-value["']/);
+  assert.match(indexSource, /id=["']cultivation-fill["']/);
+  assert.match(indexSource, /id=["']bloom-cursor["'][^>]*aria-hidden=["']true["']/);
+  assert.match(indexSource, /<h1>Technology design<\/h1>/);
+  assert.match(indexSource, /class=["']client__arrow["'][\s\S]*?<path\s+d=["']M2\.5 9\.5 9\.5 2\.5M4 2\.5h5\.5V8["']/);
+  assert.doesNotMatch(indexSource, /&#8599;/);
+  assert.match(scriptSource, /function\s+syncCultivation\s*\(/);
+  assert.match(scriptSource, /bloomProgress\s*\+=\s*head\.value/);
+  assert.match(scriptSource, /cultivationFill\.style\.transform\s*=\s*`scaleX\(/);
+  assert.match(interactionsSource, /function\s+bloomCursor\s*\(/);
+  assert.match(interactionsSource, /cursor\.style\.transform\s*=\s*`translate3d\(/);
+  assert.match(stylesSource, /\.bloom-cursor__ring\s*\{[\s\S]*?width:\s*clamp\(8\.5rem,\s*20vmin,\s*13rem\)/);
+  assert.match(stylesSource, /\.cultivation__fill\s*\{[\s\S]*?transform:\s*scaleX\(0\)/);
+  assert.match(stylesSource, /@media\s*\(hover:\s*none\),\s*\(pointer:\s*coarse\)[\s\S]*?\.bloom-cursor/);
 });
 
 const port = await reservePort();

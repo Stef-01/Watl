@@ -68,6 +68,9 @@
           hidden
         />
         <div class="stage__light" aria-hidden="true"></div>
+        <div class="bloom-cursor" id="bloom-cursor" aria-hidden="true">
+          <span class="bloom-cursor__ring"></span>
+        </div>
 
         <div class="loader" id="scene-loading" data-testid="scene-loading" aria-hidden="true">
           <p>Growing the 3D wattle branch</p>
@@ -83,8 +86,19 @@
 
       <header class="hero interface-layer">
         <p class="wordmark" aria-label="WATL"><span aria-hidden="true" style="--i:0">W</span><span aria-hidden="true" style="--i:1">A</span><span aria-hidden="true" style="--i:2">T</span><span aria-hidden="true" style="--i:3">L</span></p>
-        <h1>Design</h1>
+        <h1>Technology design</h1>
       </header>
+
+      <aside class="cultivation interface-layer" id="cultivation" aria-hidden="true" data-phase="growth">
+        <div class="cultivation__state">
+          <span id="cultivation-phase">Young shoot</span>
+          <span class="cultivation__value" id="cultivation-value">00%</span>
+        </div>
+        <span class="cultivation__track">
+          <span class="cultivation__fill" id="cultivation-fill"></span>
+        </span>
+        <p class="cultivation__prompt" id="cultivation-prompt">A living system is taking form</p>
+      </aside>
 
       <p class="sr-only" id="scene-instructions"></p>
 
@@ -131,19 +145,25 @@
             <a class="client" href="https://bayhealth.com.au/" aria-label="Bay Health">
               <span class="client__index" aria-hidden="true">01</span>
               <span class="client__name" aria-hidden="true"><span style="--i:0">B</span><span style="--i:1">a</span><span style="--i:2">y</span><span style="--i:3">&nbsp;</span><span style="--i:4">H</span><span style="--i:5">e</span><span style="--i:6">a</span><span style="--i:7">l</span><span style="--i:8">t</span><span style="--i:9">h</span></span>
-              <i class="client__arrow" aria-hidden="true">&#8599;</i>
+              <svg class="client__arrow" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+                <path d="M2.5 9.5 9.5 2.5M4 2.5h5.5V8" />
+              </svg>
             </a>
             <a class="client" href="https://www.adhdme.au/" aria-label="ADHDme">
               <span class="client__index" aria-hidden="true">02</span>
               <span class="client__name" aria-hidden="true"><span style="--i:0">A</span><span style="--i:1">D</span><span style="--i:2">H</span><span style="--i:3">D</span><span style="--i:4">m</span><span style="--i:5">e</span></span>
-              <i class="client__arrow" aria-hidden="true">&#8599;</i>
+              <svg class="client__arrow" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+                <path d="M2.5 9.5 9.5 2.5M4 2.5h5.5V8" />
+              </svg>
             </a>
           </nav>
         </div>
 
         <a class="client client--contact" href="mailto:Stefan.thottunkal@gmail.com" aria-label="Contact us">
           <span class="client__name" aria-hidden="true"><span style="--i:0">C</span><span style="--i:1">o</span><span style="--i:2">n</span><span style="--i:3">t</span><span style="--i:4">a</span><span style="--i:5">c</span><span style="--i:6">t</span><span style="--i:7">&nbsp;</span><span style="--i:8">u</span><span style="--i:9">s</span></span>
-          <i class="client__arrow" aria-hidden="true">&#8599;</i>
+          <svg class="client__arrow" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+            <path d="M2.5 9.5 9.5 2.5M4 2.5h5.5V8" />
+          </svg>
         </a>
       </footer>
 
@@ -155,10 +175,10 @@
         aria-hidden="true"
         aria-labelledby="bloom-finale-title"
         aria-describedby="bloom-finale-copy"
+        tabindex="-1"
         inert
       >
         <div class="bloom-finale__inner">
-          <p class="bloom-finale__eyebrow">Every flower is open</p>
           <h2 class="bloom-finale__title" id="bloom-finale-title">Help your business bloom.</h2>
           <p class="bloom-finale__copy" id="bloom-finale-copy">
             Bring Stefan your next product, system, or ambitious idea.
@@ -167,7 +187,11 @@
             <a
               class="bloom-finale__action bloom-finale__action--primary"
               href="mailto:Stefan.thottunkal@gmail.com?subject=Help%20my%20business%20bloom"
-            >Stefan.thottunkal@gmail.com <span aria-hidden="true">&#8599;</span></a>
+            >Stefan.thottunkal@gmail.com
+              <svg class="bloom-finale__arrow" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+                <path d="M2.5 9.5 9.5 2.5M4 2.5h5.5V8" />
+              </svg>
+            </a>
             <!-- Add Stefan's live Calendly scheduling URL to data-calendly-url.
                  Until then this remains a working, pre-addressed meeting request. -->
             <a
@@ -176,7 +200,11 @@
               data-calendly-url=""
               data-booking-fallback="email"
               href="mailto:Stefan.thottunkal@gmail.com?subject=Book%20a%20meeting%20with%20WATL&amp;body=Hi%20Stefan%2C%0A%0AI%27d%20like%20to%20book%20a%20meeting%20about%3A%0A"
-            >Request a meeting <span aria-hidden="true">&#8599;</span></a>
+            >Request a meeting
+              <svg class="bloom-finale__arrow" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+                <path d="M2.5 9.5 9.5 2.5M4 2.5h5.5V8" />
+              </svg>
+            </a>
           </div>
           <button class="bloom-finale__dismiss" id="bloom-finale-dismiss" type="button">
             Continue exploring
