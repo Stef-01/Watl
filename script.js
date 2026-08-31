@@ -1729,8 +1729,11 @@ function buildBouquet(data) {
     phyllodeForm: "long narrow lanceolate green phyllodes with three visible nerves",
   };
 
+  /* The 0.84 tip matches the primary continuation ratio, so consecutive
+     internodes meet without the bead-like swelling produced by the former
+     0.70 tip. Lateral axes still taper faster and remain visibly subordinate. */
   const stemGeometry = new THREE.CylinderGeometry(
-    0.7,
+    0.84,
     1,
     1,
     state.profile.id === "high" ? 8 : 6,
@@ -3020,8 +3023,8 @@ function createPompomFuzzPoints(items, material) {
   const sizes = new Float32Array(count);
   const seeds = new Float32Array(count);
   const shades = new Float32Array(count);
+  const siteDelays = new Float32Array(count);
   const progressAttribute = new THREE.Float32BufferAttribute(new Float32Array(count), 1);
-  const visibilityAttribute = new THREE.Float32BufferAttribute(new Float32Array(count), 1);
   const color = new THREE.Color();
 
   for (let index = 0; index < count; index += 1) {
@@ -3046,18 +3049,16 @@ function createPompomFuzzPoints(items, material) {
     sizes[index] = item.size;
     seeds[index] = seed;
     shades[index] = 0.88 + seed * 0.12;
+    siteDelays[index] = THREE.MathUtils.clamp(seed, 0, 1);
 
-    /* Fuzz has no directional site normal, so its spatial delay is always its
-       deterministic noise value. Cache that immutable answer once and release
-       the two Vector3 instances now duplicated in GPU buffers. */
-    item.siteDelay = THREE.MathUtils.clamp(seed, 0, 1);
-    item.fixedSiteDelay = true;
+    /* Fuzz has no directional site normal, so its delay is its deterministic
+       noise value. Pack it directly and release the two Vector3 instances now
+       duplicated in GPU buffers. */
     item.position = null;
     item.origin = null;
   }
 
   progressAttribute.setUsage(THREE.DynamicDrawUsage);
-  visibilityAttribute.setUsage(THREE.DynamicDrawUsage);
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("aOrigin", new THREE.Float32BufferAttribute(origins, 3));
@@ -3066,19 +3067,22 @@ function createPompomFuzzPoints(items, material) {
   geometry.setAttribute("aSeed", new THREE.Float32BufferAttribute(seeds, 1));
   geometry.setAttribute("aShade", new THREE.Float32BufferAttribute(shades, 1));
   geometry.setAttribute("aProgress", progressAttribute);
-  geometry.setAttribute("aVisibility", visibilityAttribute);
   geometry.computeBoundingSphere();
   geometry.name = "GPU_Morphed_Pompom_Fuzz_Points";
 
   const points = new THREE.Points(geometry, material);
   points.name = "GPU_Morphed_Pompom_Fuzz";
   points.frustumCulled = false;
+  const ranges = buildHeadRanges(items);
   state.bloom.renderables.fuzz.push({
     points,
-    items,
-    ranges: buildHeadRanges(items),
+    count,
+    ranges,
+    siteDelays,
     progressAttribute,
-    visibilityAttribute,
+    /* Progress is also the exact visibility handoff for this layer. Keeping
+       the alias preserves QA sampling without allocating a second GPU buffer. */
+    visibilityAttribute: progressAttribute,
   });
   return points;
 }
@@ -3096,7 +3100,6 @@ function createPompomFuzzMaterial() {
       attribute float aSeed;
       attribute float aShade;
       attribute float aProgress;
-      attribute float aVisibility;
       attribute vec3 color;
       varying vec3 vColor;
       varying float vVisibility;
@@ -3108,7 +3111,7 @@ function createPompomFuzzMaterial() {
       void main() {
         float progress = clamp(aProgress, 0.0, 1.0);
         vColor = color * mix(aShade, 1.0, progress);
-        vVisibility = aVisibility;
+        vVisibility = progress;
         vSeed = aSeed;
         vec3 morphedPosition = mix(aOrigin, position, progress);
         vec4 viewPosition = modelViewMatrix * vec4(morphedPosition, 1.0);
@@ -3594,11 +3597,8 @@ function applyBloomEffects(dirtyHeads) {
 
   for (const renderable of state.bloom.renderables.fuzz) {
     const progressAttribute = renderable.progressAttribute;
-    const visibilityAttribute = renderable.visibilityAttribute;
     const progressValues = progressAttribute.array;
-    const visibilityValues = visibilityAttribute.array;
     progressAttribute.clearUpdateRanges();
-    visibilityAttribute.clearUpdateRanges();
     let changed = false;
 
     for (const headIndex of dirtyHeads) {
@@ -3608,22 +3608,18 @@ function applyBloomEffects(dirtyHeads) {
       const timeline = spatialAllowed ? head.timeline : Number(head.committedOpen);
       const qaVisible = bloomRenderableVisible(headIndex);
       for (let index = range.start; index < range.start + range.count; index += 1) {
-        const item = renderable.items[index];
         const pollen = pollenBloomProgress(
           timeline,
-          bloomSiteDelay(head, item),
+          renderable.siteDelays[index],
           bloomMorphScratch.pollen,
         );
-        progressValues[index] = pollen.progress;
-        visibilityValues[index] = qaVisible ? pollen.visibility : 0;
+        progressValues[index] = qaVisible ? pollen.progress : 0;
       }
       queueRange(progressAttribute, range.start, range.count);
-      queueRange(visibilityAttribute, range.start, range.count);
       changed = true;
     }
     if (changed) {
       progressAttribute.needsUpdate = true;
-      visibilityAttribute.needsUpdate = true;
     }
   }
 
@@ -5107,10 +5103,10 @@ function exposeQaSnapshot() {
           curveSegmentCount: state.data.all.filaments.length * 2,
           displayPoints: state.data.all.tips.length,
           gpuMorphedFuzzPoints: state.bloom.renderables.fuzz.reduce(
-            (count, renderable) => count + renderable.items.length,
+            (count, renderable) => count + renderable.count,
             0,
           ),
-          fuzzDynamicBytesPerPoint: Float32Array.BYTES_PER_ELEMENT * 2,
+          fuzzDynamicBytesPerPoint: Float32Array.BYTES_PER_ELEMENT,
           legacyFuzzDynamicBytesPerPoint: Float32Array.BYTES_PER_ELEMENT * 8,
         },
         interaction: {

@@ -41,7 +41,7 @@ test("the turtle emits a hierarchical woody frame with finite geometry", () => {
   const tree = interpretWattleSentence(sentence, "high");
   assert(tree.segments.length >= 45);
   assert(tree.leaves.length >= 24);
-  assert(tree.buds.length >= 32 && tree.buds.length <= 72);
+  assert(tree.buds.length >= 48 && tree.buds.length <= 84);
   assert(tree.segments.some((segment) => segment.order === 0));
   assert(tree.segments.some((segment) => segment.order >= 2));
   for (const segment of tree.segments) {
@@ -77,6 +77,12 @@ test("the branch rises from one lower origin with a restrained diagonal lean", (
   assert(branch.segments[0].direction[1] > 0.95);
   assert(branch.segments[0].direction[0] < -0.1, "the branch should retain a subtle diagonal lean");
   assert.deepEqual(branch.segments[0].start, [0, 0, 0]);
+  const primaryDirections = branch.segments
+    .filter((segment) => segment.order === 0 && !segment.kind)
+    .map((segment) => segment.direction[0]);
+  const primaryCurvature = Math.max(...primaryDirections) - Math.min(...primaryDirections);
+  assert(primaryCurvature > 0.006, "the primary axis should curve instead of reading ruler-straight");
+  assert(primaryCurvature < 0.06, "the primary axis curvature should remain restrained");
 });
 
 test("Golden Wattle phyllodes are long, narrow, alternate blades", () => {
@@ -93,10 +99,10 @@ test("Golden Wattle phyllodes are long, narrow, alternate blades", () => {
 test("globular heads hang in multi-head axillary racemes", () => {
   const branch = generateWattleArchitecture({ seed: 0x57a771e, quality: "high" });
   const racemes = Map.groupBy(branch.buds, (bud) => bud.racemeId);
-  assert.equal(branch.buds.length, 72);
-  assert(racemes.size >= 14 && racemes.size <= 22);
-  assert([...racemes.values()].every((heads) => heads.length >= 2 && heads.length <= 6));
-  assert(branch.buds.every((head) => head.racemeHeadCount >= 2 && head.racemeHeadCount <= 6));
+  assert.equal(branch.buds.length, 82);
+  assert.equal(racemes.size, 21);
+  assert([...racemes.values()].every((heads) => heads.length >= 2 && heads.length <= 5));
+  assert(branch.buds.every((head) => head.racemeHeadCount >= 2 && head.racemeHeadCount <= 5));
   assert.equal(branch.segments.filter((segment) => segment.kind === "flower-raceme").length, racemes.size);
   assert.equal(
     branch.segments.filter((segment) => segment.kind === "flower-pedicel").length,
@@ -104,13 +110,17 @@ test("globular heads hang in multi-head axillary racemes", () => {
   );
   for (const raceme of branch.segments.filter((segment) => segment.kind === "flower-raceme")) {
     const length = Math.hypot(...raceme.end.map((value, index) => value - raceme.start[index]));
-    assert(length >= 0.34 && length <= 0.6);
+    assert(length >= 0.38 && length <= 0.64);
   }
   for (const pedicel of branch.segments.filter((segment) => segment.kind === "flower-pedicel")) {
     const length = Math.hypot(...pedicel.end.map((value, index) => value - pedicel.start[index]));
-    assert(length >= 0.08 && length <= 0.155);
+    assert(length >= 0.085 && length <= 0.165);
   }
   assert(new Set(branch.buds.map((bud) => bud.order)).size >= 3, "flowers should span several branch orders");
+  const headsByOrder = Map.groupBy(branch.buds, (bud) => bud.order);
+  assert.equal(headsByOrder.size, 4);
+  assert([...headsByOrder.values()].every((heads) => heads.length >= 17));
+  assert(branch.buds.every((bud) => bud.radius > 0.175 && bud.radius < 0.232));
 });
 
 let failures = 0;

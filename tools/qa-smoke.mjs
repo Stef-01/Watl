@@ -215,6 +215,7 @@ await check("the runtime keeps bloom and optional assets inside their performanc
   assert.match(scriptSource, /function\s+createPompomFuzzPoints\s*\(/);
   assert.match(scriptSource, /GPU_Morphed_Pompom_Fuzz_Material/);
   assert.match(scriptSource, /pollenBloomProgress\s*\(/);
+  assert.match(scriptSource, /fuzzDynamicBytesPerPoint:\s*Float32Array\.BYTES_PER_ELEMENT/);
   assert.match(scriptSource, /item\.position\s*=\s*null/);
   assert.match(bloomMotionSource, /function\s+pollenBloomProgress\s*\(/);
   assert.doesNotMatch(scriptSource, /fullBloomUpload|uploadWholeAttribute/);
@@ -236,6 +237,9 @@ await check("the tree grows through maturity before exposing interactive buds", 
   assert.match(scriptSource, /if\s*\(!state\.growth\?\.complete\)\s*return false/);
   assert.match(scriptSource, /Branch_Primary_Axis_Segments/);
   assert.match(scriptSource, /Branch_Lateral_Axis_Segments/);
+  assert.match(scriptSource, /new\s+THREE\.CylinderGeometry\(\s*0\.84,\s*1,/);
+  assert.match(wattleLsystemSource, /maxBuds:\s*84/);
+  assert.match(wattleLsystemSource, /radius:\s*0\.168\s*\+\s*\(module\.vigor/);
   assert.doesNotMatch(scriptSource, /root\.add\(createTie\(\)\)/);
   assert.match(treeGrowthSource, /TREE_GROWTH_DURATION_MS\s*=\s*8400/);
   assert.match(treeGrowthSource, /TREE_BUD_MATURITY_START\s*=\s*0\.72/);

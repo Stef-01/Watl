@@ -17,8 +17,8 @@ The first reference was judged at flower-head scale; the second was judged at br
 | Plant form | Bouquet/tree mass instead of a single branch | One vertically oriented, slightly diagonal branch enters from the lower-right and carries slender lateral twigs | Closed |
 | Foliage anatomy | Short, broad or fern-like foliage | Long, narrow, simple lanceolate phyllodes with a tapered tip, shallow keel and three longitudinal nerves | Closed |
 | Leaf colour | High-yellow chartreuse/olive cast | Cooler four-step forest/eucalyptus palette sampled against the supplied leaves (`#36532c` to `#69895a`) | Closed |
-| Inflorescence placement | Solitary terminal balls at stick ends | 18 axillary raceme axes with fine pedicels and 72 heads distributed across branch orders 0–3 | Closed |
-| Raceme rhythm | Even, mechanical spacing | Seeded golden-angle spacing, different raceme lengths, 2–6 visible heads per string, and gravity-biased droop | Closed |
+| Inflorescence placement | Solitary terminal balls at stick ends | 21 axillary raceme axes with fine pedicels and 82 heads distributed across branch orders 0–3 | Closed |
+| Raceme rhythm | Even, mechanical spacing | Seeded golden-angle spacing, different raceme lengths, 2–5 visible heads per string, and gravity-biased droop | Closed |
 | Bud scale | Green bud began larger than the final bloom | Bud, cup and open head share one authored radius envelope; the cap retires inside the expanding yellow structure | Closed |
 | Ghost silhouette | Large green shell remained visible behind the flower | Bud geometry now scales to a retired 0.035 factor and the yellow mass is open-only | Closed |
 | Flower character | Spiky sea-urchin rays or smooth plastic sphere | Compact fibrous undercoat, 900 equal-area shell particles per high-detail head, recessed representative stamens and small edge irregularity | Closed |
@@ -26,14 +26,14 @@ The first reference was judged at flower-head scale; the second was judged at br
 | Bloom staging | Scale-up only | Bud swell → seam separation → cup reveal → five-part floret opening → stamen extension → anther settling → persistent mature head | Closed |
 | Hover behaviour | Global or coarse bloom response | Screen-space brush opens only nearby heads, four at a time, with 135 ms local staggering | Closed |
 | Composition | Distant specimen and collision with client list | Camera fill tightened to 0.76, branch target shifted 0.38 of branch width left to render the botanical form strongly on the right | Closed |
-| Finale | No completion acknowledgement | All 72 persistent heads trigger the restrained black “Help your business bloom” contact banner | Closed |
+| Finale | No completion acknowledgement | All 82 persistent heads trigger the restrained black “Help your business bloom” contact banner | Closed |
 
 ## Recursive appraisal record
 
 1. Rebuilt the prior bouquet/tree as a single branch and replaced the foliage grammar.
 2. Rejected the first result because racemes overlapped into caterpillar-like chains; widened and drooped their axes.
 3. Fixed the multi-head GPU upload path after the state reported open while only one head visibly changed; the final implementation coalesces all dirty heads into one safe sparse span per attribute.
-4. Rebalanced the 72-head quota across branch orders so flowers no longer formed one dense terminal knot.
+4. Rebalanced 82 heads across 21 shorter 2–5-head racemes and all four branch orders, so flowers read as a distributed flowering rhythm rather than one dense terminal knot.
 5. Replaced the oversized smooth bloom sphere because it recreated the reported ghost-shell artefact.
 6. Rejected the exposed long-filament version because it read as a sea urchin; recessed the lines and added a compact point-shell mass.
 7. Reduced coarse radial spikes, tightened the particle shell from 0.72 to 0.69 radius, and lowered representative filament opacity to 0.30.
@@ -43,12 +43,15 @@ The first reference was judged at flower-head scale; the second was judged at br
 
 ## Final technical measurements
 
-- Procedural morphology: 72 flower heads, 18 racemes, no single-head racemes, four botanical branch orders.
-- High-detail flower load: 1,980 modeled florets, 9,900 petals, 88,104 display points.
-- Settled renderer: 17 draw calls, 498,376 triangles, 88,996 rendered points, three textures, DPR 1 in the recorded desktop state.
+- Procedural morphology: 82 flower heads, 21 racemes, no single-head racemes, four botanical branch orders.
+- Flower scale: mature radius increased approximately 8%, with longer raceme axes and pedicels maintaining visible separation between neighbouring pom-poms.
+- Branch finish: deterministic internode curvature, calmer lateral inclination, and a 0.84 stem-tip taper aligned to the primary continuation ratio remove ruler-straight axes and swollen joints.
 - Interaction sampling: hover brush radius 90 px in the recorded desktop state; four heads per brush step.
-- Final 390 × 844 hover-area run: one pointer dwell opened 27 nearby heads in three brush steps while leaving 45 remote heads closed; median frame time 8.3 ms and p95 9.0 ms.
-- Mature completion state: 72 open, 0 closed, growth 1.0, bloom timeline 1.0.
+- Hover-area blooming remains capped at four nearby heads per brush step, independent of total flower count.
+- Mature completion state: 82 open, 0 closed, growth 1.0, bloom timeline 1.0.
+- Forty-seed robustness audit: 71–84 heads, 18–24 racemes, consistently
+  2–5 heads per raceme, all four branch orders represented, and upright
+  height-to-width ratios from 1.42 to 2.82.
 
 ## Post-approval performance refinement
 
@@ -60,17 +63,19 @@ The first reference was judged at flower-head scale; the second was judged at br
 - The failure poster changed from a mislabeled 48,626-byte JPEG-in-PNG container to a correct 28,124-byte WebP and is no longer eagerly requested.
 - The 139,701-byte Motion runtime is omitted for touch and reduced-motion visitors.
 - Static assets use ETag revalidation; HTML remains `no-store`.
-- The 60k+ high-detail pom-pom fuzz points now morph position, size, and shade
-  in the vertex shader; only two scalar channels change per frame instead of
-  eight, a 75% reduction in dynamic attribute traffic with identical density.
+- The 70k+ high-detail pom-pom fuzz points now morph position, size, shade, and
+  visibility in the vertex shader; one scalar channel changes per frame
+  instead of eight, an 87.5% reduction in dynamic attribute traffic with
+  identical density.
 - A pollen-only sampler was proven against the full choreography at 60,006
   timeline/delay combinations, and packed fuzz releases both retained Vector3
   pose objects after its static GPU attributes are built.
-- A local 324,000-sample deterministic CPU benchmark dropped from 157.76 ms
-  with the full stage/handoff path to 80.87 ms with the packed sampler
-  (48.7% less CPU time, identical checksum). The render split costs three
-  small cluster draw calls in exchange for removing six dynamic floats per
-  fuzz point.
+- A local 369,000-sample deterministic CPU benchmark dropped from 174.51 ms
+  with the full stage/handoff path to 66.36 ms with the optimized packed
+  sampler (62.0% less CPU time, identical checksum). It is also 28.6% faster
+  than the previous packed sampler. The render split costs three small cluster
+  draw calls in exchange for removing seven of eight dynamic floats per fuzz
+  point.
 - All 36 regression checks pass after the refactor.
 
 ## Final judgement

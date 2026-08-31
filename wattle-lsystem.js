@@ -20,14 +20,14 @@ const QUALITY = Object.freeze({
     maxOrder: 3,
     lateralChance: 0.74,
     forkChance: 0.18,
-    maxBuds: 44,
+    maxBuds: 50,
   }),
   high: Object.freeze({
     iterations: 6,
     maxOrder: 3,
     lateralChance: 0.82,
     forkChance: 0.24,
-    maxBuds: 72,
+    maxBuds: 84,
   }),
 });
 
@@ -183,10 +183,10 @@ function rewriteApex(module, generation, config) {
 
   if (canBranch && branchRoll < branchChance) {
     const branchSeed = childSeed(seed, 22);
-    const inclination = (module.order === 0 ? 0.58 : 0.48)
-      + signedRandom(childSeed(seed, 23)) * (module.order === 0 ? 0.16 : 0.19);
-    const roll = module.azimuth + signedRandom(childSeed(seed, 24)) * 0.2;
-    const branchVigor = module.vigor * (module.order === 0 ? 0.88 : 0.76)
+    const inclination = (module.order === 0 ? 0.54 : 0.46)
+      + signedRandom(childSeed(seed, 23)) * (module.order === 0 ? 0.12 : 0.15);
+    const roll = module.azimuth + signedRandom(childSeed(seed, 24)) * 0.26;
+    const branchVigor = module.vigor * (module.order === 0 ? 0.86 : 0.74)
       * (0.92 + unitRandom(childSeed(seed, 25)) * 0.16);
     result.push(
       { symbol: "[" },
@@ -195,8 +195,8 @@ function rewriteApex(module, generation, config) {
       apex({
         order: module.order + 1,
         vigor: branchVigor,
-        length: module.length * (module.order === 0 ? 1.08 : 0.82),
-        radius: module.radius * (module.order === 0 ? 0.42 : 0.5),
+        length: module.length * (module.order === 0 ? 1.02 : 0.8),
+        radius: module.radius * (module.order === 0 ? 0.48 : 0.52),
         azimuth: WATTLE_GOLDEN_ANGLE * (1 + unitRandom(childSeed(seed, 26)) * 0.18),
         seed: branchSeed,
       }),
@@ -222,7 +222,7 @@ function rewriteApex(module, generation, config) {
   }
 
   const continuationVigor = module.vigor * (module.order === 0 ? 0.93 : 0.8);
-  const continuationLength = module.length * (module.order === 0 ? 1.015 : 0.84);
+  const continuationLength = module.length * (module.order === 0 ? 1.012 : 0.84);
   if (continuationVigor > 0.2 && generation < config.iterations - 1) {
     result.push(
       { symbol: "/", angle: WATTLE_GOLDEN_ANGLE + signedRandom(childSeed(seed, 31)) * 0.12 },
@@ -230,7 +230,7 @@ function rewriteApex(module, generation, config) {
         order: module.order,
         vigor: continuationVigor,
         length: continuationLength,
-        radius: module.radius * (module.order === 0 ? 0.83 : 0.75),
+        radius: module.radius * (module.order === 0 ? 0.84 : 0.78),
         azimuth: module.azimuth + WATTLE_GOLDEN_ANGLE,
         seed: childSeed(seed, 32),
       }),
@@ -300,8 +300,8 @@ export function interpretWattleSentence(sentence, quality = "high") {
   };
   const budsByOrder = [0, 0, 0, 0];
   const orderBudLimits = quality === "high"
-    ? [16, 20, 18, 18]
-    : [8, 12, 12, 12];
+    ? [18, 24, 22, 20]
+    : [10, 14, 14, 12];
 
   const addAxillaryRaceme = (module, terminal = false) => {
     const orderIndex = Math.min(orderBudLimits.length - 1, Math.max(0, module.order));
@@ -309,7 +309,7 @@ export function interpretWattleSentence(sentence, quality = "high") {
       config.maxBuds - buds.length,
       orderBudLimits[orderIndex] - budsByOrder[orderIndex],
     );
-    if (remaining <= 0) return;
+    if (remaining < 2) return;
 
     const racemeId = `axil-${module.seed.toString(16)}`;
     const phase = Number.isFinite(module.phase)
@@ -324,7 +324,7 @@ export function interpretWattleSentence(sentence, quality = "high") {
       scale(WORLD_UP, terminal ? -0.2 : -0.38),
     ));
     const racemeStart = [...state.position];
-    const racemeLength = (terminal ? 0.34 : 0.4)
+    const racemeLength = (terminal ? 0.38 : 0.44)
       + unitRandom(childSeed(module.seed, 70)) * (terminal ? 0.16 : 0.2);
     const racemeEnd = add(racemeStart, scale(racemeDirection, racemeLength));
     const axisBirth = 0.655 + unitRandom(childSeed(module.seed, 53)) * 0.035;
@@ -342,7 +342,7 @@ export function interpretWattleSentence(sentence, quality = "high") {
       seed: childSeed(module.seed, 80),
     });
     const requestedHeads = 3
-      + Math.floor(unitRandom(childSeed(module.seed, 81)) * (terminal ? 3 : 4));
+      + Math.floor(unitRandom(childSeed(module.seed, 81)) * 3);
     const headCount = Math.min(remaining, requestedHeads);
     const lateral = normalize(cross(racemeDirection, state.heading));
     const radialB = normalize(cross(racemeDirection, lateral));
@@ -361,7 +361,7 @@ export function interpretWattleSentence(sentence, quality = "high") {
         add(scale(headRadial, 0.84 + unitRandom(childSeed(headSeed, 1)) * 0.14), scale(racemeDirection, 0.18)),
         scale(WORLD_UP, -0.08 + signedRandom(childSeed(headSeed, 2)) * 0.08),
       ));
-      const pedicelLength = 0.08 + unitRandom(childSeed(headSeed, 3)) * 0.075;
+      const pedicelLength = 0.085 + unitRandom(childSeed(headSeed, 3)) * 0.08;
       const headPosition = add(axisPoint, scale(pedicelDirection, pedicelLength));
       segments.push({
         start: axisPoint,
@@ -379,8 +379,8 @@ export function interpretWattleSentence(sentence, quality = "high") {
       buds.push({
         position: headPosition,
         direction: pedicelDirection,
-        radius: 0.155 + (module.vigor ?? 0.55) * 0.042
-          + unitRandom(childSeed(headSeed, 5)) * 0.017,
+        radius: 0.168 + (module.vigor ?? 0.55) * 0.045
+          + unitRandom(childSeed(headSeed, 5)) * 0.018,
         order: module.order,
         racemeId,
         racemePosition: t,
@@ -407,8 +407,17 @@ export function interpretWattleSentence(sentence, quality = "high") {
     } else if (module.symbol === "&") {
       turnPitch(state, module.angle);
     } else if (module.symbol === "F") {
-      const upwardTropism = module.order === 0 ? 0.024 : Math.max(0.005, 0.02 - module.order * 0.004);
-      const peripheralSag = module.order >= 1 ? 0.026 * module.order : 0;
+      /* A tiny seeded bend at every internode replaces ruler-straight axes
+         with one continuous, restrained gesture. Because the local frame has
+         already rolled at each node, pitch alone produces spatial curvature
+         without introducing noisy zig-zags. */
+      const curvature = signedRandom(childSeed(module.seed, 130))
+        * (module.order === 0 ? 0.018 : 0.026 + module.order * 0.004);
+      turnPitch(state, curvature);
+      const upwardTropism = module.order === 0
+        ? 0.024
+        : Math.max(0.006, 0.019 - module.order * 0.0035);
+      const peripheralSag = module.order >= 1 ? 0.018 * module.order : 0;
       state.heading = normalize(add(
         state.heading,
         scale(WORLD_UP, upwardTropism - peripheralSag),
@@ -454,12 +463,12 @@ export function interpretWattleSentence(sentence, quality = "high") {
         seed: module.seed,
       });
       const flowerThreshold = module.order === 0
-        ? 0.12
+        ? 0.08
         : module.order === 1
-          ? 0.38
+          ? 0.27
           : quality === "high"
-            ? 0.74
-            : 0.8;
+            ? 0.61
+            : 0.72;
       if (
         module.flowerEligible
         && unitRandom(childSeed(module.seed, 111)) > flowerThreshold

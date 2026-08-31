@@ -205,6 +205,7 @@ test("the packed fuzz sampler exactly matches full pollen choreography", () => {
       assert.equal(pollenBloomProgress(timeline, delay, packed), packed);
       assertNear(packed.progress, stages.pollen, 1e-12, "packed pollen progress");
       assertNear(packed.visibility, visibility.pollen, 1e-12, "packed pollen visibility");
+      assert.equal(packed.visibility, packed.progress);
     }
   }
 });

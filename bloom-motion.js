@@ -189,22 +189,19 @@ export function siteBloomProgress(timeline, normalizedDelay = 0, target = {}) {
 }
 
 /**
- * Compute only the two late-stage channels needed by the dense pom-pom fuzz.
+ * Compute only the late-stage channel needed by the dense pom-pom fuzz.
  * The full stage sampler remains the source of truth for petals and filaments;
- * this narrower path avoids solving five unrelated easing curves for every
+ * this narrower path avoids solving six unrelated easing curves for every
  * one of the tens of thousands of peripheral pollen sprites each frame.
  */
 export function pollenBloomProgress(timeline, normalizedDelay = 0, target = {}) {
   const siteTimeline = delayedSiteTimeline(timeline, normalizedDelay);
-  const petal = windowProgress(siteTimeline, BLOOM_STAGE_WINDOWS.petal);
-  const outerFilamentRaw = windowProgress(
+  /* Pollen begins at 0.68, after the petal window completes at 0.62.
+     The petal prerequisite is therefore exactly one anywhere pollen can be
+     non-zero, making the extra petal curve and gate mathematically redundant. */
+  const outerFilament = windowProgress(
     siteTimeline,
     BLOOM_STAGE_WINDOWS.outerFilament,
-  );
-  const outerFilament = gatedProgress(
-    outerFilamentRaw,
-    petal,
-    OUTER_FILAMENT_PETAL_GATE,
   );
   const pollenRaw = windowProgress(siteTimeline, BLOOM_STAGE_WINDOWS.pollen);
   const pollen = gatedProgress(
@@ -214,7 +211,10 @@ export function pollenBloomProgress(timeline, normalizedDelay = 0, target = {}) 
   );
 
   target.progress = pollen;
-  target.visibility = pollenVisibility(pollen, outerFilament);
+  /* siteBloomProgress has already applied this same outer-filament gate.
+     Applying pollenVisibility again cannot lower the value, so visibility is
+     exactly equal to progress for this peripheral layer. */
+  target.visibility = pollen;
   return target;
 }
 

@@ -212,11 +212,12 @@ snapshot's `frameMetrics.bloomUpload` object.
 
 The dense pom-pom fuzz has its own packed render path. Its closed and open
 positions, sizes, and colour shades stay in static GPU attributes; the CPU now
-updates only bloom progress and visibility while the vertex shader performs
-the morph. That reduces dynamic fuzz transfer from eight floats to two per
-particle (75%) without removing a single point. A pollen-only choreography
+updates one bloom-progress value while the vertex shader performs the morph
+and uses that same gated value for visibility. That reduces dynamic fuzz
+transfer from eight floats to one per particle (87.5%) without removing a
+single point. A pollen-only choreography
 sampler remains numerically identical to the full stage model while skipping
-the five stage curves this late layer does not use, and the temporary source
+the six stage curves this late layer does not use, and the temporary source
 and origin vectors are released after packing. QA exposes the packed count and
 both per-point transfer costs in `snapshot().lod`.
 
