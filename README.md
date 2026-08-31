@@ -2,7 +2,7 @@
 
 WATL is a technology design practice creating interfaces, systems, and experimental tools for futures that have not settled into form. Its homepage is an extreme-minimal field object: a procedural living Golden Wattle branch growing inside a deterministic universe of warm light and faint, unresolved signals.
 
-The ground behind it is neutral charcoal with a restrained earth undertone, a contour field drawn in elevation, an ember low in the frame and grain over all of it — geological and cartographic vocabulary, borrowing nothing from Aboriginal visual language, which encodes particular Country and story and is not a free pattern library.
+The site opens on a plain black starry night so the branch has immediate visual authority. Six optional grounds reinterpret the same space through restrained earth, mineral, dusk, eucalypt and wash atmospheres. Their vocabulary stays geological, botanical and cartographic, borrowing nothing from Aboriginal visual language, which encodes particular Country and story and is not a free pattern library.
 
 Orbiting the camera reveals spatial parallax. A nearly imperceptible celestial drift, soft twinkle, and sparse connections keep the surrounding field alive without competing with the botanical form. The object is the identity; everything else has been reduced to coordinates.
 
@@ -55,6 +55,10 @@ Elsewhere:
   interpolate, so the backdrop dips to 26% and the layers are swapped at the
   darkest frame — the tree stays lit throughout, so it reads as the light
   changing rather than the page redrawing.
+- **Optional grounds carry slow environmental motion.** A high weather field,
+  low horizon reflection and contour plane drift on separate 34–56 second
+  transform-only cycles. Night removes and pauses them, preserving the simple
+  black star field as the default.
 
 Two implementation notes worth keeping:
 
@@ -82,8 +86,10 @@ interaction floor without downloading it.
 
 - **The separate contact action leans toward the cursor** and springs back;
   client rows deliberately keep only their restrained CSS acknowledgement.
-- **The light behind the tree drifts the other way**, on the softest spring
-  on the page. Fast parallax reads as a bug; slow parallax reads as depth.
+- **The light and optional atmosphere separate under the pointer**, on one
+  shared soft spring loop. The weather field, horizon and tree light move at
+  different amplitudes and opposing depths; Night keeps only the light and
+  star field visible.
 - **Press gives back** — a small spring-loaded scale on fine-pointer devices;
   touch keeps the immediate CSS active state without paying for the spring
   runtime.
@@ -130,19 +136,26 @@ and opens a row of swatches on click — seven is too many to cycle through.
 The backdrop is drawn entirely from four custom properties — `--night`,
 `--strata`, `--ember`, `--dust` — so five of the seven grounds are just a new
 set of those, and every gradient, band and ember re-tints together. Only Night
-sky and Wash change the drawing rather than its colour.
+sky and Wash change the base drawing rather than its colour. The six optional
+worlds also feed two broad composited atmosphere planes. Dusk bends its upper
+plane into an auroral arc; Wash turns it into drifting pigment pools; the
+geological grounds move their own mineral light through the contour field.
 
 Night sky is what the site opens on. It is an absence rather than a picture of
 a sky: the CSS takes the drawing away and the 3D scene fills what is left. It
 is also the one ground that reaches into the scene — the sparse signal threads
 between stars are right over drawn earth and wrong over a plain sky, so
 `script.js` watches `data-ground` on the root and hides them for this one.
+The `<html>` element is authored with `data-ground="night"`, so even the first
+paint before JavaScript runs is the simple black sky rather than a flash of an
+optional ground.
 
 All seven stay dark on purpose: the wordmark, the client names and the field
 copy are all set in light ink, so a pale ground would take their contrast with
 it.
 
-The tray closes on Escape, on a click outside it, and when focus leaves. The
+The tray closes on Escape, on a click outside it, and when focus leaves. Its
+horizontal swatches support Left/Right wrapping plus Home/End navigation. The
 stored key is `watl.ground.v2`; it was bumped when Night sky became the default
 so the change reached people who already had a choice saved.
 
@@ -224,6 +237,10 @@ both per-point transfer costs in `snapshot().lod`.
 The WebGL failure poster is a 28 kB WebP and has no eager `src`. It is requested
 only if scene initialization fails. The optional Motion layer is likewise
 lazy on pointer capability, keeping the initial network focused on the scene.
+Animated grounds add no images, timers, or dependencies: two reusable gradient
+elements stay on compositor transforms, share the existing pointer rAF, pause
+when the document is hidden, and become static under reduced motion. Night
+keeps both layers transparent and paused.
 The local server keeps HTML uncached but gives scripts, styles, vendor modules,
 and assets ETag revalidation, so a refresh can return `304` instead of sending
 the two-megabyte Three.js runtime again.

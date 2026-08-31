@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-AU">
+<html lang="en-AU" data-ground="night" data-ambient-motion="running">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -51,7 +51,10 @@
         aria-keyshortcuts="Enter Space ArrowUp ArrowDown ArrowLeft ArrowRight + - Home"
         aria-busy="true"
       >
-        <div class="backdrop" aria-hidden="true"></div>
+        <div class="backdrop" aria-hidden="true">
+          <span class="backdrop__atmosphere backdrop__atmosphere--weather"></span>
+          <span class="backdrop__atmosphere backdrop__atmosphere--horizon"></span>
+        </div>
         <canvas id="wattle-canvas" aria-hidden="true"></canvas>
         <img
           class="stage__fallback"
@@ -102,7 +105,13 @@
         >
           <span class="ground-switch__dot" aria-hidden="true"></span>
         </button>
-        <div class="ground-switch__swatches" id="ground-swatches" hidden></div>
+        <div
+          class="ground-switch__swatches"
+          id="ground-swatches"
+          role="group"
+          aria-label="Background choices"
+          hidden
+        ></div>
       </div>
 
       <footer class="client-rail interface-layer">
@@ -243,6 +252,15 @@
         var paintTimer = 0;
         var clearTimer = 0;
 
+        /* Ambient loops are decorative and therefore stop when this document
+           is not visible. CSS also removes them entirely for reduced motion. */
+        function syncAmbientMotion() {
+          root.dataset.ambientMotion = document.hidden ? "paused" : "running";
+        }
+
+        document.addEventListener("visibilitychange", syncAmbientMotion);
+        syncAmbientMotion();
+
         /* The ground itself is swapped at the darkest frame of the dissolve,
            not at the click — that is what makes it read as a cross-fade rather
            than a cut with a flicker in front of it. Both timers are cleared on
@@ -272,6 +290,7 @@
             toggle.setAttribute("aria-label", "Background: " + ground.label + ". Change it.");
           }
           if (tray) {
+            tray.dataset.activeGround = ground.id;
             var buttons = tray.querySelectorAll("button");
             for (var i = 0; i < buttons.length; i++) {
               buttons[i].setAttribute("aria-pressed", String(buttons[i].dataset.ground === ground.id));
@@ -312,6 +331,23 @@
             });
             tray.append(b);
           }
+
+          /* The swatches remain ordinary buttons, but arrow navigation makes
+             the compact horizontal group feel as deliberate as a native
+             segmented control without replacing its accessible semantics. */
+          tray.addEventListener("keydown", function (event) {
+            var keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
+            if (keys.indexOf(event.key) === -1) return;
+            var buttons = Array.prototype.slice.call(tray.querySelectorAll("button"));
+            var current = Math.max(0, buttons.indexOf(document.activeElement));
+            var next = current;
+            if (event.key === "Home") next = 0;
+            else if (event.key === "End") next = buttons.length - 1;
+            else if (event.key === "ArrowRight") next = (current + 1) % buttons.length;
+            else next = (current - 1 + buttons.length) % buttons.length;
+            event.preventDefault();
+            buttons[next].focus();
+          });
         }
 
         apply(read(), false);

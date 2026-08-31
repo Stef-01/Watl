@@ -15,6 +15,10 @@
   --gold: #b59a4d;
   --gold-rgb: 181, 154, 77;
   --edge: rgba(242, 240, 232, 0.16);
+  --weather-opacity: 0.24;
+  --horizon-opacity: 0.2;
+  --weather-duration: 38s;
+  --horizon-duration: 46s;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -119,6 +123,7 @@ button {
    The branch stays the only thing in the frame you actually look at. */
 .backdrop {
   z-index: -2;
+  isolation: isolate;
   background-color: var(--night);
   background-image:
     /* a single datum line, the way a section drawing carries one */
@@ -175,6 +180,91 @@ button {
     );
 }
 
+/* Optional grounds behave like environments, not theme swatches. Two broad
+   composited fields move at different depths: an upper weather front and a
+   low horizon reflection. Their gradients are made from the active ground's
+   own mineral colours, so the motion belongs to the existing geological and
+   botanical world. The default Night ground explicitly removes both. */
+.backdrop__atmosphere {
+  position: absolute;
+  z-index: 0;
+  inset: -20%;
+  pointer-events: none;
+  transition: opacity 900ms var(--ease-in-out);
+}
+
+:root:not([data-ground="night"]) .backdrop__atmosphere {
+  will-change: transform;
+}
+
+.backdrop__atmosphere--weather {
+  opacity: var(--weather-opacity);
+  background-image:
+    radial-gradient(
+      58% 46% at 22% 28%,
+      rgba(var(--dust), 0.34) 0%,
+      rgba(var(--dust), 0.09) 38%,
+      rgba(var(--dust), 0) 72%
+    ),
+    radial-gradient(
+      50% 42% at 78% 62%,
+      rgba(var(--ember), 0.28) 0%,
+      rgba(var(--ember), 0.07) 42%,
+      rgba(var(--ember), 0) 74%
+    ),
+    conic-gradient(
+      from 208deg at 54% 112%,
+      rgba(var(--dust), 0) 0deg,
+      rgba(var(--dust), 0.13) 42deg,
+      rgba(var(--ember), 0.09) 68deg,
+      rgba(var(--dust), 0) 104deg
+    );
+  mix-blend-mode: screen;
+  animation: weather-drift var(--weather-duration) linear infinite;
+  animation-delay: -13s;
+}
+
+.backdrop__atmosphere--horizon {
+  opacity: var(--horizon-opacity);
+  background-image:
+    radial-gradient(
+      72% 28% at 64% 82%,
+      rgba(var(--ember), 0.34) 0%,
+      rgba(var(--ember), 0.08) 44%,
+      rgba(var(--ember), 0) 76%
+    ),
+    radial-gradient(
+      48% 24% at 18% 68%,
+      rgba(var(--dust), 0.2) 0%,
+      rgba(var(--dust), 0) 72%
+    );
+  mix-blend-mode: screen;
+  transform-origin: 50% 78%;
+  animation: horizon-drift var(--horizon-duration) var(--ease-in-out) infinite alternate;
+  animation-delay: -21s;
+}
+
+@keyframes weather-drift {
+  0%, 100% {
+    transform: translate3d(-3.2%, -1.4%, 0) rotate(-2deg) scale(1.02);
+  }
+  33% {
+    transform: translate3d(2.4%, 1.2%, 0) rotate(0.8deg) scale(1.055);
+  }
+  67% {
+    transform: translate3d(0.8%, -2.2%, 0) rotate(2deg) scale(1.025);
+  }
+}
+
+@keyframes horizon-drift {
+  from {
+    transform: translate3d(-2.4%, 1.5%, 0) scale(1.015);
+  }
+  to {
+    transform: translate3d(2.8%, -0.8%, 0) scale(1.065);
+  }
+}
+
 /* The contour field, on its own layer so it can be taken away from the middle
    of the frame. Held at the edges and faded out behind the bouquet — the same
    thing a photographer's depth of field does, and the reason the drawing can be
@@ -196,7 +286,18 @@ button {
     rgba(0, 0, 0, 0.45) 54%,
     rgba(0, 0, 0, 1) 80%
   );
+  z-index: 1;
+  animation: contour-drift 44s var(--ease-in-out) infinite alternate;
   pointer-events: none;
+}
+
+@keyframes contour-drift {
+  from {
+    transform: translate3d(-0.6%, 0.35%, 0) scale(1.012);
+  }
+  to {
+    transform: translate3d(0.75%, -0.45%, 0) scale(1.028);
+  }
 }
 
 /* Grain, on its own layer so the blend mode reaches nothing else. Generated
@@ -209,6 +310,7 @@ button {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
   background-size: 180px 180px;
   opacity: 0.055;
+  z-index: 2;
   mix-blend-mode: soft-light;
   pointer-events: none;
 }
@@ -318,6 +420,9 @@ button {
   --strata: 92, 38, 18;
   --ember: 178, 66, 20;
   --dust: 214, 116, 44;
+  --weather-opacity: 0.34;
+  --horizon-opacity: 0.3;
+  --weather-duration: 34s;
 }
 
 :root[data-ground="rose"] {
@@ -325,6 +430,9 @@ button {
   --strata: 86, 34, 52;
   --ember: 164, 58, 84;
   --dust: 209, 115, 143;
+  --weather-opacity: 0.3;
+  --horizon-opacity: 0.25;
+  --weather-duration: 42s;
 }
 
 :root[data-ground="moss"] {
@@ -332,6 +440,9 @@ button {
   --strata: 34, 62, 40;
   --ember: 58, 118, 72;
   --dust: 127, 174, 122;
+  --weather-opacity: 0.23;
+  --horizon-opacity: 0.2;
+  --horizon-duration: 52s;
 }
 
 :root[data-ground="dusk"] {
@@ -339,6 +450,9 @@ button {
   --strata: 44, 34, 72;
   --ember: 92, 54, 132;
   --dust: 150, 120, 196;
+  --weather-opacity: 0.38;
+  --horizon-opacity: 0.26;
+  --weather-duration: 46s;
 }
 
 :root[data-ground="night"] {
@@ -346,6 +460,8 @@ button {
   --strata: 26, 34, 62;
   --ember: 38, 52, 104;
   --dust: 122, 148, 210;
+  --weather-opacity: 0;
+  --horizon-opacity: 0;
 }
 
 /* Night sky is the plainest ground there is, and the one the site opens on.
@@ -373,6 +489,13 @@ button {
   opacity: 0.02;
 }
 
+:root[data-ground="night"] :is(
+  .backdrop__atmosphere,
+  .backdrop::before
+) {
+  animation-play-state: paused;
+}
+
 /* Wash is the other ground that changes the drawing rather than its colour.
    The geology comes off — no strata, no datum line, no contour field — and in
    its place are soft overlapping blooms at wide radii, the way colour sits on
@@ -383,6 +506,10 @@ button {
   --strata: 78, 48, 62;
   --ember: 150, 74, 92;
   --dust: 201, 143, 156;
+  --weather-opacity: 0.4;
+  --horizon-opacity: 0.3;
+  --weather-duration: 48s;
+  --horizon-duration: 56s;
 }
 
 :root[data-ground="wash"] .backdrop {
@@ -396,6 +523,38 @@ button {
 
 :root[data-ground="wash"] .backdrop::before {
   opacity: 0;
+  animation-play-state: paused;
+}
+
+/* Dusk bends the moving field into a low auroral arc; Wash keeps its soft
+   pigment pools. The same two DOM layers are reused, so visual variety adds
+   no extra nodes, timers, or assets. */
+:root[data-ground="dusk"] .backdrop__atmosphere--weather {
+  background-image:
+    conic-gradient(
+      from 214deg at 56% 118%,
+      rgba(var(--dust), 0) 0deg,
+      rgba(var(--dust), 0.3) 34deg,
+      rgba(var(--ember), 0.16) 54deg,
+      rgba(var(--dust), 0.08) 76deg,
+      rgba(var(--dust), 0) 108deg
+    ),
+    radial-gradient(50% 36% at 76% 30%, rgba(var(--dust), 0.16), transparent 72%);
+}
+
+:root[data-ground="wash"] .backdrop__atmosphere--weather {
+  background-image:
+    radial-gradient(48% 42% at 22% 34%, rgba(var(--dust), 0.26), transparent 72%),
+    radial-gradient(54% 46% at 76% 24%, rgba(var(--ember), 0.24), transparent 74%),
+    radial-gradient(46% 40% at 58% 78%, rgba(126, 116, 176, 0.2), transparent 72%);
+}
+
+:root[data-ambient-motion="paused"] :is(
+  .backdrop__atmosphere,
+  .backdrop::before,
+  .stage__light
+) {
+  animation-play-state: paused;
 }
 
 /* The wash reads as paint only if the grain sits up where pigment would. */
@@ -417,8 +576,11 @@ button {
 
 .ground-switch__toggle {
   display: inline-flex;
+  width: 2rem;
+  height: 2rem;
   align-items: center;
-  padding: 0.4rem;
+  justify-content: center;
+  padding: 0;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -433,11 +595,13 @@ button {
   opacity: 0;
   transform: translateX(0.4rem);
   transition:
-    opacity 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 220ms var(--ease-out),
+    transform 220ms var(--ease-out);
 }
 
 .ground-switch__dot {
+  position: relative;
+  display: block;
   width: 9px;
   height: 9px;
   border: 1px solid var(--edge);
@@ -445,21 +609,49 @@ button {
   background: rgba(var(--dust), 0.55);
   opacity: 0.55;
   transition:
-    opacity 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    background-color 420ms ease,
-    box-shadow 320ms ease;
+    opacity 180ms ease,
+    background-color 240ms ease,
+    box-shadow 180ms ease;
 }
 
-.ground-switch:hover .ground-switch__name,
 .ground-switch:focus-within .ground-switch__name {
   opacity: 1;
   transform: translateX(0);
 }
 
-.ground-switch:hover .ground-switch__dot,
 .ground-switch:focus-within .ground-switch__dot {
   opacity: 1;
   box-shadow: 0 0 0 3px rgba(var(--dust), 0.12);
+}
+
+.ground-switch__dot::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border: 1px solid rgba(var(--dust), 0.24);
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(0.92);
+  transition:
+    opacity 180ms ease,
+    transform 220ms var(--ease-out);
+}
+
+.ground-switch__toggle[aria-expanded="true"] .ground-switch__dot::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ground-switch:hover .ground-switch__name {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .ground-switch:hover .ground-switch__dot {
+    opacity: 1;
+    box-shadow: 0 0 0 3px rgba(var(--dust), 0.12);
+  }
 }
 
 .ground-switch__toggle:focus-visible {
@@ -490,15 +682,21 @@ button {
   opacity: 0.62;
   cursor: pointer;
   transition:
-    opacity 260ms ease,
-    box-shadow 260ms ease,
-    transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
 
-.ground-swatch:hover,
 .ground-swatch:focus-visible {
   opacity: 1;
-  transform: scale(1.18);
+  transform: scale(1.12);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ground-swatch:hover {
+    opacity: 1;
+    transform: scale(1.12);
+  }
 }
 
 .ground-swatch[aria-pressed="true"] {
@@ -620,11 +818,11 @@ button {
 }
 
 .backdrop {
-  transition: background-color 900ms ease;
+  transition: background-color 900ms var(--ease-in-out);
 }
 
 .is-shifting .backdrop {
-  animation: ground-dissolve 640ms ease both;
+  animation: ground-dissolve 640ms var(--ease-in-out) both;
 }
 
 /* Hovering one name lets the others recede. */
@@ -642,7 +840,7 @@ button {
 @keyframes deal {
   from {
     opacity: 0;
-    transform: translateX(0.6rem) scale(0.6);
+    transform: translateX(0.35rem) scale(0.92);
   }
   to {
     opacity: 0.62;
@@ -651,8 +849,8 @@ button {
 }
 
 .ground-switch__swatches:not([hidden]) .ground-swatch {
-  animation: deal 420ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
-  animation-delay: calc(var(--i) * 45ms);
+  animation: deal 240ms var(--ease-out) backwards;
+  animation-delay: calc(var(--i) * 34ms);
 }
 
 /* ---------- The client rail ----------
@@ -1198,6 +1396,14 @@ input:disabled {
   .bloom-finale,
   .bloom-finale.is-visible {
     transform: translateY(-50%);
+  }
+
+  .backdrop__atmosphere,
+  .backdrop::before,
+  .stage__light {
+    animation: none !important;
+    transform: none !important;
+    translate: none !important;
   }
 }
 

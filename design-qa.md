@@ -49,6 +49,7 @@ The first reference was judged at flower-head scale; the second was judged at br
 - Branch finish: deterministic internode curvature, calmer lateral inclination, and a 0.84 stem-tip taper aligned to the primary continuation ratio remove ruler-straight axes and swollen joints.
 - Authored camera: 34° field of view, responsive 24°/18°/10° three-quarter azimuth, 4.5° elevation, and an optically raised target center the flower-bearing canopy while the stem enters from below.
 - Exploration range: wheel/pinch zoom speed increased from 0.72 to 1.18; camera distance now spans 0.34×–2.45× the authored distance, with symmetric 18% keyboard zoom steps.
+- Environmental motion: Night remains the explicit first-paint default with only black, vignette and the 3D stars; six optional grounds reuse two transform-only atmosphere planes plus a gently drifting contour field, all paused while hidden or motion-reduced.
 - Interaction sampling: hover brush radius 90 px in the recorded desktop state; four heads per brush step.
 - Hover-area blooming remains capped at four nearby heads per brush step, independent of total flower count.
 - Mature completion state: 82 open, 0 closed, growth 1.0, bloom timeline 1.0.
@@ -79,7 +80,7 @@ The first reference was judged at flower-head scale; the second was judged at br
   than the previous packed sampler. The render split costs three small cluster
   draw calls in exchange for removing seven of eight dynamic floats per fuzz
   point.
-- All 36 regression checks pass after the refactor.
+- All 37 regression checks pass after the refactor.
 
 ## Final judgement
 

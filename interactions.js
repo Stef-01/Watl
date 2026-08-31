@@ -40,8 +40,14 @@ const PRESS = { type: "spring", stiffness: 520, damping: 30 };
 const REACH = 130;
 const MAX_PULL = 18;
 
-/** Parallax is a suggestion of depth, not a slide. */
-const DRIFT_RANGE = 0.032;
+/** Parallax is a suggestion of depth, not a slide. The optional atmosphere
+ *  layers move more slowly than the light, and in opposing directions, so
+ *  the pointer reveals depth without pulling the environment around. */
+const PARALLAX_TARGETS = Object.freeze([
+  Object.freeze({ selector: ".stage__light", range: 0.032 }),
+  Object.freeze({ selector: ".backdrop__atmosphere--weather", range: 0.012 }),
+  Object.freeze({ selector: ".backdrop__atmosphere--horizon", range: -0.007 }),
+]);
 
 function enabled() {
   return Boolean(Motion) && fine.matches && !reduced.matches;
@@ -167,8 +173,11 @@ function magnetise(elements) {
  * soft spring. It is the slowest thing on the page on purpose: fast parallax
  * reads as a bug, slow parallax reads as depth.
  */
-function parallax(light) {
-  const motion = translator(light);
+function parallax(layers) {
+  const fields = layers.map(({ element, range }) => ({
+    motion: translator(element),
+    range,
+  }));
   let pointerX = 0;
   let pointerY = 0;
   let queued = 0;
@@ -177,7 +186,13 @@ function parallax(light) {
     queued = 0;
     const x = (pointerX / window.innerWidth - 0.5) * -2;
     const y = (pointerY / window.innerHeight - 0.5) * -2;
-    motion.to(x * window.innerWidth * DRIFT_RANGE, y * window.innerHeight * DRIFT_RANGE, DRIFT);
+    for (const field of fields) {
+      field.motion.to(
+        x * window.innerWidth * field.range,
+        y * window.innerHeight * field.range,
+        DRIFT,
+      );
+    }
   }
 
   function onMove(event) {
@@ -190,7 +205,7 @@ function parallax(light) {
   return () => {
     window.removeEventListener("pointermove", onMove);
     if (queued) cancelAnimationFrame(queued);
-    motion.destroy();
+    fields.forEach((field) => field.motion.destroy());
   };
 }
 
@@ -300,7 +315,9 @@ function start() {
   const magneticLinks = links.filter((link) => !link.closest("#client-list"));
   const clientList = document.querySelector("#client-list");
   const toggle = document.querySelector(".ground-switch__toggle");
-  const light = document.querySelector(".stage__light");
+  const parallaxLayers = PARALLAX_TARGETS
+    .map(({ selector, range }) => ({ element: document.querySelector(selector), range }))
+    .filter(({ element }) => element);
 
   if (clientList) teardown.push(clientPosition(clientList));
 
@@ -312,7 +329,7 @@ function start() {
      magnetic pull inside a scroll surface makes rows feel loose and noisy;
      the separate contact action can keep the more expressive spring. */
   teardown.push(magnetise([...magneticLinks, ...(toggle ? [toggle] : [])]));
-  if (light) teardown.push(parallax(light));
+  if (parallaxLayers.length > 0) teardown.push(parallax(parallaxLayers));
 }
 
 function loadMotion() {

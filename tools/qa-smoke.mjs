@@ -285,6 +285,24 @@ await check("the client rail stays vertical, independently scrollable, and keybo
   assert.match(interactionsSource, /!link\.closest\(["']#client-list["']\)/);
 });
 
+await check("optional grounds animate while the plain night remains the default", () => {
+  assert.match(indexSource, /<html[^>]*data-ground=["']night["'][^>]*data-ambient-motion=["']running["']/);
+  assert.match(indexSource, /backdrop__atmosphere--weather/);
+  assert.match(indexSource, /backdrop__atmosphere--horizon/);
+  assert.match(indexSource, /id=["']ground-swatches["'][\s\S]*?role=["']group["'][\s\S]*?aria-label=["']Background choices["']/);
+  assert.match(indexSource, /document\.addEventListener\(["']visibilitychange["'],\s*syncAmbientMotion\)/);
+  assert.match(indexSource, /var\s+keys\s*=\s*\[["']ArrowLeft["'],\s*["']ArrowRight["'],\s*["']Home["'],\s*["']End["']\]/);
+  assert.match(stylesSource, /@keyframes\s+weather-drift/);
+  assert.match(stylesSource, /@keyframes\s+horizon-drift/);
+  assert.match(stylesSource, /@keyframes\s+contour-drift/);
+  assert.match(stylesSource, /:root\[data-ground=["']night["']\][\s\S]*?--weather-opacity:\s*0;[\s\S]*?--horizon-opacity:\s*0;/);
+  assert.match(stylesSource, /:root\[data-ambient-motion=["']paused["']\][\s\S]*?animation-play-state:\s*paused/);
+  assert.match(stylesSource, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.backdrop__atmosphere[\s\S]*?animation:\s*none\s*!important/);
+  assert.match(interactionsSource, /const\s+PARALLAX_TARGETS\s*=\s*Object\.freeze/);
+  assert.match(interactionsSource, /backdrop__atmosphere--weather["'],\s*range:\s*0\.012/);
+  assert.match(interactionsSource, /backdrop__atmosphere--horizon["'],\s*range:\s*-0\.007/);
+});
+
 const port = await reservePort();
 const child = spawn(process.execPath, ["server.mjs"], {
   cwd: root,
