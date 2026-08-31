@@ -19,7 +19,7 @@ The first reference was judged at flower-head scale; the second was judged at br
 | Leaf colour | High-yellow chartreuse/olive cast | Cooler four-step forest/eucalyptus palette sampled against the supplied leaves (`#36532c` to `#69895a`) | Closed |
 | Inflorescence placement | Solitary terminal balls at stick ends | 21 axillary raceme axes with fine pedicels and 82 heads distributed across branch orders 0–3 | Closed |
 | Raceme rhythm | Even, mechanical spacing | Seeded golden-angle spacing, different raceme lengths, 2–5 visible heads per string, and gravity-biased droop | Closed |
-| Bud scale | Green bud began larger than the final bloom | Bud, cup and open head share one authored radius envelope; the cap retires inside the expanding yellow structure | Closed |
+| Bud scale | Green bud began larger than the final bloom | Closed bud is 50% smaller than the previous release, mature flower is 20% smaller, and the cap retires inside a continuously expanding yellow structure | Closed |
 | Ghost silhouette | Large green shell remained visible behind the flower | Bud geometry now scales to a retired 0.035 factor and the yellow mass is open-only | Closed |
 | Flower character | Spiky sea-urchin rays or smooth plastic sphere | Compact fibrous undercoat, 900 equal-area shell particles per high-detail head, recessed representative stamens and small edge irregularity | Closed |
 | Flower colour | Muddy mustard and grey blotching | Saturated lemon core/filament/tip palette with texture carried by light variation rather than desaturation | Closed |
@@ -45,7 +45,7 @@ The first reference was judged at flower-head scale; the second was judged at br
 ## Final technical measurements
 
 - Procedural morphology: 82 flower heads, 21 racemes, no single-head racemes, four botanical branch orders.
-- Flower scale: the complete bud-to-pom-pom radius is 50% larger than the previous release; every growth stage shares the same multiplier, so no phase pops or changes proportion during the transition.
+- Flower scale: the mature pom-pom is 20% smaller than the previous release; the closed bud is 50% smaller and therefore begins at 0.625 of the resized mature envelope before expanding monotonically through cup, petal, filament, and pollen stages.
 - Branch finish: deterministic internode curvature, calmer lateral inclination, and a 0.84 stem-tip taper aligned to the primary continuation ratio remove ruler-straight axes and swollen joints.
 - Authored camera: 34° field of view, responsive 24°/18°/10° three-quarter azimuth, 4.5° elevation, and an optically raised target center the flower-bearing canopy while the stem enters from below.
 - Exploration range: wheel/pinch zoom speed increased from 0.72 to 1.18; camera distance now spans 0.34×–2.45× the authored distance, with symmetric 18% keyboard zoom steps.

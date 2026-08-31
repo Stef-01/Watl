@@ -121,8 +121,8 @@ test("globular heads hang in multi-head axillary racemes", () => {
   const headsByOrder = Map.groupBy(branch.buds, (bud) => bud.order);
   assert.equal(headsByOrder.size, 4);
   assert([...headsByOrder.values()].every((heads) => heads.length >= 17));
-  assert.equal(WATTLE_FLOWER_SCALE, 1.5);
-  assert(branch.buds.every((bud) => bud.radius > 0.2625 && bud.radius < 0.348));
+  assert.equal(WATTLE_FLOWER_SCALE, 1.2);
+  assert(branch.buds.every((bud) => bud.radius > 0.21 && bud.radius < 0.279));
 });
 
 let failures = 0;

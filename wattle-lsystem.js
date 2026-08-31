@@ -8,9 +8,12 @@
  * of this module so the grammar remains deterministic and testable.
  */
 
+import { WATTLE_FLOWER_SCALE } from "./flower-scale.js";
+
+export { WATTLE_FLOWER_SCALE } from "./flower-scale.js";
+
 export const WATTLE_GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 export const WATTLE_BUD_BIRTH = 0.72;
-export const WATTLE_FLOWER_SCALE = 1.5;
 
 const TAU = Math.PI * 2;
 const WORLD_UP = Object.freeze([0, 1, 0]);
@@ -380,9 +383,9 @@ export function interpretWattleSentence(sentence, quality = "high") {
       buds.push({
         position: headPosition,
         direction: pedicelDirection,
-        /* Scale the entire authored head envelope—not an isolated mesh—so the
-           closed bud, opening cup, florets and mature pom-pom remain one
-           continuous 50%-larger biological form throughout the bloom. */
+        /* Architecture owns the mature envelope; bloom motion applies the
+           smaller closed-bud ratio inside that envelope. Keeping this one
+           shared token prevents flower placement and render scale drifting. */
         radius: WATTLE_FLOWER_SCALE * (
           0.168 + (module.vigor ?? 0.55) * 0.045
           + unitRandom(childSeed(headSeed, 5)) * 0.018

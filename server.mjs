@@ -14,6 +14,7 @@ const port = configuredPort;
 const root = realpathSync(process.cwd());
 const publicFiles = new Set([
   "bloom-motion.js",
+  "flower-scale.js",
   "tree-growth.js",
   "wattle-lsystem.js",
   "index.html",

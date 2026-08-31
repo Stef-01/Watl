@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 
 import {
+  BLOOM_BUD_RESIZE_FACTOR,
+  BLOOM_BUD_TO_MATURE_SCALE,
+  BLOOM_MATURE_RESIZE_FACTOR,
+  WATTLE_FLOWER_SCALE,
+} from "../flower-scale.js";
+
+import {
   BLOOM_DURATION_MS,
   BLOOM_ENVELOPE,
   BLOOM_MAX_SITE_DELAY,
@@ -260,7 +267,15 @@ test("visibility ownership has no dormant filament or pollen ghost", () => {
 });
 
 test("the target envelope expands monotonically without the inverted-core dip", () => {
-  assert.equal(BLOOM_ENVELOPE.closed, 0.58);
+  assert.equal(BLOOM_BUD_RESIZE_FACTOR, 0.5);
+  assert.equal(BLOOM_MATURE_RESIZE_FACTOR, 0.8);
+  assert.equal(BLOOM_BUD_TO_MATURE_SCALE, 0.625);
+  assertNear(WATTLE_FLOWER_SCALE / 1.5, BLOOM_MATURE_RESIZE_FACTOR);
+  assertNear(
+    WATTLE_FLOWER_SCALE * BLOOM_BUD_TO_MATURE_SCALE / 1.5,
+    BLOOM_BUD_RESIZE_FACTOR,
+  );
+  assert.equal(BLOOM_ENVELOPE.closed, 0.58 * BLOOM_BUD_TO_MATURE_SCALE);
   assert.equal(BLOOM_ENVELOPE.open, 1);
 
   for (const delay of DELAYS) {
@@ -280,7 +295,10 @@ test("the target envelope expands monotonically without the inverted-core dip", 
       previous = envelope;
     }
 
-    assert.equal(bloomEnvelopeTarget(siteBloomProgress(0, delay)), 0.58);
+    assert.equal(
+      bloomEnvelopeTarget(siteBloomProgress(0, delay)),
+      0.58 * BLOOM_BUD_TO_MATURE_SCALE,
+    );
     assert.equal(bloomEnvelopeTarget(siteBloomProgress(1, delay)), 1);
   }
 });

@@ -7,6 +7,8 @@
  * helper deals in milliseconds.
  */
 
+import { BLOOM_BUD_TO_MATURE_SCALE } from "./flower-scale.js";
+
 export const BLOOM_DURATION_MS = 2700;
 export const BLOOM_MAX_SITE_DELAY = 0.22;
 
@@ -29,9 +31,9 @@ export const BLOOM_STAGE_WINDOWS = Object.freeze({
 });
 
 export const BLOOM_ENVELOPE = Object.freeze({
-  closed: 0.58,
-  wake: 0.6,
-  ripen: 0.64,
+  closed: 0.58 * BLOOM_BUD_TO_MATURE_SCALE,
+  wake: 0.6 * BLOOM_BUD_TO_MATURE_SCALE,
+  ripen: 0.64 * BLOOM_BUD_TO_MATURE_SCALE,
   loosen: 0.74,
   petal: 0.86,
   innerFilament: 0.92,
@@ -293,9 +295,11 @@ function envelopeCandidate(start, end, progress) {
 }
 
 /**
- * Target radius relative to the mature flower. Every contribution is
- * monotonic and the maximum is taken, so the visible contour can never
- * collapse while ownership passes from capsule to petals and stamens.
+ * Target radius relative to the resized mature flower. The closed bud uses
+ * the shared 0.625 bud-to-mature ratio, then loosening bridges into the
+ * existing cup, petal, and filament targets. Every contribution is monotonic
+ * and the maximum is taken, so the contour cannot collapse during ownership
+ * handoff.
  */
 export function bloomEnvelopeTarget(stages) {
   return Math.max(

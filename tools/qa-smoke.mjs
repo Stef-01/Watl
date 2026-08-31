@@ -102,6 +102,7 @@ const [
   scriptSource,
   stylesSource,
   bloomMotionSource,
+  flowerScaleSource,
   treeGrowthSource,
   wattleLsystemSource,
   interactionsSource,
@@ -110,6 +111,7 @@ const [
   readFile(resolve(root, "script.js"), "utf8"),
   readFile(resolve(root, "styles.css"), "utf8"),
   readFile(resolve(root, "bloom-motion.js"), "utf8"),
+  readFile(resolve(root, "flower-scale.js"), "utf8"),
   readFile(resolve(root, "tree-growth.js"), "utf8"),
   readFile(resolve(root, "wattle-lsystem.js"), "utf8"),
   readFile(resolve(root, "interactions.js"), "utf8"),
@@ -119,6 +121,7 @@ await check("JavaScript entry points parse", () => {
   syntaxCheck("server.mjs");
   syntaxCheck("script.js");
   syntaxCheck("bloom-motion.js");
+  syntaxCheck("flower-scale.js");
   syntaxCheck("tree-growth.js");
   syntaxCheck("wattle-lsystem.js");
   syntaxCheck("tools/bloom-motion.test.mjs");
@@ -239,7 +242,10 @@ await check("the tree grows through maturity before exposing interactive buds", 
   assert.match(scriptSource, /Branch_Lateral_Axis_Segments/);
   assert.match(scriptSource, /new\s+THREE\.CylinderGeometry\(\s*0\.84,\s*1,/);
   assert.match(wattleLsystemSource, /maxBuds:\s*84/);
-  assert.match(wattleLsystemSource, /WATTLE_FLOWER_SCALE\s*=\s*1\.5/);
+  assert.match(flowerScaleSource, /WATTLE_FLOWER_SCALE\s*=\s*1\.2/);
+  assert.match(flowerScaleSource, /BLOOM_MATURE_RESIZE_FACTOR\s*=\s*0\.8/);
+  assert.match(flowerScaleSource, /BLOOM_BUD_RESIZE_FACTOR\s*=\s*0\.5/);
+  assert.match(scriptSource, /BUD_CAP_SCALE_FACTOR\s*=\s*0\.46\s*\*\s*BLOOM_BUD_TO_MATURE_SCALE/);
   assert.match(wattleLsystemSource, /radius:\s*WATTLE_FLOWER_SCALE\s*\*/);
   assert.match(scriptSource, /DEFAULT_VIEW_AZIMUTH_LANDSCAPE\s*=\s*THREE\.MathUtils\.degToRad\(24\)/);
   assert.match(scriptSource, /projectedWidth\s*=\s*Math\.abs\(size\.x\s*\*\s*cosAzimuth\)/);
@@ -311,6 +317,11 @@ try {
     assert.equal(motionResponse.status, 200);
     assert.match(motionResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
     assert.match(await motionResponse.text(), /BLOOM_DURATION_MS\s*=\s*2700/);
+
+    const scaleResponse = await fetch(`${baseUrl}/flower-scale.js?cache-bust=qa`);
+    assert.equal(scaleResponse.status, 200);
+    assert.match(scaleResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
+    assert.match(await scaleResponse.text(), /WATTLE_FLOWER_SCALE\s*=\s*1\.2/);
 
     const growthResponse = await fetch(`${baseUrl}/tree-growth.js?cache-bust=qa`);
     assert.equal(growthResponse.status, 200);
