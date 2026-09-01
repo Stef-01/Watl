@@ -352,12 +352,15 @@
         var KEY = "watl.ground.v2";
 
         var root = document.documentElement;
+        var switcher = document.querySelector(".ground-switch");
         var toggle = document.getElementById("ground-toggle");
         var name = document.getElementById("ground-name");
         var tray = document.getElementById("ground-swatches");
         var meta = document.getElementById("theme-color");
         var backdrop = document.querySelector(".backdrop");
         var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+        var DISSOLVE_DURATION_MS = 500;
+        var DISSOLVE_SWAP_OFFSET = 0.42;
 
         function find(id) {
           for (var i = 0; i < GROUNDS.length; i++) {
@@ -422,15 +425,15 @@
             var animation = backdrop.animate(
               [
                 { opacity: Number.isFinite(currentOpacity) ? currentOpacity : 1 },
-                { opacity: 0.26, offset: 0.42 },
+                { opacity: 0.26, offset: DISSOLVE_SWAP_OFFSET },
                 { opacity: 1 }
               ],
-              { duration: 640, easing: "cubic-bezier(0.77, 0, 0.175, 1)" }
+              { duration: DISSOLVE_DURATION_MS, easing: "cubic-bezier(0.77, 0, 0.175, 1)" }
             );
             groundAnimation = animation;
             paintTimer = window.setTimeout(function () {
               root.dataset.ground = ground.id;
-            }, 260);
+            }, Math.round(DISSOLVE_DURATION_MS * DISSOLVE_SWAP_OFFSET));
             animation.addEventListener("finish", function () {
               if (groundAnimation === animation) groundAnimation = null;
             }, { once: true });
@@ -465,6 +468,10 @@
           return Boolean(toggle && toggle.getAttribute("aria-expanded") === "true");
         }
 
+        function setGroundInput(input) {
+          if (switcher) switcher.dataset.input = input;
+        }
+
         function open(state, instant) {
           if (!tray || !toggle) return;
           if (!instant && tray.dataset.motion !== "transition") {
@@ -481,6 +488,9 @@
         }
 
         if (tray) {
+          tray.addEventListener("focusin", function (event) {
+            if (event.target.matches(":focus-visible")) setGroundInput("keyboard");
+          });
           for (var i = 0; i < GROUNDS.length; i++) {
             var g = GROUNDS[i];
             var b = document.createElement("button");
@@ -532,9 +542,21 @@
         apply(read(), false);
 
         if (toggle) {
+          toggle.addEventListener("focus", function () {
+            if (toggle.matches(":focus-visible")) setGroundInput("keyboard");
+          });
           toggle.addEventListener("click", function (event) {
             open(!isOpen(), event.detail === 0);
           });
+        }
+
+        if (switcher) {
+          switcher.addEventListener("pointerenter", function () {
+            setGroundInput("pointer");
+          }, { passive: true });
+          switcher.addEventListener("pointerdown", function () {
+            setGroundInput("pointer");
+          }, { passive: true });
         }
 
         /* A click anywhere else, or Escape, puts the tray away. The canvas

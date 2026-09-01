@@ -11,11 +11,11 @@
  *
  * Three rules shape the whole file:
  *
- *   Springs write to `translate` and `scale`, never `transform`. The CSS owns
+ *   Springs write to `translate`, never `transform`. The CSS owns
  *   `transform` on every element touched here — `rise` on the links, `breathe`
  *   on the light — and a running animation outranks an inline style, so
  *   sharing that property would mean the JS silently losing. The independent
- *   properties compose with it instead of fighting it.
+ *   translate property composes with it instead of fighting it.
  *
  *   A pointer that cannot hover gets none of it. Magnetism and parallax are
  *   answers to a cursor; on a touchscreen they are jitter.
@@ -34,7 +34,6 @@ const fine = window.matchMedia("(hover: hover) and (pointer: fine)");
 /** Springs the page can afford to run on every pointer move. */
 const MAGNET = { type: "spring", stiffness: 260, damping: 24, mass: 0.9 };
 const DRIFT = { type: "spring", stiffness: 42, damping: 22, mass: 1.4 };
-const PRESS = { type: "spring", stiffness: 520, damping: 30 };
 
 /** How far from a link the cursor is felt, and the furthest it can lean. */
 const REACH = 130;
@@ -269,22 +268,6 @@ function bloomCursor(cursor, canvas) {
 }
 
 /**
- * Press gives back on the spring-enabled pointer layer. Touch keeps the CSS
- * active state, so it has immediate feedback without loading this runtime.
- */
-function pressable(elements) {
-  if (!Motion.press) return () => {};
-  const stops = elements.map((element) =>
-    Motion.press(element, () => {
-      const { animate } = Motion;
-      animate(element, { scale: 0.965 }, PRESS);
-      return () => animate(element, { scale: 1 }, PRESS);
-    }),
-  );
-  return () => stops.forEach((stop) => typeof stop === "function" && stop());
-}
-
-/**
  * Keep the tiny rail counter in step with native scrolling. The list itself
  * remains a real overflow region — trackpad momentum, keyboard scrolling and
  * accessibility tooling all retain their platform behaviour. This listener
@@ -334,6 +317,10 @@ function clientPosition(list) {
     const keys = ["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End"];
     if (!keys.includes(event.key) || event.altKey || event.ctrlKey || event.metaKey) return;
 
+    /* The precision path never inherits pointer easing. Keeping the modality
+       until the pointer returns also makes the marker's blur state immediate. */
+    list.dataset.input = "keyboard";
+
     const firstOffset = items[0]?.offsetTop || 0;
     let nearest = 0;
     let distance = Infinity;
@@ -372,6 +359,14 @@ function clientPosition(list) {
       previewIndex = index;
       render(index);
     };
+    const pointerPreview = () => {
+      list.dataset.input = "pointer";
+      preview();
+    };
+    const focusPreview = () => {
+      if (item.matches(":focus-visible")) list.dataset.input = "keyboard";
+      preview();
+    };
     const restore = () => {
       if (document.activeElement === item) return;
       previewIndex = -1;
@@ -381,24 +376,25 @@ function clientPosition(list) {
       previewIndex = -1;
       update();
     };
-    item.addEventListener("pointerenter", preview, { passive: true });
+    item.addEventListener("pointerenter", pointerPreview, { passive: true });
     item.addEventListener("pointerleave", restore, { passive: true });
-    item.addEventListener("focus", preview);
+    item.addEventListener("focus", focusPreview);
     item.addEventListener("blur", blur);
-    previews.push({ item, preview, restore, blur });
+    previews.push({ item, pointerPreview, focusPreview, restore, blur });
   });
   update();
 
   return () => {
     list.removeEventListener("scroll", onScroll);
     list.removeEventListener("keydown", onKeyDown);
-    previews.forEach(({ item, preview, restore, blur }) => {
-      item.removeEventListener("pointerenter", preview);
+    previews.forEach(({ item, pointerPreview, focusPreview, restore, blur }) => {
+      item.removeEventListener("pointerenter", pointerPreview);
       item.removeEventListener("pointerleave", restore);
-      item.removeEventListener("focus", preview);
+      item.removeEventListener("focus", focusPreview);
       item.removeEventListener("blur", blur);
       item.removeAttribute("data-current");
     });
+    list.removeAttribute("data-input");
     if (queued) cancelAnimationFrame(queued);
   };
 }
@@ -434,9 +430,7 @@ function start() {
 
   if (!enabled()) return;
 
-  teardown.push(pressable([...links, ...(toggle ? [toggle] : [])]));
-
-  /* The compact client list gets only its 0.22rem CSS acknowledgement. A
+  /* The compact client list gets only its restrained CSS acknowledgement. A
      magnetic pull inside a scroll surface makes rows feel loose and noisy;
      the separate contact action can keep the more expressive spring. */
   teardown.push(magnetise([...magneticLinks, ...(toggle ? [toggle] : [])]));

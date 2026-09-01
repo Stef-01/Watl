@@ -92,9 +92,9 @@ Elsewhere:
   transform is written directly without a trailing CSS transition, so the line
   remains phase-accurate even while the render loop is advancing every frame.
 - **Continuous and direct motion use separate physics.** The indeterminate
-  loader travels at a constant linear velocity, while press feedback shares a
-  fast 120 ms ease-out token; neither inherits the slower narrative timing used
-  for tree growth or the rare completion reveal.
+  loader travels at a constant linear velocity, while direct press feedback
+  shares a fast 120 ms ease-out token; neither inherits the slower narrative
+  timing used for tree growth or the rare completion reveal.
 
 Two implementation notes worth keeping:
 
@@ -129,9 +129,9 @@ interaction floor without downloading it.
   shared soft spring loop. The weather field, horizon and tree light move at
   different amplitudes and opposing depths; Night keeps only the light and
   star field visible.
-- **Press gives back** — a small spring-loaded scale on fine-pointer devices;
-  touch keeps the immediate CSS active state without paying for the spring
-  runtime.
+- **Press gives back immediately** through one restrained 120 ms CSS state on
+  every input device. It does not load a second spring animation on top of the
+  control's own feedback.
 - **The bloom brush is visible on fine pointers.** A hairline ring matches the
   actual 20vmin activation diameter, follows the cursor directly, and tightens
   only when the raycaster finds unopened heads. It is immediate feedback, not
@@ -159,11 +159,11 @@ library fails to load, the page loses the springs and nothing else — the two
 scripts are deferred separately from the scene module so no one failure takes
 another down.
 
-**Springs write to `translate` and `scale`, never `transform`.** The CSS owns
+**Springs write to `translate`, never `transform`.** The CSS owns
 `transform` on every element this touches — `rise` on the links, `breathe` on
 the light — and a running animation outranks an inline style, so sharing that
-property would mean the JS silently losing. The independent properties compose
-with it instead.
+property would mean the JS silently losing. The independent `translate`
+property composes with it instead.
 
 **Layout is read once a frame, not once a pointer event.** A pointer fires far
 more often than the screen refreshes, and reading a rect after writing a style

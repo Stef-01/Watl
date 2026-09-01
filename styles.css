@@ -24,6 +24,7 @@
   --duration-press: 120ms;
   --duration-fast: 160ms;
   --duration-ui: 220ms;
+  --duration-environment: var(--duration-ui);
   --duration-reveal: 680ms;
   --sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -147,11 +148,11 @@ button {
   border: 1px solid rgba(242, 240, 232, 0.24);
   border-radius: 50%;
   opacity: 0;
-  transform: translate(-50%, -50%) scale(0.92);
+  transform: translate(-50%, -50%) scale(0.97);
   transition:
     border-color var(--duration-fast) ease,
     opacity var(--duration-fast) ease,
-    transform var(--duration-ui) var(--ease-out);
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .stage[data-tree-mature="true"] .bloom-cursor[data-visible="true"] .bloom-cursor__ring {
@@ -162,12 +163,13 @@ button {
 .stage[data-bloom-hover="true"] .bloom-cursor__ring {
   border-color: rgba(var(--gold-rgb), 0.82);
   opacity: 0.76;
-  transform: translate(-50%, -50%) scale(0.86);
+  transform: translate(-50%, -50%) scale(0.97);
 }
 
 .bloom-cursor[data-pressed="true"] .bloom-cursor__ring {
   opacity: 0.24;
-  transform: translate(-50%, -50%) scale(0.8);
+  transform: translate(-50%, -50%) scale(0.95);
+  transition-duration: var(--duration-press);
 }
 
 @media (hover: none), (pointer: coarse) {
@@ -262,7 +264,7 @@ button {
   z-index: 0;
   inset: -20%;
   pointer-events: none;
-  transition: opacity 900ms var(--ease-in-out);
+  transition: opacity var(--duration-environment) var(--ease-in-out);
 }
 
 :root:not([data-ground="night"]) .backdrop__atmosphere {
@@ -807,7 +809,7 @@ button {
 }
 
 .ground-switch__toggle:active .ground-switch__dot {
-  transform: scale(0.84);
+  transform: scale(0.97);
 }
 
 .ground-switch:focus-within .ground-switch__name {
@@ -919,13 +921,12 @@ button {
 
 .ground-swatch:focus-visible {
   opacity: 1;
-  transform: scale(1.12);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .ground-swatch:hover {
     opacity: 1;
-    transform: scale(1.12);
+    transform: scale(1.05);
   }
 }
 
@@ -943,7 +944,19 @@ button {
 }
 
 .ground-swatch:active {
-  transform: scale(0.9);
+  transform: scale(0.97);
+}
+
+/* Tab and arrow-key use is a precision path: every state change lands in the
+   requested frame. Pointer use restores the authored reveal on approach. */
+.ground-switch[data-input="keyboard"] :is(
+  .ground-switch__name,
+  .ground-switch__dot,
+  .ground-switch__swatches,
+  .ground-swatch
+),
+.ground-switch[data-input="keyboard"] .ground-switch__dot::before {
+  transition: none;
 }
 
 /* ---------- The entrance ----------
@@ -1039,7 +1052,7 @@ button {
 }
 
 .backdrop {
-  transition: background-color 900ms var(--ease-in-out);
+  transition: background-color var(--duration-environment) var(--ease-in-out);
 }
 
 .client {
@@ -1173,7 +1186,7 @@ button {
   transform-origin: left center;
   transition:
     opacity var(--duration-fast) ease,
-    transform var(--duration-ui) var(--ease-out);
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .client__index {
@@ -1197,7 +1210,7 @@ button {
   display: inline-block;
   transition:
     color var(--duration-fast) ease,
-    transform var(--duration-ui) var(--ease-out);
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .client__name span {
@@ -1216,19 +1229,19 @@ button {
   stroke-width: 1.15;
   color: rgba(242, 240, 232, 0.34);
   transition:
-    transform var(--duration-ui) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
     color var(--duration-fast) ease;
 }
 
 .client:active .client__name,
 .client:focus-visible .client__name {
-  transform: translateX(0.22rem);
+  transform: translateX(0.12rem);
   color: var(--gold);
 }
 
 .client:active .client__arrow,
 .client:focus-visible .client__arrow {
-  transform: translate(0.16em, -0.16em);
+  transform: translate(0.12rem, -0.12rem);
   color: var(--gold);
 }
 
@@ -1246,12 +1259,12 @@ button {
 
 @media (hover: hover) and (pointer: fine) {
   .client:hover .client__name {
-    transform: translateX(0.22rem);
+    transform: translateX(0.12rem);
     color: var(--gold);
   }
 
   .client:hover .client__arrow {
-    transform: translate(0.16em, -0.16em);
+    transform: translate(0.12rem, -0.12rem);
     color: var(--gold);
   }
 
@@ -1259,6 +1272,13 @@ button {
     opacity: 1;
     transform: scaleX(1);
   }
+}
+
+/* Arrow-key navigation is a high-frequency precision action. The same gold
+   state remains visible, but it lands without borrowing pointer easing. */
+.client-rail__group[data-input="keyboard"] .client::before,
+.client-rail__group[data-input="keyboard"] :is(.client__index, .client__name, .client__arrow) {
+  transition: none;
 }
 
 .client--contact {
@@ -1479,7 +1499,6 @@ input:disabled {
 .bloom-finale__dismiss:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 3px;
-  transform: translateY(-0.14rem);
 }
 
 @media (hover: hover) and (pointer: fine) {

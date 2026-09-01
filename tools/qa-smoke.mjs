@@ -377,7 +377,10 @@ await check("state-triggered motion stays interruptible and input aware", () => 
   assert.match(indexSource, /event\.detail\s*===\s*0/);
   assert.match(indexSource, /!reduceMotion\.matches\s*&&[\s\S]*?!document\.hidden\s*&&[\s\S]*?root\.dataset\.ground/);
   assert.match(indexSource, /groundAnimation\.cancel\(\)/);
-  assert.match(indexSource, /backdrop\.animate\([\s\S]*?opacity:\s*0\.26,\s*offset:\s*0\.42/);
+  assert.match(indexSource, /backdrop\.animate\([\s\S]*?opacity:\s*0\.26,\s*offset:\s*DISSOLVE_SWAP_OFFSET/);
+  assert.match(indexSource, /var\s+DISSOLVE_DURATION_MS\s*=\s*500/);
+  assert.match(indexSource, /duration:\s*DISSOLVE_DURATION_MS/);
+  assert.match(indexSource, /DISSOLVE_DURATION_MS\s*\*\s*DISSOLVE_SWAP_OFFSET/);
   assert.match(indexSource, /window\.getComputedStyle\(backdrop\)\.opacity/);
   assert.match(indexSource, /b\.dataset\.label\s*=\s*g\.label/);
   assert.doesNotMatch(indexSource, /tray\.hidden/);
@@ -397,11 +400,17 @@ await check("state-triggered motion stays interruptible and input aware", () => 
   assert.match(stylesSource, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation:\s*settle var\(--duration-fast\)/);
   assert.doesNotMatch(stylesSource, /animation-duration:\s*0\.01ms/);
   assert.match(stylesSource, /--duration-press:\s*120ms/);
+  assert.match(stylesSource, /--duration-environment:\s*var\(--duration-ui\)/);
   assert.match(stylesSource, /\.cultivation__fill\s*\{[\s\S]*?transition:\s*none;[\s\S]*?will-change:\s*transform/);
   assert.doesNotMatch(stylesSource, /\.cultivation__fill\s*\{[\s\S]{0,420}?transition:\s*transform\s+260ms/);
   assert.match(stylesSource, /\.loader__track span\s*\{[\s\S]*?animation:\s*load\s+1\.6s\s+linear\s+infinite/);
   assert.match(stylesSource, /\.ground-swatch\s*\{[\s\S]*?transform\s+var\(--duration-press\)\s+var\(--ease-out\)/);
   assert.match(stylesSource, /\.client:active \.client__arrow\s*\{[\s\S]*?transition-duration:\s*var\(--duration-press\)/);
+  assert.match(stylesSource, /\.client-rail__group\[data-input=["']keyboard["']\][\s\S]*?transition:\s*none/);
+  assert.match(interactionsSource, /list\.dataset\.input\s*=\s*["']keyboard["']/);
+  assert.doesNotMatch(interactionsSource, /function\s+pressable\s*\(/);
+  assert.match(indexSource, /switcher\.dataset\.input\s*=\s*input/);
+  assert.match(stylesSource, /\.ground-switch\[data-input=["']keyboard["']\][\s\S]*?transition:\s*none/);
   assert.match(stylesSource, /\.bloom-finale__action:active,[\s\S]*?transition-duration:\s*var\(--duration-press\)/);
 });
 
@@ -415,10 +424,10 @@ await check("direct manipulation yields the chrome and the client rail reports i
   assert.match(stylesSource, /\.stage\[data-pointer-focus=["']true["']\]:focus-visible\s*\{[\s\S]*?outline:\s*none/);
   assert.match(stylesSource, /\.is-orbiting\s+\.bloom-cursor__ring\s*\{[\s\S]*?opacity:\s*0\s*!important/);
   assert.match(interactionsSource, /item\.dataset\.current\s*=\s*String\(itemIndex\s*===\s*index\)/);
-  assert.match(interactionsSource, /item\.addEventListener\(["']pointerenter["'],\s*preview/);
-  assert.match(interactionsSource, /item\.addEventListener\(["']focus["'],\s*preview\)/);
+  assert.match(interactionsSource, /item\.addEventListener\(["']pointerenter["'],\s*pointerPreview/);
+  assert.match(interactionsSource, /item\.addEventListener\(["']focus["'],\s*focusPreview\)/);
   assert.match(stylesSource, /\.client\[data-current=["']true["']\]::before\s*\{[\s\S]*?scaleX\(0\.16\)/);
-  assert.match(stylesSource, /\.ground-swatch:active\s*\{[\s\S]*?scale\(0\.9\)/);
+  assert.match(stylesSource, /\.ground-swatch:active\s*\{[\s\S]*?scale\(0\.97\)/);
   assert.match(stylesSource, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ground-switch__toggle:active\s+\.ground-switch__dot\s*\{[\s\S]*?transform:\s*none/);
 });
 
