@@ -5,6 +5,7 @@
  */
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
+import { PerformanceMonitor } from "@react-three/drei";
 import type { PerspectiveCamera } from "three";
 
 import { createWattleEngine, type WattleEngine } from "./engine/wattle-engine.js";
@@ -15,6 +16,8 @@ import { CameraRig } from "./CameraRig";
 import { Effects } from "./Effects";
 import { Interaction } from "./Interaction";
 import { QaBridge } from "./QaBridge";
+import { ScenePerf } from "../dev/ScenePerf";
+import { DPR } from "../motion/tokens";
 import { scrub } from "./scrub";
 import { pageQuery, useWatl, type Cultivation } from "../state/store";
 import { gsap, ease } from "../motion/gsap";
@@ -40,6 +43,7 @@ export function WattleScene({ profile, stageRef }: Props) {
   const size = useThree((s) => s.size);
   const invalidate = useThree((s) => s.invalidate);
   const viewport = useThree((s) => s.viewport);
+  const setDpr = useThree((s) => s.setDpr);
 
   const setCultivation = useWatl((s) => s.setCultivation);
   const setStatus = useWatl((s) => s.setStatus);
@@ -54,6 +58,7 @@ export function WattleScene({ profile, stageRef }: Props) {
   const finePointer = useWatl((s) => s.finePointer);
   const hidden = useWatl((s) => s.hidden);
   const ground = useWatl((s) => s.ground);
+  const tune = useWatl((s) => s.tune);
 
   /* The engine is built once. Its hooks write to the store only on change,
      so the React tree re-renders on state, never on frames. */
@@ -219,13 +224,27 @@ export function WattleScene({ profile, stageRef }: Props) {
     if (pending.current) window.clearTimeout(pending.current);
   }, []);
 
+  /* drei's PerformanceMonitor watches the frame rate the composer actually
+     achieves and trades pixel ratio for it: a sustained dip drops the canvas
+     to the profile's floor, a recovery restores the cap, and after three
+     flip-flops it settles on the floor for good. */
+  const dprRange = engine.profile.id === "high" ? DPR.high : DPR.low;
+
   return (
     <EngineContext.Provider value={engine}>
+      <PerformanceMonitor
+        bounds={() => [38, 58]}
+        flipflops={3}
+        onDecline={() => setDpr(dprRange[0])}
+        onIncline={() => setDpr(Math.min(window.devicePixelRatio || 1, dprRange[1]))}
+        onFallback={() => setDpr(dprRange[0])}
+      />
       <primitive object={engine.scene} />
       <CameraRig />
       <Interaction stageRef={stageRef} />
       <Effects />
       {qa && <QaBridge />}
+      {tune && <ScenePerf />}
     </EngineContext.Provider>
   );
 }

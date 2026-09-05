@@ -1,10 +1,11 @@
 /**
  * Instrument before polish. `?tune=1` mounts Leva with the values the eye
- * dials — bloom, aberration, depth of field, the section poses — and the
- * r3f-perf panel. Numbers are copied back into src/motion/tokens.ts by hand;
- * nothing here runs in production.
+ * dials — bloom, aberration, depth of field, the section poses. The r3f-perf
+ * panel is mounted inside the canvas by WattleScene under the same flag.
+ * Numbers are copied back into src/motion/tokens.ts by hand; nothing here
+ * runs in production.
  */
-import { lazy, Suspense, useEffect } from "react";
+import { useEffect } from "react";
 import { useControls, folder, button } from "leva";
 
 import { FX, POSES } from "../motion/tokens";
@@ -12,7 +13,6 @@ import { pose, scrub } from "../scene/scrub";
 import { fxLive } from "../scene/Effects";
 import { engineHandle } from "../scene/engineContext";
 
-const Perf = lazy(() => import("./Perf"));
 
 export function Tuning() {
   const values = useControls({
@@ -86,9 +86,5 @@ export function Tuning() {
     engineHandle.current?.setBreeze(values.breeze);
   }, [values.breeze]);
 
-  return (
-    <Suspense fallback={null}>
-      <Perf />
-    </Suspense>
-  );
+  return null;
 }

@@ -648,19 +648,6 @@
   display: none !important;
 }
 
-/* ---------- Tuning ---------- */
-.tune-perf {
-  position: fixed;
-  z-index: 40;
-  left: 50%;
-  bottom: 0.75rem;
-  transform: translateX(-50%);
-  padding: 0.3rem 0.6rem;
-  background: rgba(0, 0, 0, 0.6);
-  color: var(--gold);
-  pointer-events: none;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .wordmark span,
   .ground-switch__name,

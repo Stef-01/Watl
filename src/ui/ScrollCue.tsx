@@ -16,7 +16,8 @@ export function ScrollCue() {
 
   useGSAP(() => {
     if (!ref.current || reduced) return;
-    gsap.from(ref.current, { opacity: 0, y: 8, duration: DUR.reveal, ease: ease("out"), delay: 1.6 });
+    /* A label is light: it lands with the small overshoot of the lift curve. */
+    gsap.from(ref.current, { opacity: 0, y: 8, duration: DUR.reveal, ease: ease("lift"), delay: 1.6 });
   }, { scope: ref, dependencies: [reduced], revertOnUpdate: true });
 
   /* With reduced motion the branch is already mature; there is nothing to

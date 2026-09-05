@@ -40,10 +40,11 @@ export function Chrome() {
       stagger: STAGGER.letters,
       delay: 0.12,
     });
+    /* The nav should feel present at once and then land: expo.out. */
     gsap.from(".chrome__nav", {
       opacity: 0,
       duration: DUR.reveal,
-      ease: ease("out"),
+      ease: ease("expo"),
       delay: 0.56,
     });
   }, { scope: ref, dependencies: [reduced], revertOnUpdate: true });

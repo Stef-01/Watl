@@ -146,9 +146,12 @@ profile.
 
 ## 8. Instrument before polish
 
-`?tune=1` (or dev) mounts Leva with every value from sections 4–6 and
-`r3f-perf`. Values are copied back into `tokens.ts` by hand; nothing reads
-Leva in production.
+`?tune=1` (or dev) mounts Leva with every value from sections 4–6, and
+r3f-perf inside the canvas for draw calls, triangles and GPU time. Values
+are copied back into `tokens.ts` by hand; nothing reads Leva in production.
+drei's `PerformanceMonitor` runs in production: below 38 fps the pixel
+ratio drops to the profile floor, above 58 it returns to the cap, and after
+three flip-flops it stays on the floor.
 
 ## 9. Capture loop
 

@@ -145,7 +145,7 @@ export function Arrival() {
       opacity: 1,
       y: 0,
       duration: (practiceOut - practiceIn) * 0.5,
-      ease: ease("out"),
+      ease: ease("lift"),
     }, practiceIn + (practiceOut - practiceIn) * 0.3);
     timeline.to(practice, { opacity: 0, y: -16, duration: 0.06, ease: ease("inOut") }, closeIn - 0.02);
     const [bloomIn, bloomOut] = HERO.bloomLine;

@@ -15,7 +15,7 @@ is loaded from a model file; the plant renders from rules.
 | Layer | What it does |
 | --- | --- |
 | React 19 + Vite | The document, the chrome and the sections |
-| React Three Fiber + drei | Owns the renderer, camera and frame loop; the engine's scene graph is mounted as a primitive |
+| React Three Fiber + drei | Owns the renderer, camera and frame loop; the engine's scene graph is mounted as a primitive. drei's `PerformanceMonitor` trades pixel ratio for frame rate |
 | `@react-three/postprocessing` | One composer: depth of field (hero close-up), thresholded bloom, radial chromatic aberration, neutral tone mapping, SMAA |
 | GSAP + ScrollTrigger + CustomEase + SplitText | The pinned arrival scrub, section reveals, camera poses, the ground dissolve |
 | Lenis | Smoothed native scrolling, driven from the GSAP ticker so scrub and scroll share a frame |
@@ -34,8 +34,8 @@ npm install
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173`. Add `?tune=1` for the Leva tuning panel and a
-frame counter; `?qa=1&qaGrowth=1` renders the mature branch deterministically
+Open `http://127.0.0.1:5173`. Add `?tune=1` for the Leva tuning panel and the
+r3f-perf panel; `?qa=1&qaGrowth=1` renders the mature branch deterministically
 and exposes `window.__WATTLE_QA__`; `?poster=1` hides every interface layer;
 `?quality=high|low` forces a profile; `?seed=<n>` grows a different branch.
 
