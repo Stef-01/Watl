@@ -12,8 +12,19 @@ import "./styles/sections.css";
 
 import { applyMotionTokens } from "./motion/cssVars";
 import { App } from "./App";
+import { createWattleEngine } from "./scene/engine/wattle-engine.js";
+import { sceneConfig } from "./scene/profile";
+import { pageQuery, useWatl } from "./state/store";
 
 applyMotionTokens();
+
+/* The branch is built here, before React mounts, so its 270 ms of geometry
+   work lands on a still-black page instead of freezing the wordmark half
+   way through its rise. The scene picks the same engine up by its key. */
+{
+  const { reduced, finePointer } = useWatl.getState();
+  createWattleEngine(sceneConfig(pageQuery, reduced, finePointer), {});
+}
 
 if (import.meta.env.DEV) {
   const { exposeDebug } = await import("./dev/expose");

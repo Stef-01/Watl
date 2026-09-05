@@ -7,13 +7,8 @@ export function Footer() {
           <span aria-hidden="true">·</span>
           <span>Wattle Technologies</span>
         </p>
-        <ul className="footer__links label">
-          <li><a href="mailto:info@wattle.tech.au">info@wattle.tech.au</a></li>
-          <li><a href="https://github.com/Stef-01/Watl" rel="noreferrer">Source</a></li>
-          <li><a href="#main">Top</a></li>
-        </ul>
-        <p className="footer__note label">
-          A procedural Golden Wattle, grown live. © {new Date().getFullYear()}
+        <p className="footer__contact label">
+          <a href="mailto:info@wattle.tech.au">info@wattle.tech.au</a>
         </p>
       </div>
     </footer>

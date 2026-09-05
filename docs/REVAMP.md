@@ -142,6 +142,32 @@ Renderer: `NoToneMapping` on the renderer (the composer tone-maps), exposure
 moving (scroll, tween, pointer, autonomous sway) and at 30 fps on the low
 profile.
 
+## 6a. Where the lag was, and the budget that removed it
+
+Measured with `tools/bench-engine.mjs` on a quiet machine, high profile:
+
+| | before | after |
+| --- | --- | --- |
+| engine build on load | 273 ms | 186 ms |
+| wave frame, average | 18.0 ms | 6.1 ms |
+| wave frame, worst | 42.3 ms | 12.6 ms |
+
+- The bloom upload path was written for four heads opening at a time; the
+  scroll wave moves up to sixty-five at once. Each frame now uploads at most
+  `bloomHeadsPerFrame` heads (14 high, 8 low), the ones that moved furthest
+  first; the rest stay dirty and follow next frame, a lag the 0.9 s scrub
+  already hides. A head is dirty when its timeline is more than 0.0025 from
+  what the GPU holds.
+- The QA packing metrics were computed at build time; they are now measured
+  on first read.
+- The engine is built in `main.tsx` before React mounts, so its geometry work
+  lands on a still-black page instead of freezing the wordmark mid-rise.
+- The canvas fades in only after one frame for the environment map, a
+  parallel `compileAsync` of every program, and two composer warm-up frames,
+  so no shader compile ever stalls a visible frame.
+- `ScrollTrigger.config({ ignoreMobileResize: true })` stops address-bar
+  resizes from re-pinning the arrival mid-scroll.
+
 ## 7. Type and layout
 
 - Display: Instrument Serif (self-hosted via `@fontsource/instrument-serif`),

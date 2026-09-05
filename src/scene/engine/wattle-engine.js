@@ -150,6 +150,7 @@ export const HIGH_PROFILE = Object.freeze({
   pompomFuzzPerBloom: 900,
   dprCap: 1.4,
   frameIntervalMs: 0,
+  bloomHeadsPerFrame: 14,
 });
 
 export const LOW_PROFILE = Object.freeze({
@@ -167,6 +168,7 @@ export const LOW_PROFILE = Object.freeze({
   pompomFuzzPerBloom: 360,
   dprCap: 1.12,
   frameIntervalMs: 1000 / 30,
+  bloomHeadsPerFrame: 8,
 });
 
 export const DEFAULT_SEED_VALUE = DEFAULT_SEED;
@@ -588,6 +590,7 @@ function createBloomController(data) {
     maxProgress: 0,
     maxTimeline: 0,
     dirtyHeads: [],
+    pendingUploads: 0,
     uploadStats: {
       dirtyHeadCount: 0,
       rangeCount: 0,
@@ -624,6 +627,7 @@ function createBloomController(data) {
       ownTimeline: 0,
       scroll: 0,
       waveStart: 0,
+      applied: -1,
     })),
   };
 }
@@ -691,6 +695,11 @@ function bloomLightWeight(head) {
   return 0;
 }
 
+/* How far a head may drift from what the GPU holds before it is worth an
+   upload: a quarter of a percent of the morph, below what the eye resolves. */
+const BLOOM_UPLOAD_EPSILON = 0.0025;
+const bloomDeltaScratch = [];
+
 function updateBloomAnimation(now) {
   if (!state.bloom) return false;
   const dirty = state.bloom.dirtyHeads;
@@ -698,6 +707,7 @@ function updateBloomAnimation(now) {
   const previousOpenCount = state.bloom.openCount;
   const previousProgress = state.bloom.progress;
   dirty.length = 0;
+  bloomDeltaScratch.length = 0;
   let activeCount = 0;
   let openCount = 0;
   let bloomProgress = 0;
@@ -705,21 +715,33 @@ function updateBloomAnimation(now) {
   let maxTimeline = 0;
 
   for (const head of state.bloom.heads) {
-    const was = head.value;
-    const wasTimeline = head.timeline;
     const active = updateBloomHead(head, now);
     if (active) activeCount += 1;
     if (headOpen(head)) openCount += 1;
     bloomProgress += head.value;
     maxProgress = Math.max(maxProgress, head.value);
     maxTimeline = Math.max(maxTimeline, head.timeline);
-    if (
-      Math.abs(was - head.value) > 0.00001
-      || Math.abs(wasTimeline - head.timeline) > 0.00001
-    ) dirty.push(head.index);
+    const delta = Math.abs(head.timeline - head.applied);
+    if (delta > BLOOM_UPLOAD_EPSILON || (head.applied < 0)) {
+      bloomDeltaScratch.push(head);
+    }
   }
 
+  /* The scroll wave can move sixty heads in one frame; the upload path was
+     built for four. A per-frame budget keeps the cost flat: the heads that
+     moved furthest go first, the rest stay dirty and follow next frame, a
+     lag the scrub's own smoothing already hides. */
+  const budget = state.profile?.bloomHeadsPerFrame ?? 14;
+  let pending = 0;
+  if (bloomDeltaScratch.length > budget) {
+    bloomDeltaScratch.sort((a, b) => Math.abs(b.timeline - b.applied) - Math.abs(a.timeline - a.applied));
+    pending = bloomDeltaScratch.length - budget;
+    bloomDeltaScratch.length = budget;
+  }
+  for (const head of bloomDeltaScratch) dirty.push(head.index);
+
   if (dirty.length > 0) applyBloomEffects(dirty);
+  state.bloom.pendingUploads = pending;
 
   state.bloom.activeCount = activeCount;
   state.bloom.openCount = openCount;
@@ -760,7 +782,7 @@ function updateBloomAnimation(now) {
     || Math.abs(state.bloom.progress - previousProgress) > 0.0005
   ) syncCultivation();
 
-  return activeCount > 0;
+  return activeCount > 0 || pending > 0;
 }
 
 function resetBloomState() {
@@ -1702,7 +1724,15 @@ function generateBouquetData(profile, seed) {
   };
 
   computeDataBounds(data);
-  data.metrics = computeSemanticMetrics(data);
+  /* The packing metrics exist for QA snapshots only; computing them at build
+     time cost the first paint. They are measured on first read. */
+  let metricsCache = null;
+  Object.defineProperty(data, "metrics", {
+    get() {
+      if (!metricsCache) metricsCache = computeSemanticMetrics(data);
+      return metricsCache;
+    },
+  });
   return data;
 }
 
@@ -3805,6 +3835,10 @@ function applyBloomEffects(dirtyHeads) {
     uploadStats.bytes += count * attribute.array.BYTES_PER_ELEMENT;
   }
   uploadStats.peakBytes = Math.max(uploadStats.peakBytes, uploadStats.bytes);
+  for (const headIndex of dirtyHeads) {
+    const head = state.bloom.heads[headIndex];
+    if (head) head.applied = head.timeline;
+  }
   if (state.qa) {
     setStageData("qaBloomUploadBytes", String(uploadStats.bytes));
     setStageData("qaBloomUploadRanges", String(uploadStats.rangeCount));

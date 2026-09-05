@@ -9,6 +9,7 @@ export interface EngineProfile {
   dprCap: number;
   frameIntervalMs: number;
   pompomFuzzPerBloom: number;
+  bloomHeadsPerFrame: number;
 }
 
 export interface EngineHead {
@@ -111,7 +112,7 @@ export interface WattleEngine {
   headCount: number;
   readonly defaultView: DefaultView | null;
   readonly growth: { progress: number; complete: boolean };
-  readonly bloom: { openCount: number; activeCount: number; progress: number; hoveredIndex: number };
+  readonly bloom: { openCount: number; activeCount: number; progress: number; hoveredIndex: number; pendingUploads: number };
   readonly heads: EngineHead[];
   readonly cultivation: CultivationReport | null;
   readonly pointerDragged: boolean;

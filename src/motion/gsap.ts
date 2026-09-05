@@ -27,5 +27,6 @@ export function ease(key: EaseKey): string {
 }
 
 gsap.defaults({ ease: ease("out") });
+ScrollTrigger.config({ ignoreMobileResize: true });
 
 export { gsap, ScrollTrigger, SplitText, useGSAP, CustomEase };

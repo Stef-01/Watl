@@ -104,7 +104,13 @@ The canvas renders on demand. A frame is requested only while something is
 moving — the scroll, a tween, the pointer, the branch's own sway — and at
 30 fps on the constrained profile, which also caps the pixel ratio at 1.12
 and halves the pom-pom density. Bloom uploads touch only the typed-array
-ranges of the heads that changed. The composer is thresholded at 1.0 in linear
+ranges of the heads that changed, and at most fourteen heads a frame (eight
+on the constrained profile): the scroll wave can move sixty at once, and the
+ones that moved furthest go first while the rest follow next frame. The
+engine is built before React mounts, and the canvas fades in only after every
+shader has compiled in parallel, so neither the entrance nor the first scroll
+ever stalls. `node tools/bench-engine.mjs` prints the build and per-frame
+costs. The composer is thresholded at 1.0 in linear
 light: only the flower layers, written un-tone-mapped above that, ever glow.
 Fonts are self-hosted and subset; no request leaves the origin.
 

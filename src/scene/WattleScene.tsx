@@ -10,7 +10,7 @@ import type { PerspectiveCamera } from "three";
 
 import { createWattleEngine, type WattleEngine } from "./engine/wattle-engine.js";
 import type { Profile } from "./profile";
-import { readSeed } from "./profile";
+import { sceneConfig } from "./profile";
 import { EngineContext, engineHandle } from "./engineContext";
 import { CameraRig } from "./CameraRig";
 import { Effects } from "./Effects";
@@ -28,14 +28,6 @@ import { AUTHORED_DRIFT_VALUE } from "./engine/wattle-engine.js";
 interface Props {
   profile: Profile;
   stageRef: RefObject<HTMLDivElement | null>;
-}
-
-function queryRecord(query: URLSearchParams): Record<string, string> {
-  const record: Record<string, string> = {};
-  query.forEach((value, key) => {
-    record[key] = value;
-  });
-  return record;
 }
 
 export function WattleScene({ profile, stageRef }: Props) {
@@ -65,23 +57,9 @@ export function WattleScene({ profile, stageRef }: Props) {
      so the React tree re-renders on state, never on frames. */
   const engine = useMemo<WattleEngine>(() => {
     const query = pageQuery;
-    const qaGrowth = query.get("qaGrowth");
-    const forcedGrowth = qaGrowth !== null ? Number(qaGrowth) : null;
-    const initialGrowth = forcedGrowth !== null && Number.isFinite(forcedGrowth)
-      ? forcedGrowth
-      : qa || reduced || query.get("motion") === "off" || query.get("poster") === "1" ? 1 : 0;
+    const config = sceneConfig(query, reduced, finePointer);
     const created = createWattleEngine(
-      {
-        profile,
-        seed: readSeed(query),
-        qa,
-        poster: query.get("poster") === "1",
-        reduced,
-        finePointer,
-        initialGrowth,
-        query: queryRecord(query),
-        camera,
-      },
+      { ...config, profile, camera },
       {
         cultivation: (report) => setCultivation(report as Cultivation),
         status: (message) => setStatus(message),
@@ -108,22 +86,25 @@ export function WattleScene({ profile, stageRef }: Props) {
         },
       },
     );
-    if (initialGrowth > 0) {
-      scrub.growth = initialGrowth;
+    if (config.initialGrowth && config.initialGrowth > 0) {
+      scrub.growth = config.initialGrowth;
       scrub.bloom = query.get("qaBloomWave") === "0" ? 0 : reduced ? 1 : 0;
     }
     return created;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const rootScene = useThree((s) => s.scene);
+  const warmFrames = useRef(0);
+  const compileStarted = useRef(false);
+  const readyRef = useRef(false);
+
   useEffect(() => {
     engine.attach({ camera, renderer: gl });
     engineHandle.current = engine;
-    setSceneState("ready");
     setStatus(engine.growth.complete
       ? "The Golden Wattle branch is mature. Scroll, or move across its buds, to help it bloom."
       : "A young Golden Wattle shoot is ready to grow as you scroll.");
-    performance.mark("wattle-scene-ready");
     if (qa) engine.qa.applyQuery();
     /* The shoot pre-grows as the canvas fades in, so the first frame has
        life before the visitor scrolls. Growth beyond this is the scroll's. */
@@ -194,6 +175,30 @@ export function WattleScene({ profile, stageRef }: Props) {
 
   useFrame((_, delta) => {
     const now = performance.now();
+
+    /* Warm-up: the first frame lets drei finish the environment map, then
+       every program compiles in parallel off the main thread, then two more
+       frames run the composer's own shaders. Only then does the canvas fade
+       in, so no compile ever stalls a visible frame. */
+    if (!readyRef.current) {
+      warmFrames.current += 1;
+      if (warmFrames.current === 1) {
+        invalidate();
+      } else if (!compileStarted.current) {
+        compileStarted.current = true;
+        gl.compileAsync(rootScene, camera).catch(() => undefined).then(() => {
+          warmFrames.current = 2;
+          invalidate();
+        });
+      } else if (warmFrames.current >= 4) {
+        readyRef.current = true;
+        setSceneState("ready");
+        performance.mark("wattle-scene-ready");
+      } else {
+        invalidate();
+      }
+    }
+
     if (lastGrowth.current !== scrub.growth) {
       lastGrowth.current = scrub.growth;
       engine.setGrowth(scrub.growth);

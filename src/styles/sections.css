@@ -384,37 +384,28 @@
 }
 
 .footer__identity {
-  grid-column: 1 / span 4;
+  grid-column: 1 / span 6;
   display: flex;
   gap: 0.6rem;
   margin: 0;
 }
 
-.footer__links {
-  grid-column: 5 / span 4;
-  display: flex;
-  gap: 1.4rem;
+.footer__contact {
+  grid-column: 7 / span 6;
   margin: 0;
-  padding: 0;
-  list-style: none;
+  text-align: right;
+  text-transform: none;
+  letter-spacing: 0.04em;
 }
 
-.footer__links a {
+.footer__contact a {
   text-decoration: none;
   transition: color var(--duration-fast) ease;
 }
 
-.footer__links a:hover {
+.footer__contact a:hover,
+.footer__contact a:focus-visible {
   color: var(--gold);
-}
-
-.footer__note {
-  grid-column: 9 / span 4;
-  margin: 0;
-  color: var(--quiet);
-  text-align: right;
-  text-transform: none;
-  letter-spacing: 0.04em;
 }
 
 /* ---------- Portrait ---------- */
@@ -490,8 +481,7 @@
   }
 
   .footer__identity,
-  .footer__links,
-  .footer__note {
+  .footer__contact {
     grid-column: 1 / span 12;
     text-align: left;
   }

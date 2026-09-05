@@ -1,4 +1,4 @@
-import { HIGH_PROFILE, LOW_PROFILE } from "./engine/wattle-engine.js";
+import { HIGH_PROFILE, LOW_PROFILE, type EngineConfig } from "./engine/wattle-engine.js";
 
 export type Profile = typeof HIGH_PROFILE | typeof LOW_PROFILE;
 
@@ -28,4 +28,33 @@ export function readSeed(query: URLSearchParams): number | undefined {
   if (!value) return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed >>> 0 : undefined;
+}
+
+function queryRecord(query: URLSearchParams): Record<string, string> {
+  const record: Record<string, string> = {};
+  query.forEach((value, key) => {
+    record[key] = value;
+  });
+  return record;
+}
+
+/** The engine configuration for this page load. Built once, before React
+ *  mounts, so the same object reaches the pre-build and the scene. */
+export function sceneConfig(query: URLSearchParams, reduced: boolean, finePointer: boolean): EngineConfig {
+  const qa = query.get("qa") === "1";
+  const qaGrowth = query.get("qaGrowth");
+  const forced = qaGrowth !== null ? Number(qaGrowth) : null;
+  const initialGrowth = forced !== null && Number.isFinite(forced)
+    ? forced
+    : qa || reduced || query.get("motion") === "off" || query.get("poster") === "1" ? 1 : 0;
+  return {
+    profile: chooseProfile(window.innerWidth, query),
+    seed: readSeed(query),
+    qa,
+    poster: query.get("poster") === "1",
+    reduced,
+    finePointer,
+    initialGrowth,
+    query: queryRecord(query),
+  };
 }
