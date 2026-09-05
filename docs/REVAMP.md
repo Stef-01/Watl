@@ -78,10 +78,10 @@ mass ≥ 1.4 and a duration ≥ 1.1 s; anything lighter uses `EASE.lift` or
 
 | t | Branch | Camera | Type |
 | --- | --- | --- | --- |
-| load | growth 0 → 0.06 over 1.4 s `EASE.out`; canvas opacity 0 → 1 over 0.9 s | authored portrait × 1.32 distance | wordmark letters rise (0.68 s, stagger 0.056, delay 0.12); headline lines rise through a mask (1.1 s, stagger 0.08, `EASE.settle`, delay 0.35); scroll cue at 1.6 s |
-| 0.00 – 0.52 | growth 0.06 → 1.00 (linear in t; the stage curves in `tree-growth.js` do the easing) | distance 1.32× → 1.00×; target.y tracks the growing tip: `bounds.min.y + 0.18 h` → authored centre | 0.18 – 0.40: headline exits (y −18 %, opacity 0), practice line enters |
-| 0.52 – 0.90 | bloom wave: heads sorted by `(birth, racemePosition)`, head *i* starts at `0.52 + 0.20 · i/(n−1)` and runs 0.18 of t through the eight acts | 0.55 – 0.90: distance → 0.62×, azimuth 24° → 40°, elevation 4.5° → 9°, target → densest raceme centroid; DoF focus follows target, bokeh 0 → 2.2 over 0.60 – 0.80 | 0.56 – 0.70: "Systems that grow into form." rises |
-| 0.90 – 1.00 | settle | distance → 1.00×, azimuth → 30°, bokeh → 0 | text exits, pin releases |
+| load | growth 0 → 0.20 over 1.4 s `EASE.out`, started by the scene the moment it is ready; canvas opacity 0 → 1 over 0.9 s | authored portrait × 1.34 distance | wordmark letters rise (0.68 s, stagger 0.056, delay 0.12); headline lines rise through a mask (1.1 s, stagger 0.08, `EASE.settle`, delay 0.35); scroll cue at 1.6 s |
+| 0.00 – 0.52 | growth 0.20 → 1.00 (linear in t; the stage curves in `tree-growth.js` do the easing) | distance 1.34× → 1.06× on `EASE.inOut`; target.y tracks the growing tip: `bounds.min.y + 0.22 h` → authored centre | 0.16 – 0.32: headline exits (y −18 %, opacity 0); 0.34 – 0.48: practice line enters |
+| 0.52 – 0.90 | bloom wave in t-space: heads ranked by `0.62 · height + 0.38 · birth`, head *i* starts at `0.52 + 0.20 · rank` and runs 0.18 of t through the eight acts; the wave scrub is t itself | 0.55 – 0.90: distance → 0.62×, azimuth 24° → 40°, elevation 4.5° → 9°, offset → 0.20, target → densest raceme centroid; DoF focus follows target, bokeh 0 → 2.2 over 0.60 – 0.80 | 0.58 – 0.72: "Systems that grow into form." rises |
+| 0.90 – 1.00 | settle | distance → 1.06×, azimuth → 30°, bokeh → 0 | text exits, pin releases |
 
 Interactive bloom stays on top: a head's rendered progress is
 `max(scroll progress, hover/click progress)`. The hover brush (fine pointers
@@ -96,10 +96,13 @@ branch right).
 
 | Section | distance | azimuth | elevation | offset | notes |
 | --- | --- | --- | --- | --- | --- |
-| arrival end | 1.00 | 30° | 4.5° | 0.38 | |
-| practice | 1.05 | 24° | 4.5° | 0.42 | row hover nudges azimuth to 24 / 38 / 52° over 1.2 s |
-| clients | 0.90 | 46° | 8° | 0.44 | row hover: selection light 0 → 0.18 in 0.4 s |
-| contact | 1.25 | 18° | 2° | 0.30 | bloom intensity 0.5 → 0.75 |
+| arrival end | 1.06 | 30° | 4.5° | 0.38 | |
+| practice | 1.10 | 24° | 4.5° | 0.42 | row hover nudges azimuth to 24 / 38 / 52° over 1.2 s |
+| clients | 0.92 | 46° | 8° | 0.44 | row hover: selection light 0 → 0.18 in 0.4 s |
+| contact | 1.25 | 18° | 2° | 0.30 | bloom intensity 0.42 → 0.62; the lifecycle meter, the arrival's instrument, is hidden in every section |
+
+Section text keeps to the left six columns with its rules ending where the
+text ends; the branch composes into the right six.
 
 Portrait viewports (< 720 px) use offset 0.08 everywhere and the text sits on
 a bottom scrim.
@@ -111,9 +114,11 @@ Order: `DepthOfField` (high profile, hero close-up only) → `Bloom` →
 
 ```
 Bloom       mipmapBlur, luminanceThreshold 1.0, luminanceSmoothing 0.12,
-            intensity 0.50 (0.75 in #contact), radius 0.62, levels 6
-            Only the flower layers exceed the threshold: pom-pom mass, fuzz,
-            anther sprites and petals are written un-tone-mapped at 1.6–1.9×.
+            intensity 0.42 (0.50 in the close-up, 0.62 in #contact), radius
+            0.62, levels 6. Only the flower layers exceed the threshold: the
+            pom-pom mass, fuzz and anther sprites carry an emissive gain of
+            1.32 in linear light; petals and cups get 0.20 and 0.12 of it as
+            emissive intensity. 1.7 blew the cores out to white.
 CA          offset (0.0008, 0.0011), radialModulation, modulationOffset 0.40
 DoF         focalLength 0.02, bokehScale 0 → 2.2 (scrubbed), focus at the
             active raceme; disabled outside 0.55 ≤ t ≤ 0.95 and on low profile
@@ -146,5 +151,22 @@ Leva in production.
 
 ## 9. Capture loop
 
-Headless Chromium at 1440×900 and 390×844, frames at pin progress 0 / 0.25 /
-0.5 / 0.75 / 1 and at each section, compared against the pre-revamp baseline.
+`npm run qa:capture` drives the installed Chrome headlessly at 1440×900 and
+390×844, writing frames at pin progress 0 / 0.12 / 0.30 / 0.52 / 0.70 / 0.85 /
+1 and at each section into `qa/captures/<tag>/`. Every number above was
+changed at least once after looking at those frames.
+
+## 10. Lessons the frames taught
+
+- React StrictMode double-invokes memo initialisers and effect cleanups. The
+  engine is a document-lifetime singleton, so creation is idempotent and
+  nothing disposes it on cleanup.
+- `useGSAP` does not revert on dependency change unless `revertOnUpdate` is
+  set. Without it the arrival pinned twice and every section sat 420vh late.
+- An element GSAP animates must not carry a CSS transition on the same
+  property. A reverted `from` tween reads the mid-transition value as its end
+  state; hover dims and exit fades live on child elements instead.
+- An instanced mesh with morph attributes and no instances must stay
+  invisible, or three.js throws mid-frame and every later draw call is lost.
+- The bloom wave and the camera acts share one t-space; scrubbing the wave
+  over half the pin compressed it into the last quarter.

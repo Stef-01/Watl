@@ -1,0 +1,290 @@
+/* ---------- The ground ----------
+   Drawn entirely from four custom properties — --night, --strata, --ember,
+   --dust — so five of the seven grounds are just a new set of those, and every
+   gradient, band and ember re-tints together. Night sky and Wash change the
+   base drawing rather than its colour.
+
+   The vocabulary stays geological and cartographic — strata, a horizon, a
+   section line, grain. Nothing here is borrowed from Aboriginal visual
+   language, which encodes particular Country and story and is not a free
+   pattern library; the honest version of that ground is a commission, and a
+   slot for it is one more entry in GROUNDS. */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  isolation: isolate;
+  background-color: var(--night);
+  background-image:
+    linear-gradient(
+      to bottom,
+      rgba(var(--dust), 0) 71.55%,
+      rgba(var(--dust), 0.22) 71.75%,
+      rgba(var(--dust), 0) 71.95%
+    ),
+    radial-gradient(
+      126% 80% at 50% 60%,
+      rgba(var(--dust), 0.115) 0%,
+      rgba(var(--ember), 0.05) 36%,
+      rgba(9, 9, 9, 0) 70%
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(var(--strata), 0) 0%,
+      rgba(var(--strata), 0) 12.4%,
+      rgba(var(--strata), 0.15) 13.1%,
+      rgba(var(--strata), 0) 13.6%,
+      rgba(var(--strata), 0) 27.8%,
+      rgba(var(--strata), 0.11) 29.3%,
+      rgba(var(--strata), 0) 30.9%,
+      rgba(var(--strata), 0) 44.1%,
+      rgba(var(--strata), 0.17) 44.7%,
+      rgba(var(--strata), 0) 45.1%,
+      rgba(var(--strata), 0) 58.6%,
+      rgba(var(--strata), 0.13) 60.4%,
+      rgba(var(--strata), 0) 62.7%,
+      rgba(var(--strata), 0) 71.2%,
+      rgba(var(--strata), 0.2) 71.7%,
+      rgba(var(--strata), 0) 72.1%,
+      rgba(var(--strata), 0) 82.5%,
+      rgba(var(--strata), 0.16) 84.6%,
+      rgba(var(--strata), 0) 87.4%,
+      rgba(var(--strata), 0) 100%
+    ),
+    linear-gradient(
+      to top,
+      rgba(var(--ember), 0.17) 0%,
+      rgba(var(--ember), 0.07) 11%,
+      rgba(9, 9, 9, 0) 33%
+    ),
+    radial-gradient(
+      132% 104% at 50% 48%,
+      rgba(10, 8, 6, 0) 44%,
+      rgba(3, 2, 2, 0.6) 100%
+    );
+  transition: background-color var(--duration-ui) var(--ease-in-out);
+}
+
+.backdrop__atmosphere {
+  position: absolute;
+  z-index: 0;
+  inset: -20%;
+  pointer-events: none;
+  transition: opacity var(--duration-ui) var(--ease-in-out);
+}
+
+:root:not([data-ground="night"]) .backdrop__atmosphere {
+  will-change: transform;
+}
+
+.backdrop__atmosphere--weather {
+  opacity: var(--weather-opacity);
+  background-image:
+    radial-gradient(58% 46% at 22% 28%, rgba(var(--dust), 0.34) 0%, rgba(var(--dust), 0.09) 38%, rgba(var(--dust), 0) 72%),
+    radial-gradient(50% 42% at 78% 62%, rgba(var(--ember), 0.28) 0%, rgba(var(--ember), 0.07) 42%, rgba(var(--ember), 0) 74%),
+    conic-gradient(from 208deg at 54% 112%, rgba(var(--dust), 0) 0deg, rgba(var(--dust), 0.13) 42deg, rgba(var(--ember), 0.09) 68deg, rgba(var(--dust), 0) 104deg);
+  mix-blend-mode: screen;
+  animation: weather-drift var(--weather-duration) linear infinite;
+  animation-delay: -13s;
+}
+
+.backdrop__atmosphere--horizon {
+  opacity: var(--horizon-opacity);
+  background-image:
+    radial-gradient(72% 28% at 64% 82%, rgba(var(--ember), 0.34) 0%, rgba(var(--ember), 0.08) 44%, rgba(var(--ember), 0) 76%),
+    radial-gradient(48% 24% at 18% 68%, rgba(var(--dust), 0.2) 0%, rgba(var(--dust), 0) 72%);
+  mix-blend-mode: screen;
+  transform-origin: 50% 78%;
+  animation: horizon-drift var(--horizon-duration) var(--ease-in-out) infinite alternate;
+  animation-delay: -21s;
+}
+
+@keyframes weather-drift {
+  0%, 100% { transform: translate3d(-3.2%, -1.4%, 0) rotate(-2deg) scale(1.02); }
+  33% { transform: translate3d(2.4%, 1.2%, 0) rotate(0.8deg) scale(1.055); }
+  67% { transform: translate3d(0.8%, -2.2%, 0) rotate(2deg) scale(1.025); }
+}
+
+@keyframes horizon-drift {
+  from { transform: translate3d(-2.4%, 1.5%, 0) scale(1.015); }
+  to { transform: translate3d(2.8%, -0.8%, 0) scale(1.065); }
+}
+
+/* The contour field, faded out behind the branch the way depth of field
+   would, so the drawing can be present without competing. */
+.backdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("/assets/ground-contours.svg") center 62% / cover no-repeat;
+  -webkit-mask-image: radial-gradient(58% 54% at 50% 45%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.45) 54%, rgba(0, 0, 0, 1) 80%);
+  mask-image: radial-gradient(58% 54% at 50% 45%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.45) 54%, rgba(0, 0, 0, 1) 80%);
+  z-index: 1;
+  animation: contour-drift 44s var(--ease-in-out) infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes contour-drift {
+  from { transform: translate3d(-0.6%, 0.35%, 0) scale(1.012); }
+  to { transform: translate3d(0.75%, -0.45%, 0) scale(1.028); }
+}
+
+/* Grain, generated rather than fetched. */
+.backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  opacity: 0.055;
+  z-index: 2;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+/* The light the branch stands in — screened, so it lifts the ground behind
+   the branch without lightening the branch itself. It breathes on a
+   19-second cycle, slowly enough that you never catch it moving. */
+.stage__light {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  display: block;
+  pointer-events: none;
+  background: radial-gradient(44% 38% at 50% 45%, rgba(221, 225, 214, 0.045) 0%, rgba(221, 225, 214, 0.014) 46%, rgba(221, 225, 214, 0) 72%);
+  mix-blend-mode: screen;
+  animation: breathe 19s var(--ease-in-out) infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.72; transform: scale(1.055); }
+}
+
+/* ---------- The palettes ---------- */
+:root[data-ground="ochre"] {
+  --night: #0d0704;
+  --strata: 92, 38, 18;
+  --ember: 178, 66, 20;
+  --dust: 214, 116, 44;
+  --weather-opacity: 0.34;
+  --horizon-opacity: 0.3;
+  --weather-duration: 34s;
+}
+
+:root[data-ground="rose"] {
+  --night: #0d0509;
+  --strata: 86, 34, 52;
+  --ember: 164, 58, 84;
+  --dust: 209, 115, 143;
+  --weather-opacity: 0.3;
+  --horizon-opacity: 0.25;
+  --weather-duration: 42s;
+}
+
+:root[data-ground="moss"] {
+  --night: #050806;
+  --strata: 34, 62, 40;
+  --ember: 58, 118, 72;
+  --dust: 127, 174, 122;
+  --weather-opacity: 0.23;
+  --horizon-opacity: 0.2;
+  --horizon-duration: 52s;
+}
+
+:root[data-ground="dusk"] {
+  --night: #07060d;
+  --strata: 44, 34, 72;
+  --ember: 92, 54, 132;
+  --dust: 150, 120, 196;
+  --weather-opacity: 0.38;
+  --horizon-opacity: 0.26;
+  --weather-duration: 46s;
+}
+
+:root[data-ground="night"] {
+  --night: #090909;
+  --strata: 26, 34, 62;
+  --ember: 38, 52, 104;
+  --dust: 122, 148, 210;
+  --weather-opacity: 0;
+  --horizon-opacity: 0;
+}
+
+/* Night sky is an absence, not a picture of a sky: every drawn thing comes
+   off and the scene's stars fill what is left. */
+:root[data-ground="night"] .backdrop {
+  background-image: radial-gradient(140% 110% at 50% 46%, rgba(3, 4, 10, 0) 46%, rgba(0, 0, 2, 0.72) 100%);
+}
+
+:root[data-ground="night"] .backdrop::before {
+  opacity: 0;
+}
+
+:root[data-ground="night"] .backdrop::after {
+  opacity: 0.02;
+}
+
+:root[data-ground="night"] :is(.backdrop__atmosphere, .backdrop::before) {
+  animation-play-state: paused;
+}
+
+/* Wash takes the geology off and puts soft overlapping blooms in its place —
+   an abstract painting ground, nothing quoted. */
+:root[data-ground="wash"] {
+  --night: #0a0709;
+  --strata: 78, 48, 62;
+  --ember: 150, 74, 92;
+  --dust: 201, 143, 156;
+  --weather-opacity: 0.4;
+  --horizon-opacity: 0.3;
+  --weather-duration: 48s;
+  --horizon-duration: 56s;
+}
+
+:root[data-ground="wash"] .backdrop {
+  background-image:
+    radial-gradient(68% 52% at 26% 30%, rgba(184, 108, 128, 0.17) 0%, rgba(10, 7, 9, 0) 68%),
+    radial-gradient(58% 46% at 78% 22%, rgba(126, 116, 176, 0.15) 0%, rgba(10, 7, 9, 0) 66%),
+    radial-gradient(76% 58% at 62% 76%, rgba(198, 132, 92, 0.16) 0%, rgba(10, 7, 9, 0) 70%),
+    radial-gradient(52% 44% at 16% 82%, rgba(112, 138, 142, 0.13) 0%, rgba(10, 7, 9, 0) 68%),
+    radial-gradient(132% 104% at 50% 48%, rgba(10, 7, 9, 0) 40%, rgba(4, 3, 4, 0.62) 100%);
+}
+
+:root[data-ground="wash"] .backdrop::before {
+  opacity: 0;
+  animation-play-state: paused;
+}
+
+:root[data-ground="dusk"] .backdrop__atmosphere--weather {
+  background-image:
+    conic-gradient(from 214deg at 56% 118%, rgba(var(--dust), 0) 0deg, rgba(var(--dust), 0.3) 34deg, rgba(var(--ember), 0.16) 54deg, rgba(var(--dust), 0.08) 76deg, rgba(var(--dust), 0) 108deg),
+    radial-gradient(50% 36% at 76% 30%, rgba(var(--dust), 0.16), transparent 72%);
+}
+
+:root[data-ground="wash"] .backdrop__atmosphere--weather {
+  background-image:
+    radial-gradient(48% 42% at 22% 34%, rgba(var(--dust), 0.26), transparent 72%),
+    radial-gradient(54% 46% at 76% 24%, rgba(var(--ember), 0.24), transparent 74%),
+    radial-gradient(46% 40% at 58% 78%, rgba(126, 116, 176, 0.2), transparent 72%);
+}
+
+:root[data-ground="wash"] .backdrop::after {
+  opacity: 0.085;
+}
+
+:root[data-ambient-motion="paused"] :is(.backdrop__atmosphere, .backdrop::before, .stage__light) {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop__atmosphere,
+  .backdrop::before,
+  .stage__light {
+    animation: none !important;
+    transform: none !important;
+    translate: none !important;
+  }
+}

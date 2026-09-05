@@ -7,7 +7,7 @@ import {
   deriveWattleSentence,
   generateWattleArchitecture,
   interpretWattleSentence,
-} from "../wattle-lsystem.js";
+} from "../src/scene/botany/wattle-lsystem.js";
 
 const tests = [];
 function test(name, run) {

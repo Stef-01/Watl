@@ -1,0 +1,57 @@
+/* ---------- Tokens ----------
+   Colour, type, rhythm. The motion curves are mirrored from
+   src/motion/tokens.ts; the values there are the source of truth and the
+   custom properties below are set from them at boot by src/motion/cssVars.ts
+   so CSS and GSAP can never disagree. */
+:root {
+  color-scheme: dark;
+
+  --night: #090909;
+  --strata: 42, 43, 39;
+  --ember: 86, 78, 57;
+  --dust: 139, 135, 112;
+  --ink: #f2f0e8;
+  --ink-rgb: 242, 240, 232;
+  --muted: rgba(242, 240, 232, 0.52);
+  --quiet: rgba(242, 240, 232, 0.34);
+  --faint: rgba(242, 240, 232, 0.14);
+  --gold: #b59a4d;
+  --gold-rgb: 181, 154, 77;
+  --gold-bright: #e9c85a;
+  --edge: rgba(242, 240, 232, 0.16);
+  --weather-opacity: 0.24;
+  --horizon-opacity: 0.2;
+  --weather-duration: 38s;
+  --horizon-duration: 46s;
+
+  /* Set at boot from src/motion/tokens.ts. The fallbacks equal the tokens. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-lift: cubic-bezier(0.34, 1.42, 0.64, 1);
+  --duration-press: 120ms;
+  --duration-fast: 160ms;
+  --duration-ui: 220ms;
+  --duration-reveal: 680ms;
+  --duration-title: 1100ms;
+
+  --serif: "Instrument Serif", "Iowan Old Style", "Times New Roman", serif;
+  --mono: "Geist Mono Variable", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+  --page-pad: clamp(1.25rem, 3vw, 3rem);
+  --gutter: 1.5rem;
+  --label: 0.68rem;
+  --label-tracking: 0.14em;
+
+  --display: clamp(4rem, 11vw, 12rem);
+  --title: clamp(2.4rem, 6vw, 5.6rem);
+  --lede: clamp(1.1rem, 0.95rem + 0.5vw, 1.4rem);
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --muted: rgba(242, 240, 232, 0.82);
+    --quiet: rgba(242, 240, 232, 0.66);
+    --edge: rgba(242, 240, 232, 0.44);
+  }
+}

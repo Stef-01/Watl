@@ -5,7 +5,7 @@ import {
   strongEaseInOut,
   treeGrowthProgress,
   treeGrowthStages,
-} from "../tree-growth.js";
+} from "../src/scene/botany/tree-growth.js";
 
 let count = 0;
 function test(name, callback) {

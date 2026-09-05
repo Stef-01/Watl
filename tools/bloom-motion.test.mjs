@@ -5,7 +5,7 @@ import {
   BLOOM_BUD_TO_MATURE_SCALE,
   BLOOM_MATURE_RESIZE_FACTOR,
   WATTLE_FLOWER_SCALE,
-} from "../flower-scale.js";
+} from "../src/scene/botany/flower-scale.js";
 
 import {
   BLOOM_DURATION_MS,
@@ -27,7 +27,7 @@ import {
   siteBloomProgressAtTime,
   strongEaseInOut,
   strongEaseOut,
-} from "../bloom-motion.js";
+} from "../src/scene/botany/bloom-motion.js";
 
 const STAGE_NAMES = [
   "wake",

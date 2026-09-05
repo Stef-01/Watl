@@ -1,0 +1,502 @@
+/* ---------- The document that scrolls over the branch ----------
+   Sections are pointer-transparent so the canvas beneath receives the hover
+   and the drag; only links, buttons and the text itself take input. Text
+   lives in the left five columns; the branch composes into the right seven. */
+.flow {
+  position: relative;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.section {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+.section__inner {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gutter);
+  width: 100%;
+  padding: 0 max(var(--page-pad), env(safe-area-inset-right)) 0 max(var(--page-pad), env(safe-area-inset-left));
+}
+
+.section :is(a, button) {
+  pointer-events: auto;
+}
+
+/* ---------- Arrival ---------- */
+.arrival {
+  height: 100vh;
+  height: 100svh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.arrival__inner {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gutter);
+  align-content: end;
+  padding: 0 max(var(--page-pad), env(safe-area-inset-right)) clamp(5.5rem, 12vh, 8rem) max(var(--page-pad), env(safe-area-inset-left));
+}
+
+.arrival__headline,
+.arrival__practice,
+.arrival__bloom {
+  grid-column: 1 / span 8;
+  grid-row: 1;
+  margin: 0;
+  align-self: end;
+}
+
+.arrival__headline {
+  font-family: var(--serif);
+  font-size: var(--display);
+  font-weight: 400;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  opacity: 0;
+}
+
+.arrival__headline em,
+.arrival__bloom em {
+  font-style: italic;
+  color: var(--gold-bright);
+}
+
+.arrival__headline .line {
+  padding-bottom: 0.06em;
+}
+
+.arrival__practice {
+  padding-bottom: 0.6rem;
+  color: var(--quiet);
+  opacity: 0;
+}
+
+.arrival__bloom {
+  max-width: 14ch;
+  font-family: var(--serif);
+  font-size: var(--title);
+  line-height: 0.95;
+  letter-spacing: -0.015em;
+  opacity: 0;
+}
+
+/* ---------- Practice ---------- */
+.practice {
+  padding: clamp(6rem, 14vh, 11rem) 0 clamp(4rem, 10vh, 8rem);
+}
+
+.practice__label,
+.clients__label {
+  grid-column: 1 / span 12;
+  margin: 0 0 clamp(1.6rem, 4vh, 3rem);
+  pointer-events: auto;
+}
+
+/* Rows keep to the left six columns; the branch composes into the right
+   six. The rules under each row end where the text ends, like an editorial
+   column, so the branch is never underlined. */
+.practice__rows {
+  grid-column: 1 / span 6;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--edge);
+}
+
+.practice__row {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr);
+  column-gap: var(--gutter);
+  row-gap: 0.9rem;
+  align-items: baseline;
+  padding: clamp(1.4rem, 3.2vh, 2.4rem) 0;
+  border-bottom: 1px solid var(--edge);
+  pointer-events: auto;
+}
+
+/* GSAP animates the row itself; the hover dim lives on its children so no
+   CSS transition ever shares the property GSAP is reading. */
+.practice__row > * {
+  transition: opacity var(--duration-ui) ease;
+}
+
+.practice__rows[data-hovered="true"] .practice__row[data-hovered="false"] > * {
+  opacity: 0.42;
+}
+
+.practice__index {
+  grid-column: 1;
+  grid-row: 1;
+  color: var(--quiet);
+  font-variant-numeric: tabular-nums;
+  transition: color var(--duration-fast) ease;
+}
+
+.practice__title {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  font-family: var(--serif);
+  font-size: var(--title);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  transition:
+    color var(--duration-fast) ease,
+    transform var(--duration-fast) var(--ease-lift);
+}
+
+.practice__row[data-hovered="true"] .practice__title {
+  color: var(--gold-bright);
+  transform: translateX(0.2rem);
+}
+
+.practice__row[data-hovered="true"] .practice__index {
+  color: var(--gold);
+}
+
+.practice__copy {
+  grid-column: 2;
+  grid-row: 2;
+  max-width: 38ch;
+  margin: 0;
+  font-family: var(--serif);
+  font-size: var(--lede);
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* ---------- Clients ---------- */
+.clients {
+  min-height: 80vh;
+  padding: clamp(4rem, 10vh, 8rem) 0;
+}
+
+.clients__rows {
+  grid-column: 1 / span 6;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--edge);
+}
+
+.client {
+  border-bottom: 1px solid var(--edge);
+}
+
+.client__link {
+  transition: opacity var(--duration-ui) ease;
+}
+
+.clients__rows[data-hovered="true"] .client[data-hovered="false"] .client__link {
+  opacity: 0.42;
+}
+
+.client__link {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr) auto;
+  column-gap: var(--gutter);
+  row-gap: 0.7rem;
+  align-items: baseline;
+  padding: clamp(1.4rem, 3.2vh, 2.4rem) 0;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.client__link::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: rgba(var(--gold-rgb), 0.72);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--duration-ui) var(--ease-out);
+}
+
+.client__index {
+  grid-column: 1;
+  grid-row: 1;
+  color: var(--quiet);
+  font-variant-numeric: tabular-nums;
+}
+
+.client__name {
+  grid-column: 2;
+  grid-row: 1;
+  font-family: var(--serif);
+  font-size: var(--title);
+  line-height: 1;
+  letter-spacing: -0.015em;
+  transition:
+    color var(--duration-fast) ease,
+    transform var(--duration-fast) var(--ease-lift);
+}
+
+.client__domain {
+  grid-column: 2;
+  grid-row: 2;
+  color: var(--quiet);
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
+
+.client__arrow-wrap {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  display: inline-flex;
+  color: var(--quiet);
+  font-size: 1.4rem;
+}
+
+.client[data-hovered="true"] .client__name,
+.client__link:focus-visible .client__name {
+  color: var(--gold-bright);
+  transform: translateX(0.2rem);
+}
+
+.client[data-hovered="true"] .client__arrow,
+.client__link:focus-visible .client__arrow {
+  color: var(--gold);
+  transform: translate(0.12em, -0.12em);
+}
+
+.client[data-hovered="true"] .client__link::before,
+.client__link:focus-visible::before {
+  transform: scaleX(1);
+}
+
+/* ---------- Contact ---------- */
+.contact {
+  display: flex;
+  align-items: center;
+  padding: clamp(6rem, 14vh, 11rem) 0 clamp(9rem, 20vh, 13rem);
+}
+
+.contact__title {
+  grid-column: 1 / span 10;
+  max-width: 12ch;
+  margin: 0;
+  font-family: var(--serif);
+  font-size: clamp(3rem, 9.6vw, 9rem);
+  font-weight: 400;
+  line-height: 0.9;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+  pointer-events: auto;
+}
+
+.contact__title .line {
+  padding-bottom: 0.08em;
+}
+
+.contact__copy {
+  grid-column: 1 / span 6;
+  max-width: 34ch;
+  margin: clamp(1.2rem, 3vh, 2rem) 0 0;
+  font-family: var(--serif);
+  font-size: var(--lede);
+  line-height: 1.4;
+  color: var(--muted);
+  pointer-events: auto;
+}
+
+.contact__actions {
+  grid-column: 1 / span 12;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: clamp(1.6rem, 4vh, 2.6rem);
+}
+
+.contact__action {
+  display: inline-flex;
+  min-height: 2.9rem;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 1.1rem;
+  border: 1px solid var(--edge);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition:
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    background-color var(--duration-fast) ease;
+}
+
+.contact__action--primary {
+  border-color: rgba(var(--gold-rgb), 0.66);
+  color: var(--gold-bright);
+}
+
+.contact__action .arrow {
+  width: 0.78rem;
+  height: 0.78rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .contact__action:hover {
+    border-color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.08);
+  }
+
+  .contact__action:hover .arrow {
+    transform: translate(0.12rem, -0.12rem);
+  }
+}
+
+.contact__action:active {
+  transition-duration: var(--duration-press);
+  background: rgba(var(--gold-rgb), 0.14);
+}
+
+/* ---------- Footer ---------- */
+.footer {
+  padding: clamp(2rem, 5vh, 4rem) 0 clamp(6rem, 12vh, 8rem);
+}
+
+.footer__inner {
+  row-gap: 1rem;
+  align-items: baseline;
+}
+
+.footer__identity {
+  grid-column: 1 / span 4;
+  display: flex;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.footer__links {
+  grid-column: 5 / span 4;
+  display: flex;
+  gap: 1.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.footer__links a {
+  text-decoration: none;
+  transition: color var(--duration-fast) ease;
+}
+
+.footer__links a:hover {
+  color: var(--gold);
+}
+
+.footer__note {
+  grid-column: 9 / span 4;
+  margin: 0;
+  color: var(--quiet);
+  text-align: right;
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Portrait ---------- */
+@media (max-width: 720px) {
+  .arrival__inner {
+    padding-bottom: clamp(6rem, 16vh, 8rem);
+    background: linear-gradient(to top, rgba(9, 9, 9, 0.72) 0%, rgba(9, 9, 9, 0.35) 38%, rgba(9, 9, 9, 0) 62%);
+  }
+
+  .arrival__headline,
+  .arrival__practice,
+  .arrival__bloom {
+    grid-column: 1 / span 12;
+  }
+
+  .arrival__headline {
+    font-size: clamp(3.4rem, 17vw, 6rem);
+  }
+
+  /* The branch is centred behind the text on a phone, so each block of
+     copy sits on a soft scrim rather than competing with it. */
+  .practice .section__inner,
+  .clients .section__inner,
+  .contact .section__inner,
+  .footer .section__inner {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    background: linear-gradient(to bottom, rgba(9, 9, 9, 0) 0%, rgba(9, 9, 9, 0.78) 14%, rgba(9, 9, 9, 0.78) 86%, rgba(9, 9, 9, 0) 100%);
+  }
+
+  .contact {
+    align-items: flex-end;
+    padding-bottom: clamp(3rem, 8vh, 5rem);
+  }
+
+  .practice__rows,
+  .clients__rows {
+    grid-column: 1 / span 12;
+  }
+
+  .practice__row,
+  .client__link {
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+    row-gap: 0.6rem;
+  }
+
+  .practice__title,
+  .client__name {
+    font-size: clamp(2rem, 9vw, 3.2rem);
+  }
+
+  .practice__copy {
+    max-width: none;
+  }
+
+  .contact__title {
+    grid-column: 1 / span 12;
+    font-size: clamp(2.8rem, 14vw, 5.4rem);
+  }
+
+  .contact__copy,
+  .contact__actions {
+    grid-column: 1 / span 12;
+  }
+
+  .contact__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .contact__action {
+    justify-content: space-between;
+  }
+
+  .footer__identity,
+  .footer__links,
+  .footer__note {
+    grid-column: 1 / span 12;
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .practice__title,
+  .client__name,
+  .client__arrow,
+  .contact__action .arrow {
+    transform: none !important;
+  }
+}

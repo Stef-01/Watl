@@ -1,10 +1,20 @@
+/**
+ * Smoke test against the production build.
+ *
+ * Builds with Vite, serves `dist/` with `vite preview`, and checks the
+ * shell a crawler and a visitor receive: the search identity, the assets the
+ * page depends on, the accessibility contract in the markup, and the absence
+ * of anything that should never ship (the reference glb, the legacy files,
+ * tuning UI). Rendering is covered by `tools/capture.mjs`; this stays
+ * dependency-free.
+ */
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { request } from "node:http";
 import { createServer } from "node:net";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -16,14 +26,6 @@ async function check(name, callback) {
   console.log(`ok ${checkCount} - ${name}`);
 }
 
-function syntaxCheck(file) {
-  const result = spawnSync(process.execPath, ["--check", file], {
-    cwd: root,
-    encoding: "utf8",
-  });
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-}
-
 async function reservePort() {
   const socket = createServer();
   socket.unref();
@@ -31,501 +33,172 @@ async function reservePort() {
     socket.once("error", rejectListen);
     socket.listen(0, "127.0.0.1", resolveListen);
   });
-  const address = socket.address();
-  assert(address && typeof address === "object");
-  await new Promise((resolveClose, rejectClose) => {
-    socket.close((error) => error ? rejectClose(error) : resolveClose());
-  });
-  return address.port;
+  const { port } = socket.address();
+  await new Promise((resolveClose) => socket.close(() => resolveClose()));
+  return port;
 }
 
-function waitForServer(child, port) {
-  return new Promise((resolveReady, rejectReady) => {
-    let stderr = "";
-    const timeout = setTimeout(() => {
-      rejectReady(new Error(`Server did not start on port ${port}. ${stderr}`));
-    }, 5_000);
-
-    const cleanup = () => {
-      clearTimeout(timeout);
-      child.stdout.off("data", onStdout);
-      child.stderr.off("data", onStderr);
-      child.off("exit", onExit);
-    };
-    const onStdout = (chunk) => {
-      if (!String(chunk).includes(`http://127.0.0.1:${port}`)) return;
-      cleanup();
-      resolveReady();
-    };
-    const onStderr = (chunk) => {
-      stderr += String(chunk);
-    };
-    const onExit = (code, signal) => {
-      cleanup();
-      rejectReady(new Error(
-        `Server exited before becoming ready (code ${code}, signal ${signal}). ${stderr}`,
-      ));
-    };
-
-    child.stdout.on("data", onStdout);
-    child.stderr.on("data", onStderr);
-    child.once("exit", onExit);
-  });
-}
-
-async function stopServer(child) {
-  if (child.exitCode !== null || child.signalCode !== null) return;
-  child.kill("SIGTERM");
-  const timeout = setTimeout(() => child.kill("SIGKILL"), 2_000);
-  await once(child, "exit");
-  clearTimeout(timeout);
-}
-
-function requestWithHost(port, host) {
-  return new Promise((resolveResponse, rejectResponse) => {
-    const outgoing = request({
-      hostname: "127.0.0.1",
-      port,
-      path: "/",
-      headers: { Host: host },
-    }, (response) => {
-      response.resume();
-      response.once("end", () => resolveResponse(response));
+function fetchRaw(port, path, method = "GET") {
+  return new Promise((resolveRequest, rejectRequest) => {
+    const req = request({ hostname: "127.0.0.1", port, path, method }, (response) => {
+      const chunks = [];
+      response.on("data", (chunk) => chunks.push(chunk));
+      response.on("end", () => {
+        resolveRequest({
+          status: response.statusCode,
+          headers: response.headers,
+          body: Buffer.concat(chunks),
+        });
+      });
     });
-    outgoing.once("error", rejectResponse);
-    outgoing.end();
+    req.once("error", rejectRequest);
+    req.end();
   });
 }
 
-const [
-  indexSource,
-  scriptSource,
-  stylesSource,
-  bloomMotionSource,
-  flowerScaleSource,
-  treeGrowthSource,
-  wattleLsystemSource,
-  interactionsSource,
-  robotsSource,
-  sitemapSource,
-] = await Promise.all([
-  readFile(resolve(root, "index.html"), "utf8"),
-  readFile(resolve(root, "script.js"), "utf8"),
-  readFile(resolve(root, "styles.css"), "utf8"),
-  readFile(resolve(root, "bloom-motion.js"), "utf8"),
-  readFile(resolve(root, "flower-scale.js"), "utf8"),
-  readFile(resolve(root, "tree-growth.js"), "utf8"),
-  readFile(resolve(root, "wattle-lsystem.js"), "utf8"),
-  readFile(resolve(root, "interactions.js"), "utf8"),
-  readFile(resolve(root, "robots.txt"), "utf8"),
-  readFile(resolve(root, "sitemap.xml"), "utf8"),
-]);
+async function waitForServer(port) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try {
+      const response = await fetchRaw(port, "/");
+      if (response.status === 200) return;
+    } catch {
+      /* not up yet */
+    }
+    await new Promise((resolveWait) => setTimeout(resolveWait, 250));
+  }
+  throw new Error(`vite preview did not come up on ${port}`);
+}
 
-await check("JavaScript entry points parse", () => {
-  syntaxCheck("server.mjs");
-  syntaxCheck("script.js");
-  syntaxCheck("bloom-motion.js");
-  syntaxCheck("flower-scale.js");
-  syntaxCheck("tree-growth.js");
-  syntaxCheck("wattle-lsystem.js");
-  syntaxCheck("tools/bloom-motion.test.mjs");
-  syntaxCheck("tools/tree-growth.test.mjs");
-  syntaxCheck("tools/wattle-lsystem.test.mjs");
-  syntaxCheck("tools/qa-smoke.mjs");
+async function walk(dir, out = []) {
+  for (const entry of await readdir(dir)) {
+    const full = join(dir, entry);
+    if ((await stat(full)).isDirectory()) await walk(full, out);
+    else out.push(full);
+  }
+  return out;
+}
+
+/* ---------------------------------------------------------------- build */
+await check("the production build succeeds", () => {
+  const result = spawnSync("npx", ["vite", "build"], { cwd: root, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
-await check("the scene keeps its keyboard and screen-reader contract", () => {
-  assert.match(indexSource, /id=["']wattle-stage["'][\s\S]*?tabindex=["']0["']/);
-  assert.match(indexSource, /id=["']wattle-stage["'][\s\S]*?role=["']group["']/);
-  assert.match(indexSource, /aria-describedby=["'][^"']*scene-description[^"']*keyboard-instructions[^"']*["']/);
-  assert.match(indexSource, /id=["']stage-status["'][\s\S]*?role=["']status["'][\s\S]*?aria-live=["']polite["']/);
-  assert.match(indexSource, /id=["']scene-fallback["'][\s\S]*?\salt=["'][^"']+["']/);
+const dist = join(root, "dist");
+const files = await walk(dist);
+const relative = files.map((file) => file.slice(dist.length + 1));
+const indexHtml = await readFile(join(dist, "index.html"), "utf8");
+
+await check("the shell carries one consistent search and social identity", () => {
+  assert.match(indexHtml, /<link rel="canonical" href="https:\/\/watl-three\.vercel\.app\/"/);
+  assert.match(indexHtml, /<meta property="og:image" content="https:\/\/watl-three\.vercel\.app\/assets\/wattle-golden-poster\.webp"/);
+  assert.match(indexHtml, /<meta name="twitter:card" content="summary_large_image"/);
+  assert.match(indexHtml, /"@type": "WebSite"/);
+  assert.match(indexHtml, /"@type": "Organization"/);
+  assert.match(indexHtml, /"@type": "Person"/);
+  assert.match(indexHtml, /"@type": "WebPage"/);
+  assert.doesNotMatch(indexHtml, /name="keywords"/);
+  assert.match(indexHtml, /data-ground="night"/, "night is the first-paint ground");
 });
 
-await check("the page imports only the vendored Three.js runtime", () => {
-  assert.match(indexSource, /["']three["']\s*:\s*["']\.\/vendor\/three\/three\.module\.js["']/);
-  assert.match(indexSource, /["']three\/addons\/["']\s*:\s*["']\.\/vendor\/three\/addons\/["']/);
-  assert.doesNotMatch(indexSource, /(?:unpkg\.com|cdn\.jsdelivr\.net|esm\.sh|cdnjs\.cloudflare\.com)/i);
+await check("public assets, robots and sitemap ship; reference files do not", () => {
+  for (const expected of ["assets/wattle-golden-poster.webp", "assets/ground-contours.svg", "assets/favicon.svg", "robots.txt", "sitemap.xml"]) {
+    assert.ok(relative.includes(expected), `${expected} missing from dist`);
+  }
+  assert.ok(!relative.some((file) => file.endsWith(".glb")), "no glb ships");
+  assert.ok(!relative.some((file) => /legacy/.test(file)), "no legacy file ships");
+  const bundleBytes = files
+    .filter((file) => file.endsWith(".js"))
+    .reduce((sum, file) => sum + spawnSync("wc", ["-c", file], { encoding: "utf8" }).stdout.trim().split(/\s+/)[0] * 1, 0);
+  assert.ok(bundleBytes < 2_400_000, `JavaScript payload ${bundleBytes} bytes exceeds the 2.4 MB budget`);
 });
 
-await check("the public shell exposes a coherent search and social identity", () => {
-  const canonicalUrl = "https://watl-three.vercel.app/";
-  assert.match(indexSource, /<title>WATL — Technology Design &amp; Digital Product Studio<\/title>/);
-  assert.match(indexSource, /name=["']description["'][\s\S]*?Stefan Thottunkal's technology design studio/);
-  assert.match(indexSource, /name=["']robots["'][^>]*content=["']index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1["']/);
-  assert.match(indexSource, new RegExp(`<link rel=["']canonical["'] href=["']${canonicalUrl}["']`));
-  assert.match(indexSource, /property=["']og:title["']/);
-  assert.match(indexSource, /property=["']og:image["'][^>]*wattle-golden-poster\.webp/);
-  assert.match(indexSource, /name=["']twitter:card["'][^>]*summary_large_image/);
-  assert.match(indexSource, /class=["']hero__summary["']>Digital products · Interfaces · Generative systems<\/span>/);
-  assert.doesNotMatch(indexSource, /name=["']keywords["']/i);
-
-  const jsonLdMatch = indexSource.match(/<script type=["']application\/ld\+json["']>([\s\S]*?)<\/script>/);
-  assert(jsonLdMatch, "JSON-LD graph is missing");
-  const structuredData = JSON.parse(jsonLdMatch[1]);
-  const graph = structuredData["@graph"];
-  assert(Array.isArray(graph));
-  assert.equal(graph.find((entry) => entry["@type"] === "WebSite")?.url, canonicalUrl);
-  assert.equal(graph.find((entry) => entry["@type"] === "Organization")?.url, canonicalUrl);
-  assert.equal(graph.find((entry) => entry["@type"] === "WebPage")?.url, canonicalUrl);
-  assert.equal(graph.find((entry) => entry["@type"] === "ImageObject")?.width, 1440);
-
-  assert.match(robotsSource, /^User-agent: \*\nAllow: \/\n\nSitemap: https:\/\/watl-three\.vercel\.app\/sitemap\.xml\n$/);
-  assert.match(sitemapSource, /<loc>https:\/\/watl-three\.vercel\.app\/<\/loc>/);
-  assert.match(sitemapSource, /<lastmod>2026-08-31<\/lastmod>/);
+await check("self-hosted fonts are bundled and nothing is fetched from a third party", () => {
+  assert.ok(relative.some((file) => /instrument-serif.*\.woff2$/.test(file)), "Instrument Serif woff2");
+  assert.ok(relative.some((file) => /geist-mono.*\.woff2$/.test(file)), "Geist Mono woff2");
+  const css = files.filter((file) => file.endsWith(".css"));
+  for (const file of css) {
+    const text = spawnSync("cat", [file], { encoding: "utf8" }).stdout;
+    assert.doesNotMatch(text, /https?:\/\/(fonts\.googleapis|fonts\.gstatic|unpkg|cdn)/, `${file} references a remote host`);
+  }
+  assert.doesNotMatch(indexHtml, /<script[^>]+src="https?:/, "no third-party scripts");
 });
 
-await check("reduced motion and the deterministic QA surface remain wired", () => {
-  assert.match(stylesSource, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
-  assert.match(scriptSource, /matchMedia\(["']\(prefers-reduced-motion:\s*reduce\)["']\)/);
-  assert.match(scriptSource, /window\.__WATTLE_BOOTED__\s*=\s*true/);
-  assert.match(scriptSource, /window\.__WATTLE_QA__\s*=\s*Object\.freeze/);
-  assert.match(scriptSource, /\bsnapshot\s*\(\)\s*\{/);
-  assert.match(scriptSource, /\bprojectBloomPoint\s*\(/);
-  assert.match(scriptSource, /query\.get\(["']quality["']\)/);
-  assert.match(scriptSource, /query\.get\(["']qaFail["']\)/);
+await check("the source keeps its motion, accessibility and interaction contracts", async () => {
+  const stage = await readFile(join(root, "src/scene/Stage.tsx"), "utf8");
+  assert.match(stage, /aria-keyshortcuts="Enter Space ArrowUp ArrowDown ArrowLeft ArrowRight \+ - Home"/);
+  assert.match(stage, /aria-describedby="scene-description scene-pointer-instructions keyboard-instructions"/);
+  assert.match(stage, /frameloop="demand"/, "the canvas renders on demand");
+  const status = await readFile(join(root, "src/ui/SceneStatus.tsx"), "utf8");
+  assert.match(status, /role="status" aria-live="polite"/);
+  const arrival = await readFile(join(root, "src/ui/Arrival.tsx"), "utf8");
+  assert.match(arrival, /scrub: SCRUB\.hero/, "the hero scrub reads the token");
+  assert.match(arrival, /pin: true/, "the arrival is pinned");
+  const effects = await readFile(join(root, "src/scene/Effects.tsx"), "utf8");
+  assert.match(effects, /luminanceThreshold=\{FX\.bloom\.threshold\}/, "bloom is thresholded from tokens");
+  assert.match(effects, /radialModulation/, "aberration is radially masked");
+  const smooth = await readFile(join(root, "src/motion/Smooth.tsx"), "utf8");
+  assert.match(smooth, /if \(!enabled\) return <>\{children\}<\/>;/, "reduced motion skips Lenis");
+  const interaction = await readFile(join(root, "src/scene/Interaction.tsx"), "utf8");
+  assert.match(interaction, /DRAG_SLOP = 7/, "a click never doubles as a drag");
+  const engine = await readFile(join(root, "src/scene/engine/wattle-engine.js"), "utf8");
+  assert.match(engine, /head\.timeline = Math\.max\(head\.ownTimeline, head\.scroll\)/, "scroll and interaction compose by max");
+  assert.doesNotMatch(engine, /document\.(getElementById|querySelector|body|documentElement|hidden)|window\.(addEventListener|requestAnimationFrame|matchMedia|location)/, "the engine never touches the document");
 });
 
-await check("botanical materials preserve the reference color hierarchy", () => {
-  assert.match(scriptSource, /const\s+BARK_COLORS\s*=\s*\[0x5f5637,\s*0x716341,\s*0x82724c,\s*0x94835c\]/);
-  assert.match(scriptSource, /const\s+LEAF_COLORS\s*=\s*\[0x36532c,\s*0x456438,\s*0x557647,\s*0x69895a\]/);
-  assert.match(scriptSource, /Narrow_Lanceolate_Golden_Wattle_Phyllode/);
-  assert.match(scriptSource, /watl-lanceolate-phyllode-growth-v3/);
-  assert.match(scriptSource, /stemGeometry\.setAttribute\(\s*["']color["']/);
-  assert.match(scriptSource, /const\s+stemMaterial\s*=\s*new\s+THREE\.MeshStandardMaterial\([\s\S]*?vertexColors:\s*true/);
-  assert.match(scriptSource, /const\s+UNIVERSE_COLORS\s*=\s*\[0xd8d5c9,\s*0xb5b4a8,\s*0xc8c4b4,\s*0xd5c98c\]/);
-});
-
-await check("interactive blooming keeps its pointer, keyboard, and motion safeguards", () => {
-  assert.match(indexSource, /data-bloom-hover=["']false["']/);
-  assert.match(indexSource, /data-bloom-finale=["']false["']/);
-  assert.match(indexSource, /aria-keyshortcuts=["'][^"']*Enter[^"']*Space[^"']*["']/);
-  assert.match(stylesSource, /@media\s*\(hover:\s*hover\)\s*and\s*\(pointer:\s*fine\)/);
-  assert.match(scriptSource, /function\s+activateBloomAtIndex\s*\(/);
-  assert.match(scriptSource, /function\s+bloomAtHoverArea\s*\(/);
-  assert.match(scriptSource, /function\s+triggerBouquetBloom\s*\(/);
-  assert.match(scriptSource, /const\s+spatialAllowed\s*=\s*!reduceBloomMotion\(\)/);
-  assert.match(scriptSource, /distance\s*>\s*BLOOM_DRAG_SLOP/);
-  assert.match(scriptSource, /\bbudMatrices\b/);
-  assert.match(scriptSource, /\bbudPositions\b/);
-  assert.match(scriptSource, /head\.committedOpen\s*=\s*true/);
-  assert.match(scriptSource, /head\.mode\s*=\s*["']open["']/);
-  assert.match(scriptSource, /function\s+createBudCapsuleGeometry\s*\(/);
-  assert.match(scriptSource, /function\s+createCupInstances\s*\(/);
-  assert.match(scriptSource, /function\s+createCorollaCupGeometry\s*\(/);
-  assert.match(scriptSource, /Persistent_Golden_Corolla_Cups/);
-  assert.match(scriptSource, /\bcapLookup\b/);
-  assert.match(scriptSource, /\bfloretLookup\b/);
-  assert.match(scriptSource, /\bsourceFilamentId\b/);
-  assert.match(scriptSource, /\bmorphTargetInfluences\b/);
-  assert.match(scriptSource, /function\s+setBloomCheckpointForQa\s*\(/);
-  assert.match(scriptSource, /function\s+sampleBloomGeometryForQa\s*\(/);
-  assert.match(scriptSource, /query\.has\(["']qaBloom["']\)/);
-  assert.match(scriptSource, /cores\.visible\s*=\s*false/);
-  assert.match(scriptSource, /Open_Only_Soft_Pompom_Masses/);
-  assert.match(scriptSource, /Soft_Globular_Pompom_Mass_Material/);
-  assert.match(scriptSource, /BLOOM_BRUSH_STEP_MS/);
-  assert.match(scriptSource, /BLOOM_BRUSH_BATCH_SIZE/);
-  assert.match(scriptSource, /BLOOM_BRUSH_HEAD_STAGGER_MS/);
-  assert.match(scriptSource, /BLOOM_UNFURL_MS\s*=\s*BLOOM_DURATION_MS/);
-  assert.match(bloomMotionSource, /BLOOM_DURATION_MS\s*=\s*2700/);
-  assert.match(bloomMotionSource, /BLOOM_MAX_SITE_DELAY\s*=\s*0\.22/);
-  assert.match(bloomMotionSource, /function\s+bloomVisibilityHandoff\s*\(/);
-  assert.match(bloomMotionSource, /function\s+bloomEnvelopeTarget\s*\(/);
-  assert.match(scriptSource, /rawDuration\s*===\s*null/);
-  assert.match(scriptSource, /BLOOM_LIGHT_INTENSITY\s*=\s*0\.18/);
-  assert.doesNotMatch(scriptSource, /BLOOM_RADIAL_SPREAD/);
-});
-
-await check("the runtime keeps bloom and optional assets inside their performance budgets", () => {
-  assert.match(indexSource, /id=["']scene-fallback["'][\s\S]*?data-src=["']\.\/assets\/wattle-golden-poster\.webp["']/);
-  assert.doesNotMatch(indexSource, /<script[^>]+src=["']\.\/vendor\/motion\/motion\.js["']/);
-  assert.match(interactionsSource, /const\s+MOTION_SRC\s*=\s*["']\.\/vendor\/motion\/motion\.js["']/);
-  assert.match(interactionsSource, /document\.createElement\(["']script["']\)/);
-  assert.match(scriptSource, /frameIntervalMs:\s*1000\s*\/\s*30/);
-  assert.match(scriptSource, /item\.siteDelayRevision\s*===\s*head\.delayRevision/);
-  assert.match(scriptSource, /attribute\.addUpdateRange\(range\.start,\s*count\)/);
-  assert.match(scriptSource, /qaBloomUploadBytes/);
-  assert.match(scriptSource, /function\s+createPompomFuzzPoints\s*\(/);
-  assert.match(scriptSource, /GPU_Morphed_Pompom_Fuzz_Material/);
-  assert.match(scriptSource, /pollenBloomProgress\s*\(/);
-  assert.match(scriptSource, /fuzzDynamicBytesPerPoint:\s*Float32Array\.BYTES_PER_ELEMENT/);
-  assert.match(scriptSource, /item\.position\s*=\s*null/);
-  assert.match(bloomMotionSource, /function\s+pollenBloomProgress\s*\(/);
-  assert.doesNotMatch(scriptSource, /fullBloomUpload|uploadWholeAttribute/);
-});
-
-await check("the tree grows through maturity before exposing interactive buds", () => {
-  assert.match(indexSource, /aria-label=["']Interactive 3D Golden Wattle branch growing from young shoot to bloom["']/);
-  assert.match(scriptSource, /from\s+["']\.\/tree-growth\.js["']/);
-  assert.match(scriptSource, /from\s+["']\.\/wattle-lsystem\.js["']/);
-  assert.match(wattleLsystemSource, /function\s+deriveWattleSentence\s*\(/);
-  assert.match(wattleLsystemSource, /function\s+interpretWattleSentence\s*\(/);
-  assert.match(wattleLsystemSource, /WATTLE_GOLDEN_ANGLE\s*=\s*Math\.PI\s*\*\s*\(3\s*-\s*Math\.sqrt\(5\)\)/);
-  assert.match(scriptSource, /const\s+TREE_ROOT\s*=\s*new THREE\.Vector3/);
-  assert.match(scriptSource, /root\.name\s*=\s*["']Golden_Wattle_Branch["']/);
-  assert.match(scriptSource, /species:\s*["']Golden Wattle reference morphology["']/);
-  assert.match(scriptSource, /function\s+createTreeGrowthController\s*\(/);
-  assert.match(scriptSource, /function\s+applyTreeGrowth\s*\(/);
-  assert.match(scriptSource, /function\s+updateTreeGrowth\s*\(/);
-  assert.match(scriptSource, /if\s*\(!state\.growth\?\.complete\)\s*return false/);
-  assert.match(scriptSource, /Branch_Primary_Axis_Segments/);
-  assert.match(scriptSource, /Branch_Lateral_Axis_Segments/);
-  assert.match(scriptSource, /new\s+THREE\.CylinderGeometry\(\s*0\.84,\s*1,/);
-  assert.match(wattleLsystemSource, /maxBuds:\s*84/);
-  assert.match(flowerScaleSource, /WATTLE_FLOWER_SCALE\s*=\s*1\.2/);
-  assert.match(flowerScaleSource, /BLOOM_MATURE_RESIZE_FACTOR\s*=\s*0\.8/);
-  assert.match(flowerScaleSource, /BLOOM_BUD_RESIZE_FACTOR\s*=\s*0\.5/);
-  assert.match(scriptSource, /BUD_CAP_SCALE_FACTOR\s*=\s*0\.46\s*\*\s*BLOOM_BUD_TO_MATURE_SCALE/);
-  assert.match(wattleLsystemSource, /radius:\s*WATTLE_FLOWER_SCALE\s*\*/);
-  assert.match(scriptSource, /DEFAULT_VIEW_AZIMUTH_LANDSCAPE\s*=\s*THREE\.MathUtils\.degToRad\(24\)/);
-  assert.match(scriptSource, /projectedWidth\s*=\s*Math\.abs\(size\.x\s*\*\s*cosAzimuth\)/);
-  assert.match(scriptSource, /MIN_ZOOM_DISTANCE_RATIO\s*=\s*0\.34/);
-  assert.match(scriptSource, /MAX_ZOOM_DISTANCE_RATIO\s*=\s*2\.45/);
-  assert.match(scriptSource, /controls\.zoomSpeed\s*=\s*1\.18/);
-  assert.doesNotMatch(scriptSource, /root\.add\(createTie\(\)\)/);
-  assert.match(treeGrowthSource, /TREE_GROWTH_DURATION_MS\s*=\s*8400/);
-  assert.match(treeGrowthSource, /TREE_BUD_MATURITY_START\s*=\s*0\.72/);
-  assert.match(treeGrowthSource, /target\.buds\s*=\s*stage\(timeline, TREE_BUD_MATURITY_START, 1\)/);
-});
-
-await check("the all-bloomed business banner stays accessible and actionable", () => {
-  assert.match(indexSource, /id=["']bloom-finale["'][\s\S]*?role=["']dialog["']/);
-  assert.match(indexSource, /Help your business bloom\./i);
-  assert.match(indexSource, /mailto:Stefan\.thottunkal@gmail\.com/i);
-  assert.match(indexSource, /id=["']bloom-finale-calendar["'][\s\S]*?data-calendly-url=/);
-  assert.match(indexSource, /id=["']bloom-finale-dismiss["']/);
-  assert.match(indexSource, /id=["']bloom-finale["'][\s\S]*?tabindex=["']-1["']/);
-  assert.match(scriptSource, /function\s+showBloomFinale\s*\(/);
-  assert.match(scriptSource, /ui\.finale\.classList\.add\(["']is-visible["']\);[\s\S]*?ui\.finale\.focus\(\{\s*preventScroll:\s*true\s*\}\)/);
-  assert.match(scriptSource, /query\.get\(["']qaFinale["']\)\s*===\s*["']animate["'][\s\S]*?triggerBouquetBloom\(false,\s*true\)/);
-  assert.match(scriptSource, /function\s+triggerBouquetBloom\(announce\s*=\s*true,\s*animateFinale\s*=\s*false\)/);
-  assert.match(scriptSource, /function\s+dismissBloomFinale\(animate\s*=\s*true,\s*pointerOrigin\s*=\s*false\)/);
-  assert.match(scriptSource, /dismissBloomFinale\(pointerOrigin\s*&&\s*!reduceBloomMotion\(\),\s*pointerOrigin\)/);
-  assert.match(scriptSource, /if\s*\(pointerOrigin\)\s*ui\.stage\.dataset\.pointerFocus\s*=\s*["']true["']/);
-  assert.match(stylesSource, /\.bloom-finale\.is-visible/);
-  assert.match(stylesSource, /\.bloom-finale\s*\{[\s\S]*?background:\s*#050505/);
-  assert.match(stylesSource, /\.bloom-finale\s*\{[\s\S]*?clip-path:\s*inset\(50%\s+0\s+50%\s+0\)[\s\S]*?clip-path\s+480ms\s+var\(--ease-out\)/);
-  assert.match(stylesSource, /\.bloom-finale\.is-visible\s*\{[\s\S]*?clip-path:\s*inset\(0\s+0\s+0\s+0\)/);
-  assert.match(stylesSource, /\.bloom-finale__inner\s*\{[\s\S]*?transform:\s*translateY\(1\.25rem\)[\s\S]*?transform\s+420ms\s+var\(--ease-out\)/);
-  assert.match(stylesSource, /\.bloom-finale\.is-visible\s+\.bloom-finale__inner\s*\{[\s\S]*?transition-delay:\s*100ms/);
-  assert.match(stylesSource, /\.bloom-finale\.is-instant,[\s\S]*?\.bloom-finale\.is-instant\s+\.bloom-finale__inner\s*\{[\s\S]*?transition:\s*none/);
-  assert.match(stylesSource, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.bloom-finale\.is-visible\s*\{[\s\S]*?clip-path:\s*inset\(0\s+0\s+0\s+0\)/);
-  assert.match(stylesSource, /\.stage:not\(\[data-bloom-finale=["']false["']\]\)\s+\.bloom-cursor__ring\s*\{[\s\S]*?opacity:\s*0\s*!important/);
-  assert.doesNotMatch(stylesSource, /\.bloom-finale[\s\S]{0,500}transition:\s*all/);
-});
-
-await check("the client rail stays vertical, independently scrollable, and keyboard operable", () => {
-  assert.match(indexSource, /id=["']client-list["'][\s\S]*?aria-label=["']Clients[^"']*scroll vertically/);
-  assert.match(indexSource, /id=["']client-list["'][\s\S]*?tabindex=["']0["']/);
-  assert.match(indexSource, /id=["']client-current["']/);
-  assert.match(indexSource, /class=["']client client--contact["']/);
-  assert.match(stylesSource, /\.client-rail__panel\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?left:/);
-  assert.match(stylesSource, /\.client-rail__group\s*\{[\s\S]*?flex-direction:\s*column;[\s\S]*?overflow-y:\s*auto;/);
-  assert.match(stylesSource, /scroll-snap-type:\s*y mandatory/);
-  assert.match(stylesSource, /overscroll-behavior-y:\s*contain/);
-  assert.match(stylesSource, /\.client-rail__group\s*\{[\s\S]*?scrollbar-color:\s*transparent transparent/);
-  assert.match(stylesSource, /@media\s*\(hover:\s*hover\)\s*and\s*\(pointer:\s*fine\)[\s\S]*?\.client-rail__group:hover\s*\{[\s\S]*?scrollbar-color:\s*rgba\(var\(--gold-rgb\),\s*0\.34\) transparent/);
-  assert.match(stylesSource, /\.client-rail__group:focus-visible::-webkit-scrollbar-thumb\s*\{[\s\S]*?background:\s*rgba\(var\(--gold-rgb\),\s*0\.34\)/);
-  assert.match(stylesSource, /\.client--contact\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?right:/);
-  assert.match(interactionsSource, /function\s+clientPosition\s*\(/);
-  assert.match(interactionsSource, /["']ArrowDown["'][\s\S]*?["']ArrowUp["'][\s\S]*?["']Home["'][\s\S]*?["']End["']/);
-  assert.match(interactionsSource, /!link\.closest\(["']#client-list["']\)/);
-});
-
-await check("optional grounds animate while the plain night remains the default", () => {
-  assert.match(indexSource, /<html[^>]*data-ground=["']night["'][^>]*data-ambient-motion=["']running["']/);
-  assert.match(indexSource, /backdrop__atmosphere--weather/);
-  assert.match(indexSource, /backdrop__atmosphere--horizon/);
-  assert.match(indexSource, /id=["']ground-swatches["'][\s\S]*?role=["']group["'][\s\S]*?aria-label=["']Background choices["']/);
-  assert.match(indexSource, /document\.addEventListener\(["']visibilitychange["'],\s*syncAmbientMotion\)/);
-  assert.match(indexSource, /var\s+keys\s*=\s*\[["']ArrowLeft["'],\s*["']ArrowRight["'],\s*["']Home["'],\s*["']End["']\]/);
-  assert.match(stylesSource, /@keyframes\s+weather-drift/);
-  assert.match(stylesSource, /@keyframes\s+horizon-drift/);
-  assert.match(stylesSource, /@keyframes\s+contour-drift/);
-  assert.match(stylesSource, /:root\[data-ground=["']night["']\][\s\S]*?--weather-opacity:\s*0;[\s\S]*?--horizon-opacity:\s*0;/);
-  assert.match(stylesSource, /:root\[data-ambient-motion=["']paused["']\][\s\S]*?animation-play-state:\s*paused/);
-  assert.match(stylesSource, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.backdrop__atmosphere[\s\S]*?animation:\s*none\s*!important/);
-  assert.match(interactionsSource, /const\s+PARALLAX_TARGETS\s*=\s*Object\.freeze/);
-  assert.match(interactionsSource, /backdrop__atmosphere--weather["'],\s*range:\s*0\.012/);
-  assert.match(interactionsSource, /backdrop__atmosphere--horizon["'],\s*range:\s*-0\.007/);
-});
-
-await check("the living-system interface exposes progress and precise bloom feedback", () => {
-  assert.match(indexSource, /id=["']cultivation["'][^>]*aria-hidden=["']true["'][^>]*data-phase=["']growth["']/);
-  assert.match(indexSource, /id=["']cultivation-phase["']/);
-  assert.match(indexSource, /id=["']cultivation-value["']/);
-  assert.match(indexSource, /id=["']cultivation-fill["']/);
-  assert.match(indexSource, /id=["']bloom-cursor["'][^>]*aria-hidden=["']true["']/);
-  assert.match(indexSource, /<h1>[\s\S]*?<span>Technology design<\/span>[\s\S]*?class=["']hero__summary["']/);
-  assert.match(indexSource, /class=["']client__arrow["'][\s\S]*?<path\s+d=["']M2\.5 9\.5 9\.5 2\.5M4 2\.5h5\.5V8["']/);
-  assert.doesNotMatch(indexSource, /&#8599;/);
-  assert.match(scriptSource, /function\s+syncCultivation\s*\(/);
-  assert.match(scriptSource, /bloomProgress\s*\+=\s*head\.value/);
-  assert.match(scriptSource, /cultivationFill\.style\.transform\s*=\s*`scaleX\(/);
-  assert.match(interactionsSource, /function\s+bloomCursor\s*\(/);
-  assert.match(interactionsSource, /cursor\.style\.transform\s*=\s*`translate3d\(/);
-  assert.match(stylesSource, /\.bloom-cursor__ring\s*\{[\s\S]*?width:\s*clamp\(8\.5rem,\s*20vmin,\s*13rem\)/);
-  assert.match(stylesSource, /\.cultivation__fill\s*\{[\s\S]*?transform:\s*scaleX\(0\)/);
-  assert.match(stylesSource, /@media\s*\(hover:\s*none\),\s*\(pointer:\s*coarse\)[\s\S]*?\.bloom-cursor/);
-});
-
-await check("state-triggered motion stays interruptible and input aware", () => {
-  assert.match(indexSource, /id=["']ground-swatches["'][\s\S]*?aria-hidden=["']true["'][\s\S]*?data-open=["']false["'][\s\S]*?inert/);
-  assert.match(indexSource, /tray\.dataset\.open\s*=\s*String\(state\)/);
-  assert.match(indexSource, /tray\.inert\s*=\s*!state/);
-  assert.match(indexSource, /event\.detail\s*===\s*0/);
-  assert.match(indexSource, /!reduceMotion\.matches\s*&&[\s\S]*?!document\.hidden\s*&&[\s\S]*?root\.dataset\.ground/);
-  assert.match(indexSource, /groundAnimation\.cancel\(\)/);
-  assert.match(indexSource, /backdrop\.animate\([\s\S]*?opacity:\s*0\.26,\s*offset:\s*DISSOLVE_SWAP_OFFSET/);
-  assert.match(indexSource, /var\s+DISSOLVE_DURATION_MS\s*=\s*500/);
-  assert.match(indexSource, /duration:\s*DISSOLVE_DURATION_MS/);
-  assert.match(indexSource, /DISSOLVE_DURATION_MS\s*\*\s*DISSOLVE_SWAP_OFFSET/);
-  assert.match(indexSource, /window\.getComputedStyle\(backdrop\)\.opacity/);
-  assert.match(indexSource, /b\.dataset\.label\s*=\s*g\.label/);
-  assert.doesNotMatch(indexSource, /tray\.hidden/);
-  assert.match(stylesSource, /\.ground-switch__swatches\s*\{[\s\S]*?transform-origin:\s*right center;[\s\S]*?visibility\s+0s linear 180ms/);
-  assert.match(stylesSource, /\.ground-switch__swatches\[data-open=["']true["']\]/);
-  assert.match(stylesSource, /@media\s*\(max-width:\s*620px\)[\s\S]*?\.ground-switch__swatches\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4,\s*1\.75rem\)/);
-  assert.match(stylesSource, /\.ground-swatch\s*\{[\s\S]*?width:\s*1\.75rem;[\s\S]*?touch-action:\s*manipulation/);
-  assert.match(stylesSource, /\.ground-swatch::before\s*\{[\s\S]*?width:\s*11px;[\s\S]*?background:\s*var\(--swatch\)/);
-  assert.doesNotMatch(stylesSource, /@keyframes\s+deal/);
-  assert.doesNotMatch(stylesSource, /@keyframes\s+ground-dissolve/);
-  assert.doesNotMatch(stylesSource, /\.is-shifting\s+\.backdrop/);
-  assert.match(interactionsSource, /list\.scrollTo\(\{[\s\S]*?behavior:\s*["']auto["']/);
-  assert.doesNotMatch(interactionsSource, /behavior:\s*reduced\.matches\s*\?\s*["']auto["']\s*:\s*["']smooth["']/);
-  assert.match(scriptSource, /["']Tap a bud to begin["']/);
-  assert.match(scriptSource, /["']Tap another closed bud["']/);
-  assert.match(scriptSource, /function\s+onFinePointerChange\s*\([\s\S]*?syncCultivation\(\)/);
-  assert.match(stylesSource, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation:\s*settle var\(--duration-fast\)/);
-  assert.doesNotMatch(stylesSource, /animation-duration:\s*0\.01ms/);
-  assert.match(stylesSource, /--duration-press:\s*120ms/);
-  assert.match(stylesSource, /--duration-environment:\s*var\(--duration-ui\)/);
-  assert.match(stylesSource, /\.cultivation__fill\s*\{[\s\S]*?transition:\s*none;[\s\S]*?will-change:\s*transform/);
-  assert.doesNotMatch(stylesSource, /\.cultivation__fill\s*\{[\s\S]{0,420}?transition:\s*transform\s+260ms/);
-  assert.match(stylesSource, /\.loader__track span\s*\{[\s\S]*?animation:\s*load\s+1\.6s\s+linear\s+infinite/);
-  assert.match(stylesSource, /\.ground-swatch\s*\{[\s\S]*?transform\s+var\(--duration-press\)\s+var\(--ease-out\)/);
-  assert.match(stylesSource, /\.client:active \.client__arrow\s*\{[\s\S]*?transition-duration:\s*var\(--duration-press\)/);
-  assert.match(stylesSource, /\.client-rail__group\[data-input=["']keyboard["']\][\s\S]*?transition:\s*none/);
-  assert.match(interactionsSource, /list\.dataset\.input\s*=\s*["']keyboard["']/);
-  assert.doesNotMatch(interactionsSource, /function\s+pressable\s*\(/);
-  assert.match(indexSource, /switcher\.dataset\.input\s*=\s*input/);
-  assert.match(stylesSource, /\.ground-switch\[data-input=["']keyboard["']\][\s\S]*?transition:\s*none/);
-  assert.match(stylesSource, /\.bloom-finale__action:active,[\s\S]*?transition-duration:\s*var\(--duration-press\)/);
-});
-
-await check("direct manipulation yields the chrome and the client rail reports intent", () => {
-  assert.match(scriptSource, /if\s*\(!state\.press\.moved\)\s*\{[\s\S]*?ui\.body\.classList\.add\(["']is-orbiting["']\)[\s\S]*?qaOrbitFocusCount/);
-  assert.match(scriptSource, /function\s+clearPress\s*\(\)[\s\S]*?classList\.remove\(["']is-orbiting["']\)/);
-  assert.match(scriptSource, /function\s+onPointerDown\s*\([\s\S]*?dataset\.pointerFocus\s*=\s*["']true["'][\s\S]*?\.focus\(\{\s*preventScroll:\s*true\s*\}\)/);
-  assert.match(scriptSource, /function\s+onStageKeydown\s*\([\s\S]*?removeAttribute\(["']data-pointer-focus["']\)/);
-  assert.match(scriptSource, /ui\.stage\.addEventListener\(["']blur["'],\s*\(\)\s*=>\s*ui\.stage\.removeAttribute\(["']data-pointer-focus["']\)\)/);
-  assert.match(stylesSource, /\.is-orbiting\s+:is\(\.hero,\s*\.ground-switch,\s*\.client-rail,\s*\.cultivation\)\s*\{[\s\S]*?opacity:\s*0\.34/);
-  assert.match(stylesSource, /\.stage\[data-pointer-focus=["']true["']\]:focus-visible\s*\{[\s\S]*?outline:\s*none/);
-  assert.match(stylesSource, /\.is-orbiting\s+\.bloom-cursor__ring\s*\{[\s\S]*?opacity:\s*0\s*!important/);
-  assert.match(interactionsSource, /item\.dataset\.current\s*=\s*String\(itemIndex\s*===\s*index\)/);
-  assert.match(interactionsSource, /item\.addEventListener\(["']pointerenter["'],\s*pointerPreview/);
-  assert.match(interactionsSource, /item\.addEventListener\(["']focus["'],\s*focusPreview\)/);
-  assert.match(stylesSource, /\.client\[data-current=["']true["']\]::before\s*\{[\s\S]*?scaleX\(0\.16\)/);
-  assert.match(stylesSource, /\.ground-swatch:active\s*\{[\s\S]*?scale\(0\.97\)/);
-  assert.match(stylesSource, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ground-switch__toggle:active\s+\.ground-switch__dot\s*\{[\s\S]*?transform:\s*none/);
-});
-
+/* -------------------------------------------------------------- preview */
 const port = await reservePort();
-const child = spawn(process.execPath, ["server.mjs"], {
+const server = spawn("npx", ["vite", "preview", "--port", String(port), "--strictPort", "--host", "127.0.0.1"], {
   cwd: root,
-  env: { ...process.env, PORT: String(port) },
   stdio: ["ignore", "pipe", "pipe"],
 });
-
 try {
-  await waitForServer(child, port);
-  const baseUrl = `http://127.0.0.1:${port}`;
+  await waitForServer(port);
 
-  await check("GET / serves the accessible application shell", async () => {
-    const response = await fetch(`${baseUrl}/?quality=low&qa=1`);
+  await check("GET / serves the application shell", async () => {
+    const response = await fetchRaw(port, "/");
     assert.equal(response.status, 200);
-    assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/);
-    assert.equal(response.headers.get("cache-control"), "no-store");
-    assert.equal(response.headers.get("x-content-type-options"), "nosniff");
-    const body = await response.text();
-    assert.match(body, /id=["']wattle-canvas["']/);
-    assert.match(body, /<script\s+type=["']module["']\s+src=["']\.\/script\.js["']/);
+    assert.match(response.headers["content-type"], /text\/html/);
+    const html = response.body.toString("utf8");
+    assert.match(html, /<div id="root"><\/div>/);
+    assert.match(html, /<noscript>/);
   });
 
-  await check("public runtime and poster assets have correct MIME types", async () => {
-    const scriptResponse = await fetch(`${baseUrl}/script.js?cache-bust=qa`);
-    assert.equal(scriptResponse.status, 200);
-    assert.match(scriptResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
-    assert.match(await scriptResponse.text(), /window\.__WATTLE_BOOTED__/);
-
-    const motionResponse = await fetch(`${baseUrl}/bloom-motion.js?cache-bust=qa`);
-    assert.equal(motionResponse.status, 200);
-    assert.match(motionResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
-    assert.match(await motionResponse.text(), /BLOOM_DURATION_MS\s*=\s*2700/);
-
-    const scaleResponse = await fetch(`${baseUrl}/flower-scale.js?cache-bust=qa`);
-    assert.equal(scaleResponse.status, 200);
-    assert.match(scaleResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
-    assert.match(await scaleResponse.text(), /WATTLE_FLOWER_SCALE\s*=\s*1\.2/);
-
-    const growthResponse = await fetch(`${baseUrl}/tree-growth.js?cache-bust=qa`);
-    assert.equal(growthResponse.status, 200);
-    assert.match(growthResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
-    assert.match(await growthResponse.text(), /TREE_GROWTH_DURATION_MS\s*=\s*8400/);
-
-    const lsystemResponse = await fetch(`${baseUrl}/wattle-lsystem.js?cache-bust=qa`);
-    assert.equal(lsystemResponse.status, 200);
-    assert.match(lsystemResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
-    assert.match(await lsystemResponse.text(), /deriveWattleSentence/);
-
-    const robotsResponse = await fetch(`${baseUrl}/robots.txt`);
-    assert.equal(robotsResponse.status, 200);
-    assert.match(robotsResponse.headers.get("content-type") ?? "", /^text\/plain\b/);
-    assert.match(await robotsResponse.text(), /Sitemap: https:\/\/watl-three\.vercel\.app\/sitemap\.xml/);
-
-    const sitemapResponse = await fetch(`${baseUrl}/sitemap.xml`);
-    assert.equal(sitemapResponse.status, 200);
-    assert.match(sitemapResponse.headers.get("content-type") ?? "", /^application\/xml\b/);
-    assert.match(await sitemapResponse.text(), /<loc>https:\/\/watl-three\.vercel\.app\/<\/loc>/);
-
-    const threeResponse = await fetch(`${baseUrl}/vendor/three/three.module.js`, { method: "HEAD" });
-    assert.equal(threeResponse.status, 200);
-    assert.match(threeResponse.headers.get("content-type") ?? "", /^text\/javascript\b/);
-    assert.equal(await threeResponse.text(), "");
-
-    const posterResponse = await fetch(`${baseUrl}/assets/wattle-golden-poster.webp`, { method: "HEAD" });
-    assert.equal(posterResponse.status, 200);
-    assert.match(posterResponse.headers.get("content-type") ?? "", /^image\/webp\b/);
-    assert(Number(posterResponse.headers.get("content-length")) > 0);
-    assert.equal(posterResponse.headers.get("cache-control"), "public, max-age=0, must-revalidate");
-    assert.match(posterResponse.headers.get("etag") ?? "", /^W\/"[0-9a-f]+-[0-9a-f]+"$/);
-    assert.equal(await posterResponse.text(), "");
-
-    const cachedPosterResponse = await fetch(`${baseUrl}/assets/wattle-golden-poster.webp`, {
-      headers: { "If-None-Match": posterResponse.headers.get("etag") },
-    });
-    assert.equal(cachedPosterResponse.status, 304);
-    assert.equal(await cachedPosterResponse.text(), "");
+  await check("runtime and poster assets are served with correct MIME types", async () => {
+    const scripts = relative.filter((file) => file.endsWith(".js"));
+    assert.ok(scripts.length > 0);
+    for (const script of scripts.slice(0, 3)) {
+      const response = await fetchRaw(port, `/${script}`);
+      assert.equal(response.status, 200, script);
+      assert.match(response.headers["content-type"], /javascript/, script);
+    }
+    const poster = await fetchRaw(port, "/assets/wattle-golden-poster.webp");
+    assert.equal(poster.status, 200);
+    assert.match(poster.headers["content-type"], /image\/webp/);
+    const contours = await fetchRaw(port, "/assets/ground-contours.svg");
+    assert.match(contours.headers["content-type"], /svg/);
+    const robots = await fetchRaw(port, "/robots.txt");
+    assert.equal(robots.status, 200);
   });
 
-  await check("non-public source and hidden paths stay private", async () => {
-    const sourceResponse = await fetch(`${baseUrl}/src/hero.js`);
-    assert.equal(sourceResponse.status, 404);
-    const hiddenResponse = await fetch(`${baseUrl}/.git/config`);
-    assert.equal(hiddenResponse.status, 404);
-  });
-
-  await check("unsupported methods and hostile Host headers are rejected", async () => {
-    const methodResponse = await fetch(`${baseUrl}/`, { method: "POST" });
-    assert.equal(methodResponse.status, 405);
-    assert.equal(methodResponse.headers.get("allow"), "GET, HEAD");
-
-    const hostResponse = await requestWithHost(port, "watl.invalid");
-    assert.equal(hostResponse.statusCode, 403);
+  await check("source and reference paths are not reachable from the build", async () => {
+    /* `vite preview` answers unknown paths with the shell (SPA fallback), so
+       the check is on what comes back, not the status: never source, never a
+       model, never the legacy document. */
+    for (const path of ["/src/main.tsx", "/reference/legacy-index.html", "/reference/golden-wattle-bouquet.glb", "/tools/capture.mjs"]) {
+      const response = await fetchRaw(port, path);
+      const type = String(response.headers["content-type"] ?? "");
+      const body = response.body.toString("utf8", 0, 4096);
+      assert.ok(!/javascript|gltf|octet-stream/.test(type), `${path} served as ${type}`);
+      assert.ok(!/createRoot\(|import \{|wattle-stage/.test(body) || /<div id="root"><\/div>/.test(body), `${path} leaked content`);
+      assert.doesNotMatch(body, /vendor\/three|interactions\.js/, `${path} served the legacy document`);
+    }
   });
 } finally {
-  await stopServer(child);
+  server.kill("SIGTERM");
+  const timeout = setTimeout(() => server.kill("SIGKILL"), 2000);
+  await once(server, "exit").catch(() => {});
+  clearTimeout(timeout);
 }
 
 console.log(`1..${checkCount}`);
