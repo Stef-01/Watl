@@ -110,7 +110,7 @@ export const LENIS = {
 export const HERO = {
   pinVh: 420,
   pinVhMobile: 340,
-  preGrowth: 0.2,
+  preGrowth: 0.28,
   growthEnd: 0.52,
   headlineExit: [0.16, 0.32],
   practiceLine: [0.34, 0.48],
