@@ -8,7 +8,7 @@ export function Footer() {
           <span>Wattle Technologies</span>
         </p>
         <ul className="footer__links label">
-          <li><a href="mailto:Stefan.thottunkal@gmail.com">Email</a></li>
+          <li><a href="mailto:info@wattle.tech.au">info@wattle.tech.au</a></li>
           <li><a href="https://github.com/Stef-01/Watl" rel="noreferrer">Source</a></li>
           <li><a href="#main">Top</a></li>
         </ul>

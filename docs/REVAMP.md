@@ -125,6 +125,17 @@ DoF         focalLength 0.02, bokehScale 0 → 2.2 (scrubbed), focus at the
 Vignette / grain / strata stay in CSS behind the transparent canvas.
 ```
 
+Vignette     in-scene, offset 0.28, darkness 0.5, on top of the CSS vignette.
+Tone         Neutral. AgX was trialled (`?tone=agx`) and rejected: it
+             desaturates the pom-poms to cream and greys the phyllodes.
+
+Lighting: a procedural environment rendered once from four drei
+light-formers (warm key 2.2 upper-left, cool rim 1.6 behind-right, earth
+bounce 0.6 below, sky 0.5 above; map intensity 0.85) plus the analytic rig
+(hemisphere 0.7, key 1.25, rim 0.6, fill 0.28). Phyllodes are a physical
+material with sheen 0.55 and roughness 0.6; bark 0.84; cups and petals 0.62.
+No HDRI is fetched; nothing leaves the origin.
+
 Renderer: `NoToneMapping` on the renderer (the composer tone-maps), exposure
 1.1, `SRGBColorSpace`, `dpr` clamped to `[1, 1.4]` high / `[1, 1.12]` low,
 `frameloop="demand"` with a ticker that invalidates only while something is

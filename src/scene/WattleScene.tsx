@@ -14,6 +14,7 @@ import { readSeed } from "./profile";
 import { EngineContext, engineHandle } from "./engineContext";
 import { CameraRig } from "./CameraRig";
 import { Effects } from "./Effects";
+import { Lighting } from "./Lighting";
 import { Interaction } from "./Interaction";
 import { QaBridge } from "./QaBridge";
 import { ScenePerf } from "../dev/ScenePerf";
@@ -240,6 +241,7 @@ export function WattleScene({ profile, stageRef }: Props) {
         onFallback={() => setDpr(dprRange[0])}
       />
       <primitive object={engine.scene} />
+      <Lighting />
       <CameraRig />
       <Interaction stageRef={stageRef} />
       <Effects />

@@ -24,6 +24,7 @@ export function useReveal(ref: RefObject<HTMLElement | null>, selector: string) 
     const tween = gsap.from(items, {
       y: 40,
       opacity: 0,
+      filter: "blur(6px)",
       duration: DUR.title,
       ease: ease("settle"),
       stagger: STAGGER.rows,

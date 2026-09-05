@@ -1,7 +1,7 @@
 # WATL / Technology Design
 
-WATL is a technology design practice creating interfaces, systems, and
-experimental tools for futures that have not settled into form. Its homepage
+WATL is a technology design studio for digital products, social media
+marketing strategy and product design. Its homepage
 is a procedural Golden Wattle branch that grows, buds and flowers as the page
 is scrolled, inside a deterministic field of warm light and faint signals.
 
@@ -15,7 +15,7 @@ is loaded from a model file; the plant renders from rules.
 | Layer | What it does |
 | --- | --- |
 | React 19 + Vite | The document, the chrome and the sections |
-| React Three Fiber + drei | Owns the renderer, camera and frame loop; the engine's scene graph is mounted as a primitive. drei's `PerformanceMonitor` trades pixel ratio for frame rate |
+| React Three Fiber + drei | Owns the renderer, camera and frame loop; the engine's scene graph is mounted as a primitive. drei renders a procedural light-former environment for image-based lighting and trades pixel ratio for frame rate with `PerformanceMonitor` |
 | `@react-three/postprocessing` | One composer: depth of field (hero close-up), thresholded bloom, radial chromatic aberration, neutral tone mapping, SMAA |
 | GSAP + ScrollTrigger + CustomEase + SplitText | The pinned arrival scrub, section reveals, camera poses, the ground dissolve |
 | Lenis | Smoothed native scrolling, driven from the GSAP ticker so scrub and scroll share a frame |

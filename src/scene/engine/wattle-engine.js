@@ -798,18 +798,24 @@ function addLighting(scene) {
   /* Neutral, broad light preserves the reference's grey-olive foliage without
      painting the branch orange or green. Brightness comes from coverage rather
      than saturated emitters, so the scene stays quiet when no bloom is active. */
-  const hemisphere = new THREE.HemisphereLight(0xf4f1dd, 0x30382b, 1.32);
+  /* The environment map now carries the ambient term, so the hemisphere
+     steps back; the rim steps forward to cut the silhouette from the night. */
+  const hemisphere = new THREE.HemisphereLight(0xf4f1dd, 0x30382b, 0.7);
+  hemisphere.name = "hemisphere";
   scene.add(hemisphere);
 
-  const key = new THREE.DirectionalLight(0xfff5d7, 1.42);
+  const key = new THREE.DirectionalLight(0xfff5d7, 1.25);
+  key.name = "key";
   key.position.set(-4.2, 6.5, 5.2);
   scene.add(key);
 
-  const rim = new THREE.DirectionalLight(0xdfe6c8, 0.34);
+  const rim = new THREE.DirectionalLight(0xd9e4ff, 0.6);
+  rim.name = "rim";
   rim.position.set(4.8, 2.6, -4.4);
   scene.add(rim);
 
-  const fill = new THREE.DirectionalLight(0xe7ead6, 0.32);
+  const fill = new THREE.DirectionalLight(0xe7ead6, 0.28);
+  fill.name = "fill";
   fill.position.set(0, -2, 4);
   scene.add(fill);
 
@@ -1797,23 +1803,31 @@ function buildBouquet(data) {
   const cupGeometry = createCorollaCupGeometry();
   const coreGeometry = createBloomSupportGeometry();
 
+  /* Materials respond to the page's procedural environment (see
+     src/scene/Lighting.tsx): bark stays matte but picks up a little sky,
+     phyllodes carry the leathery sheen of a real Acacia blade. */
   const stemMaterial = new THREE.MeshStandardMaterial({
     color: 0xfffffe,
-    roughness: 0.96,
+    roughness: 0.84,
     metalness: 0,
     vertexColors: true,
+    envMapIntensity: 0.55,
   });
   stemMaterial.name = "Stem_Material";
   const stemGrowth = { value: 1 };
   enableTimedStemGrowth(stemMaterial, stemGrowth);
-  const leafMaterial = new THREE.MeshStandardMaterial({
+  const leafMaterial = new THREE.MeshPhysicalMaterial({
     color: 0xfffffe,
-    roughness: 0.94,
+    roughness: 0.6,
     metalness: 0,
     emissive: 0x000000,
     emissiveIntensity: 0,
     vertexColors: true,
     side: THREE.DoubleSide,
+    envMapIntensity: 0.9,
+    sheen: 0.55,
+    sheenRoughness: 0.6,
+    sheenColor: new THREE.Color(0x8fb56a),
   });
   leafMaterial.name = "Phyllode_Material";
   const leafGrowth = { value: 1 };
@@ -1827,33 +1841,36 @@ function buildBouquet(data) {
   const pompomMassMaterial = createPompomMassMaterial();
   const capMaterial = new THREE.MeshStandardMaterial({
     color: 0xfffffe,
-    roughness: 0.9,
+    roughness: 0.78,
     metalness: 0,
     vertexColors: true,
     alphaHash: true,
+    envMapIntensity: 0.6,
   });
   capMaterial.name = "Closed_Floret_Capsule_Material";
   const budGrowth = { value: 1 };
   enableInstancedVisibility(capMaterial, "bud-capsule", budGrowth);
   const cupMaterial = new THREE.MeshStandardMaterial({
     color: 0xfffffe,
-    roughness: 0.8,
+    roughness: 0.62,
     metalness: 0,
     emissive: 0x000000,
     emissiveIntensity: 0,
     vertexColors: true,
     alphaHash: true,
+    envMapIntensity: 0.5,
   });
   cupMaterial.name = "Golden_Corolla_Cup_Material";
   enableInstancedVisibility(cupMaterial, "corolla-cup");
   const petalMaterial = new THREE.MeshStandardMaterial({
     color: 0xfffffe,
-    roughness: 0.8,
+    roughness: 0.62,
     metalness: 0,
     emissive: 0x000000,
     emissiveIntensity: 0,
     vertexColors: true,
     side: THREE.DoubleSide,
+    envMapIntensity: 0.5,
   });
   petalMaterial.name = "Five_Part_Floret_Material";
   enableInstancedVisibility(petalMaterial, "petal-morph");

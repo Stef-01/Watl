@@ -26,6 +26,7 @@ const tag = option("tag", new Date().toISOString().slice(0, 16).replace(/[:T]/g,
 const only = option("only", "all");
 const frames = option("frames", "0,0.12,0.3,0.52,0.7,0.85,1").split(",").map(Number);
 const quality = option("quality", "");
+const extraQuery = option("query", "");
 const outDir = join(root, "qa", "captures", tag);
 
 const VIEWPORTS = [
@@ -62,6 +63,7 @@ async function capture(browser, viewport) {
 
   const url = new URL(baseUrl);
   if (quality) url.searchParams.set("quality", quality);
+  for (const [key, value] of new URLSearchParams(extraQuery)) url.searchParams.set(key, value);
   url.searchParams.set("tune", "0");
   await page.goto(url.href, { waitUntil: "networkidle" });
   await page.waitForSelector('#wattle-stage[data-state="ready"]', { timeout: 20000 });

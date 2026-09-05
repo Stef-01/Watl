@@ -170,7 +170,7 @@ export function Arrival() {
           Technology <em>design</em>
         </h1>
         <p className="arrival__practice label">
-          Digital products · Interfaces · Generative systems
+          Digital products · Social media strategy · Product design
         </p>
         <p className="arrival__bloom">
           Systems that grow <em>into form.</em>

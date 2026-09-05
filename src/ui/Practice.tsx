@@ -19,13 +19,13 @@ const ROWS = [
   },
   {
     index: "02",
-    title: "Interfaces",
-    copy: "Interfaces with weight and restraint, designed in the browser and shipped from it.",
+    title: "Social media marketing strategy",
+    copy: "Strategy, content systems and campaigns that give a brand one voice across every platform.",
   },
   {
     index: "03",
-    title: "Generative systems",
-    copy: "Procedural, living systems — like this branch — that render from rules rather than files.",
+    title: "Product design",
+    copy: "Research, interface and design systems, shaped with weight and restraint and shipped from the browser.",
   },
 ];
 

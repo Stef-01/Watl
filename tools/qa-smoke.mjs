@@ -95,7 +95,8 @@ await check("the shell carries one consistent search and social identity", () =>
   assert.match(indexHtml, /<meta name="twitter:card" content="summary_large_image"/);
   assert.match(indexHtml, /"@type": "WebSite"/);
   assert.match(indexHtml, /"@type": "Organization"/);
-  assert.match(indexHtml, /"@type": "Person"/);
+  assert.doesNotMatch(indexHtml, /"@type": "Person"|Stefan/, "the studio speaks for itself");
+  assert.match(indexHtml, /info@wattle\.tech\.au/);
   assert.match(indexHtml, /"@type": "WebPage"/);
   assert.doesNotMatch(indexHtml, /name="keywords"/);
   assert.match(indexHtml, /data-ground="night"/, "night is the first-paint ground");

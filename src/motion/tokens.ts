@@ -167,8 +167,22 @@ export const FX = {
     focalLength: 0.02,
     bokehMax: 2.2,
   },
+  vignette: {
+    offset: 0.28,
+    darkness: 0.5,
+  },
   /** How far the flower layers exceed 1.0 so only they cross the threshold. */
   emissiveGain: 1.32,
+} as const;
+
+/** The procedural environment (src/scene/Lighting.tsx). Intensities are
+ *  light-former emissive strengths; `environment` scales the whole map. */
+export const LIGHT_RIG = {
+  environment: 0.85,
+  key: 2.2,
+  rim: 1.6,
+  bounce: 0.6,
+  sky: 0.5,
 } as const;
 
 /** Selection light on a hovered client row. */

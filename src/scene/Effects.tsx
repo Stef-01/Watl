@@ -19,6 +19,7 @@ import {
   EffectComposer,
   SMAA,
   ToneMapping,
+  Vignette,
 } from "@react-three/postprocessing";
 import { BlendFunction, ToneMappingMode } from "postprocessing";
 import { Vector2 } from "three";
@@ -27,7 +28,7 @@ import type { BloomEffect, DepthOfFieldEffect } from "postprocessing";
 import { FX } from "../motion/tokens";
 import { useEngine } from "./engineContext";
 import { pose, scrub } from "./scrub";
-import { useWatl } from "../state/store";
+import { pageQuery, useWatl } from "../state/store";
 
 /** Live overrides written by the tuning panel. Production never touches it. */
 export const fxLive: {
@@ -47,6 +48,9 @@ export const fxLive: {
 };
 
 const chromaticOffset = new Vector2(FX.chromatic.x, FX.chromatic.y);
+
+/* `?tone=agx` trials the AgX curve; neutral is the authored default. */
+const toneMode = pageQuery.get("tone") === "agx" ? ToneMappingMode.AGX : ToneMappingMode.NEUTRAL;
 
 export function Effects() {
   const engine = useEngine();
@@ -108,7 +112,8 @@ export function Effects() {
         radialModulation
         modulationOffset={FX.chromatic.modulationOffset}
       />
-      <ToneMapping mode={ToneMappingMode.NEUTRAL} />
+      <Vignette eskil={false} offset={FX.vignette.offset} darkness={FX.vignette.darkness} />
+      <ToneMapping mode={toneMode} />
       {high ? <SMAA /> : <></>}
     </EffectComposer>
   );

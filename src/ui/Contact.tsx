@@ -10,7 +10,7 @@ import { useWatl } from "../state/store";
 import { useMagnet } from "./useMagnet";
 import { useSectionPose } from "./useSectionPose";
 
-const EMAIL = "Stefan.thottunkal@gmail.com";
+const EMAIL = "info@wattle.tech.au";
 const CALENDLY_URL = "";
 
 function calendlyHref(): string | null {
@@ -49,6 +49,7 @@ export function Contact() {
     timeline.from(rest, {
       y: 24,
       opacity: 0,
+      filter: "blur(4px)",
       duration: DUR.reveal,
       ease: ease("out"),
       stagger: STAGGER.rows,
@@ -68,7 +69,7 @@ export function Contact() {
     <section ref={ref} className="contact section" id="contact" aria-labelledby="contact-title">
       <div className="section__inner">
         <h2 className="contact__title" id="contact-title">Help your business bloom.</h2>
-        <p className="contact__copy">Bring Stefan your next product, system, or ambitious idea.</p>
+        <p className="contact__copy">Bring us your next product, campaign, or ambitious idea.</p>
         <div className="contact__actions">
           <a
             className="contact__action contact__action--primary"
@@ -83,7 +84,7 @@ export function Contact() {
             className="contact__action"
             id="bloom-finale-calendar"
             data-booking-fallback={calendly ? "false" : "email"}
-            href={calendly ?? `mailto:${EMAIL}?subject=Book%20a%20meeting%20with%20WATL&body=Hi%20Stefan%2C%0A%0AI%27d%20like%20to%20book%20a%20meeting%20about%3A%0A`}
+            href={calendly ?? `mailto:${EMAIL}?subject=Book%20a%20meeting%20with%20WATL&body=Hi%20WATL%2C%0A%0AWe%27d%20like%20to%20book%20a%20meeting%20about%3A%0A`}
             target={calendly ? "_blank" : undefined}
             rel={calendly ? "noreferrer" : undefined}
           >
