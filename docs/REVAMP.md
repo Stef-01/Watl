@@ -78,8 +78,8 @@ mass ≥ 1.4 and a duration ≥ 1.1 s; anything lighter uses `EASE.lift` or
 
 | t | Branch | Camera | Type |
 | --- | --- | --- | --- |
-| load | growth 0 → 0.20 over 1.4 s `EASE.out`, started by the scene the moment it is ready; canvas opacity 0 → 1 over 0.9 s | authored portrait × 1.34 distance | wordmark letters rise (0.68 s, stagger 0.056, delay 0.12); headline lines rise through a mask (1.1 s, stagger 0.08, `EASE.settle`, delay 0.35); scroll cue at 1.6 s |
-| 0.00 – 0.52 | growth 0.20 → 1.00 (linear in t; the stage curves in `tree-growth.js` do the easing) | distance 1.34× → 1.06× on `EASE.inOut`; target.y tracks the growing tip: `bounds.min.y + 0.22 h` → authored centre | 0.16 – 0.32: headline exits (y −18 %, opacity 0); 0.34 – 0.48: practice line enters |
+| load | growth 0 → 0.20 over 1.4 s `EASE.out`, started by the scene the moment it is ready; canvas opacity 0 → 1 over 0.9 s | authored portrait × 1.34 distance | wordmark letters rise (0.68 s, stagger 0.056, delay 0.12); headline lines fade up 12 px (1.1 s, stagger 0.08, `EASE.settle`, delay 0.35); scroll cue at 1.6 s |
+| 0.00 – 0.52 | growth 0.20 → 1.00 (linear in t; the stage curves in `tree-growth.js` do the easing) | distance 1.34× → 1.06× on `EASE.inOut`; target.y tracks the growing tip: `bounds.min.y + 0.22 h` → authored centre | 0.16 – 0.32: headline fades out in place; 0.34 – 0.48: practice line enters |
 | 0.52 – 0.90 | bloom wave in t-space: heads ranked by `0.62 · height + 0.38 · birth`, head *i* starts at `0.52 + 0.20 · rank` and runs 0.18 of t through the eight acts; the wave scrub is t itself | 0.55 – 0.90: distance → 0.62×, azimuth 24° → 40°, elevation 4.5° → 9°, offset → 0.20, target → densest raceme centroid; DoF focus follows target, bokeh 0 → 2.2 over 0.60 – 0.80 | 0.58 – 0.72: "Systems that grow into form." rises |
 | 0.90 – 1.00 | settle | distance → 1.06×, azimuth → 30°, bokeh → 0 | text exits, pin releases |
 
@@ -134,8 +134,9 @@ profile.
 ## 7. Type and layout
 
 - Display: Instrument Serif (self-hosted via `@fontsource/instrument-serif`),
-  400 and italic. Headline `clamp(4rem, 11vw, 12rem)`, line-height 0.9,
-  tracking −0.02em. Section titles `clamp(2.4rem, 6vw, 5.6rem)`.
+  400 and italic. Headline `clamp(2.6rem, 6.4vw, 6.6rem)`, line-height 0.9,
+  tracking −0.02em; it fades in a line at a time and fades out on the
+  scroll without travelling. Section titles `clamp(2.4rem, 6vw, 5.6rem)`.
 - Mono: Geist Mono variable (self-hosted). Labels 0.68rem / 0.14em uppercase,
   meters and indices tabular.
 - Grid: 12 columns, gutter 1.5rem, page padding `clamp(1.25rem, 3vw, 3rem)`.

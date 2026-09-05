@@ -426,7 +426,7 @@
   }
 
   .arrival__headline {
-    font-size: clamp(3.4rem, 17vw, 6rem);
+    font-size: clamp(2.4rem, 11vw, 4rem);
   }
 
   /* The branch is centred behind the text on a phone, so each block of

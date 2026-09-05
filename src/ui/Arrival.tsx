@@ -45,14 +45,16 @@ export function Arrival() {
       return;
     }
 
-    const split = new SplitText(headline, { type: "lines", linesClass: "line", mask: "lines" });
+    const split = new SplitText(headline, { type: "lines", linesClass: "line" });
 
-    /* Arrival: the wordmark composes in Chrome; here the headline lines rise
-       through their masks. The shoot's pre-growth is started by the scene
-       itself the moment it is ready, so it is never clobbered by a build. */
+    /* Arrival: the wordmark composes in Chrome; here the headline lines fade
+       up, quietly, a line at a time. The shoot's pre-growth is started by the
+       scene itself the moment it is ready, so it is never clobbered by a
+       build. */
     gsap.set(headline, { opacity: 1 });
     gsap.from(split.lines, {
-      yPercent: 110,
+      opacity: 0,
+      y: 12,
       duration: DUR.title,
       ease: ease("settle"),
       stagger: STAGGER.lines,
@@ -129,9 +131,10 @@ export function Arrival() {
     }, settleIn);
 
     /* The type. Headline out, practice line in, bloom line in, everything out. */
+    /* The headline leaves as a fade, no travel: it is the quiet line the
+       branch grows past. */
     const [exitIn, exitOut] = HERO.headlineExit;
     timeline.to(split.lines, {
-      yPercent: -18,
       opacity: 0,
       duration: exitOut - exitIn,
       ease: ease("inOut"),

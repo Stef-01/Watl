@@ -43,7 +43,7 @@
   --label: 0.68rem;
   --label-tracking: 0.14em;
 
-  --display: clamp(4rem, 11vw, 12rem);
+  --display: clamp(2.6rem, 6.4vw, 6.6rem);
   --title: clamp(2.4rem, 6vw, 5.6rem);
   --lede: clamp(1.1rem, 0.95rem + 0.5vw, 1.4rem);
 }
